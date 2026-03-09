@@ -2,25 +2,21 @@ options:
   logging: CLOUD_LOGGING_ONLY
 
 steps:
-  # Build backend image
   - name: 'gcr.io/cloud-builders/docker'
     args: ['build', '-t', 'gcr.io/$PROJECT_ID/boardos-backend:$COMMIT_SHA', './backend']
 
-  # Build frontend image
   - name: 'gcr.io/cloud-builders/docker'
     args: ['build',
       '--build-arg', 'API_INTERNAL_URL=http://backend:3001',
       '-t', 'gcr.io/$PROJECT_ID/boardos-frontend:$COMMIT_SHA',
       './frontend']
 
-  # Push both images to Google Container Registry
   - name: 'gcr.io/cloud-builders/docker'
     args: ['push', 'gcr.io/$PROJECT_ID/boardos-backend:$COMMIT_SHA']
 
   - name: 'gcr.io/cloud-builders/docker'
     args: ['push', 'gcr.io/$PROJECT_ID/boardos-frontend:$COMMIT_SHA']
 
-  # SSH into VM and redeploy
   - name: 'gcr.io/cloud-builders/gcloud'
     args:
       - compute
@@ -28,4 +24,5 @@ steps:
       - boardos-vm
       - --zone=asia-south1-a
       - --project=$PROJECT_ID
+      - --tunnel-through-iap
       - --command=cd ~/boardos && git pull && docker compose up -d --force-recreate
