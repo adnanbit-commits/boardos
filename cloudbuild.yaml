@@ -1,3 +1,6 @@
+options:
+  logging: CLOUD_LOGGING_ONLY
+
 steps:
   # Build backend image
   - name: 'gcr.io/cloud-builders/docker'
@@ -25,4 +28,4 @@ steps:
       - boardos-vm
       - --zone=asia-south1-a
       - --project=$PROJECT_ID
-      - --command=cd ~/boardos && git pull && docker compose pull && docker compose up -d --force-recreate
+      - --command=cd ~/boardos && git pull && docker compose up -d --force-recreate
