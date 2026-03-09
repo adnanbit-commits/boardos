@@ -1,0 +1,120 @@
+'use client';
+// app/(dashboard)/companies/[companyId]/resolutions/page.tsx
+// All resolutions across all meetings for this company.
+
+import { useEffect, useState } from 'react';
+import Link from 'next/link';
+import { useParams } from 'next/navigation';
+import { useRequireAuth } from '@/hooks/useAuth';
+import { resolutions as resApi, type Resolution } from '@/lib/api';
+
+const STATUS_STYLE: Record<string, { label: string; color: string; bg: string }> = {
+  DRAFT:         { label: 'Draft',    color: '#6B7280', bg: '#1A1D23' },
+  PROPOSED:      { label: 'Proposed', color: '#4F7FFF', bg: '#1A2540' },
+  VOTING:        { label: 'Voting',   color: '#F59E0B', bg: '#261A05' },
+  APPROVED:      { label: 'Approved', color: '#22C55E', bg: '#0D2318' },
+  REJECTED:      { label: 'Rejected', color: '#EF4444', bg: '#2D1515' },
+  WITHDRAWN:     { label: 'Withdrawn',color: '#6B7280', bg: '#1A1D23' },
+};
+
+export default function ResolutionsPage() {
+  const { companyId } = useParams<{ companyId: string }>();
+  const { token } = useRequireAuth();
+  const [resolutions, setResolutions] = useState<Resolution[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [filter, setFilter] = useState<string>('ALL');
+
+  useEffect(() => {
+    if (!token || !companyId) return;
+    resApi.list(companyId, token)
+      .then(setResolutions)
+      .catch(() => {})
+      .finally(() => setLoading(false));
+  }, [token, companyId]);
+
+  const filtered = filter === 'ALL' ? resolutions : resolutions.filter(r => r.status === filter);
+
+  if (loading) return (
+    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%' }}>
+      <div style={{ width: 24, height: 24, border: '2px solid #232830', borderTopColor: '#4F7FFF', borderRadius: '50%', animation: 'spin 0.8s linear infinite' }} />
+      <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+    </div>
+  );
+
+  return (
+    <div style={{ padding: '36px 48px', maxWidth: 900, fontFamily: "'DM Sans', system-ui, sans-serif" }}>
+      <div style={{ marginBottom: 28 }}>
+        <h1 style={{ fontSize: 22, fontWeight: 700, color: '#F0F2F5', marginBottom: 4 }}>Resolutions</h1>
+        <p style={{ fontSize: 13, color: '#6B7280' }}>All board resolutions across meetings</p>
+      </div>
+
+      {/* Filter tabs */}
+      <div style={{ display: 'flex', gap: 6, marginBottom: 24 }}>
+        {['ALL', 'VOTING', 'APPROVED', 'REJECTED', 'DRAFT'].map(s => (
+          <button key={s} onClick={() => setFilter(s)} style={{
+            padding: '5px 14px', borderRadius: 8, fontSize: 12, fontWeight: 600, cursor: 'pointer',
+            border: '1px solid',
+            background: filter === s ? '#1A2540' : 'transparent',
+            borderColor: filter === s ? '#4F7FFF' : '#232830',
+            color: filter === s ? '#4F7FFF' : '#6B7280',
+          }}>
+            {s === 'ALL' ? 'All' : STATUS_STYLE[s]?.label ?? s}
+            {s !== 'ALL' && (
+              <span style={{ marginLeft: 6, opacity: 0.7 }}>
+                {resolutions.filter(r => r.status === s).length}
+              </span>
+            )}
+          </button>
+        ))}
+      </div>
+
+      {filtered.length === 0 ? (
+        <div style={{ textAlign: 'center', padding: '60px 0', color: '#374151' }}>
+          <p style={{ fontSize: 32, marginBottom: 12 }}>◇</p>
+          <p style={{ fontSize: 14 }}>No resolutions{filter !== 'ALL' ? ` with status "${STATUS_STYLE[filter]?.label}"` : ''} yet.</p>
+          <p style={{ fontSize: 12, marginTop: 8 }}>Resolutions are created within meetings.</p>
+        </div>
+      ) : (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+          {filtered.map(r => {
+            const s = STATUS_STYLE[r.status] ?? STATUS_STYLE.DRAFT;
+            const approve = r.tally?.APPROVE ?? 0;
+            const reject  = r.tally?.REJECT  ?? 0;
+            const abstain = r.tally?.ABSTAIN  ?? 0;
+            const total   = approve + reject + abstain;
+            return (
+              <Link key={r.id} href={`/companies/${companyId}/meetings/${r.meetingId}`}
+                style={{ textDecoration: 'none' }}>
+                <div style={{
+                  background: '#191D24', border: '1px solid #232830', borderRadius: 14,
+                  padding: '18px 20px', cursor: 'pointer',
+                  transition: 'border-color 0.15s',
+                }}
+                  onMouseEnter={e => (e.currentTarget as HTMLElement).style.borderColor = '#374151'}
+                  onMouseLeave={e => (e.currentTarget as HTMLElement).style.borderColor = '#232830'}
+                >
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 10 }}>
+                    <div style={{ flex: 1, minWidth: 0, marginRight: 16 }}>
+                      <p style={{ fontSize: 14, fontWeight: 600, color: '#F0F2F5', marginBottom: 4 }}>{r.title}</p>
+                      <p style={{ fontSize: 12, color: '#6B7280', lineHeight: 1.5, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{r.text}</p>
+                    </div>
+                    <span style={{ background: s.bg, color: s.color, padding: '3px 10px', borderRadius: 20, fontSize: 10, fontWeight: 700, letterSpacing: '0.06em', flexShrink: 0 }}>
+                      {s.label}
+                    </span>
+                  </div>
+                  {total > 0 && (
+                    <div style={{ display: 'flex', gap: 12, fontSize: 11, color: '#6B7280' }}>
+                      <span style={{ color: '#22C55E' }}>✓ {approve} for</span>
+                      <span style={{ color: '#EF4444' }}>✕ {reject} against</span>
+                      {abstain > 0 && <span>~ {abstain} abstain</span>}
+                    </div>
+                  )}
+                </div>
+              </Link>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}

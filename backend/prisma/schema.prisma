@@ -1,0 +1,365 @@
+// BoardOS — Prisma Schema
+// Modular multi-tenant governance platform
+// Each governance table carries company_id for tenant isolation
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ─────────────────────────────────────────────
+// ENUMS
+// ─────────────────────────────────────────────
+
+enum UserRole {
+  ADMIN
+  DIRECTOR
+  OBSERVER
+  PARTNER
+}
+
+enum MeetingStatus {
+  DRAFT
+  SCHEDULED
+  IN_PROGRESS
+  VOTING
+  MINUTES_DRAFT
+  SIGNED
+  LOCKED
+}
+
+enum ResolutionStatus {
+  DRAFT
+  PROPOSED
+  VOTING
+  APPROVED
+  REJECTED
+}
+
+enum VoteValue {
+  APPROVE
+  REJECT
+  ABSTAIN
+}
+
+enum MinutesStatus {
+  DRAFT
+  SIGNED
+  LOCKED
+}
+
+enum NotificationStatus {
+  PENDING
+  SENT
+  FAILED
+}
+
+enum NotificationType {
+  MEETING_INVITE
+  VOTE_REQUEST
+  SIGNATURE_REQUEST
+  MINUTES_READY
+  GENERAL
+}
+
+// ─────────────────────────────────────────────
+// USERS
+// ─────────────────────────────────────────────
+
+model User {
+  id            String   @id @default(uuid())
+  email         String   @unique
+  name          String
+  passwordHash  String
+  phone         String?
+  avatarUrl     String?
+  isActive      Boolean  @default(true)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  // Relations
+  companyUsers  CompanyUser[]
+  votes         Vote[]
+  auditLogs     AuditLog[]
+  notifications Notification[]
+  signedMinutes Minutes[]   @relation("SignedBy")
+  sentInvites   Invitation[] @relation("SentInvites")
+
+  @@map("users")
+}
+
+// ─────────────────────────────────────────────
+// COMPANIES (multi-tenant root)
+// ─────────────────────────────────────────────
+
+model Company {
+  id            String   @id @default(uuid())
+  name          String
+  cin           String?  @unique  // Company Identification Number
+  pan           String?
+  registeredAt  String?           // e.g. "Mumbai, MH"
+  logoUrl       String?
+  isActive      Boolean  @default(true)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  // Relations
+  companyUsers  CompanyUser[]
+  meetings      Meeting[]
+  resolutions   Resolution[]
+  documents     Document[]
+  auditLogs     AuditLog[]
+  notifications Notification[]
+  archivedDocs  ArchivedDocument[]
+  invitations   Invitation[]
+
+  @@map("companies")
+}
+
+// Junction: user ↔ company with role
+model CompanyUser {
+  id         String   @id @default(uuid())
+  userId     String
+  companyId  String
+  role       UserRole @default(DIRECTOR)
+  isChairman Boolean  @default(false)
+  invitedAt  DateTime @default(now())
+  acceptedAt DateTime?
+
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, companyId])
+  @@map("company_users")
+}
+
+// Token-based invite — exists until accepted or expired
+// Allows inviting people who aren't registered yet
+model Invitation {
+  id          String    @id @default(uuid())
+  companyId   String
+  email       String                      // Invitee email
+  role        UserRole  @default(DIRECTOR)
+  isChairman  Boolean   @default(false)
+  token       String    @unique           // Secure random token (32 bytes hex)
+  invitedById String                      // Who sent the invite
+  acceptedAt  DateTime?
+  expiresAt   DateTime                    // 7-day TTL
+  createdAt   DateTime  @default(now())
+
+  company     Company   @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  invitedBy   User      @relation("SentInvites", fields: [invitedById], references: [id])
+
+  @@unique([companyId, email])            // One pending invite per email per company
+  @@map("invitations")
+}
+
+// ─────────────────────────────────────────────
+// MEETINGS
+// ─────────────────────────────────────────────
+
+model Meeting {
+  id            String        @id @default(uuid())
+  companyId     String
+  title         String
+  description   String?
+  scheduledAt   DateTime
+  location      String?
+  status        MeetingStatus @default(DRAFT)
+
+  // Video integration
+  videoProvider String?       // "zoom" | "meet" | "teams"
+  videoUrl      String?
+  videoMeetingId String?
+
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+
+  company       Company       @relation(fields: [companyId], references: [id])
+  agendaItems   AgendaItem[]
+  resolutions   Resolution[]
+  minutes       Minutes?
+
+  @@map("meetings")
+}
+
+model AgendaItem {
+  id          String   @id @default(uuid())
+  meetingId   String
+  title       String
+  description String?
+  order       Int      @default(0)
+  createdAt   DateTime @default(now())
+
+  meeting     Meeting      @relation(fields: [meetingId], references: [id], onDelete: Cascade)
+  resolutions Resolution[]
+
+  @@map("agenda_items")
+}
+
+// ─────────────────────────────────────────────
+// RESOLUTIONS & VOTING
+// ─────────────────────────────────────────────
+
+model Resolution {
+  id           String           @id @default(uuid())
+  companyId    String
+  meetingId    String
+  agendaItemId String?
+  title        String
+  text         String           // Full legal resolution text
+  status       ResolutionStatus @default(DRAFT)
+  createdAt    DateTime         @default(now())
+  updatedAt    DateTime         @updatedAt
+
+  company      Company          @relation(fields: [companyId], references: [id])
+  meeting      Meeting          @relation(fields: [meetingId], references: [id])
+  agendaItem   AgendaItem?      @relation(fields: [agendaItemId], references: [id])
+  votes        Vote[]
+  certifiedCopies CertifiedCopy[]
+
+  @@map("resolutions")
+}
+
+model Vote {
+  id           String    @id @default(uuid())
+  resolutionId String
+  userId       String
+  value        VoteValue
+  remarks      String?
+  createdAt    DateTime  @default(now())
+
+  resolution   Resolution @relation(fields: [resolutionId], references: [id], onDelete: Cascade)
+  user         User       @relation(fields: [userId], references: [id])
+
+  // A director votes only once per resolution
+  @@unique([resolutionId, userId])
+  @@map("votes")
+}
+
+// ─────────────────────────────────────────────
+// MINUTES
+// ─────────────────────────────────────────────
+
+model Minutes {
+  id          String        @id @default(uuid())
+  meetingId   String        @unique
+  content     String        // HTML or structured JSON
+  status      MinutesStatus @default(DRAFT)
+  signedById  String?
+  signedAt    DateTime?
+  signatureHash String?     // Hash of signed content for tamper detection
+
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+
+  meeting     Meeting       @relation(fields: [meetingId], references: [id])
+  signedBy    User?         @relation("SignedBy", fields: [signedById], references: [id])
+  document    Document?
+
+  @@map("minutes")
+}
+
+// ─────────────────────────────────────────────
+// DOCUMENTS & CERTIFIED COPIES
+// ─────────────────────────────────────────────
+
+model Document {
+  id          String   @id @default(uuid())
+  companyId   String
+  minutesId   String?  @unique
+  name        String
+  type        String   // "minutes" | "certified_copy" | "notice" | "upload"
+  s3Key       String
+  s3Url       String
+  mimeType    String   @default("application/pdf")
+  sizeBytes   Int?
+  hash        String?  // SHA-256 for integrity verification
+  isImmutable Boolean  @default(false)
+  createdAt   DateTime @default(now())
+
+  company     Company  @relation(fields: [companyId], references: [id])
+  minutes     Minutes? @relation(fields: [minutesId], references: [id])
+
+  @@map("documents")
+}
+
+model CertifiedCopy {
+  id            String   @id @default(uuid())
+  resolutionId  String
+  documentUrl   String
+  s3Key         String
+  signatureHash String   // Cryptographic proof of authenticity
+  certifiedAt   DateTime @default(now())
+
+  resolution    Resolution @relation(fields: [resolutionId], references: [id])
+
+  @@map("certified_copies")
+}
+
+// ─────────────────────────────────────────────
+// ARCHIVE
+// ─────────────────────────────────────────────
+
+model ArchivedDocument {
+  id          String   @id @default(uuid())
+  companyId   String
+  name        String
+  description String?
+  s3Key       String
+  s3Url       String
+  hash        String   // SHA-256 — immutable verification
+  version     Int      @default(1)
+  uploadedAt  DateTime @default(now())
+
+  company     Company  @relation(fields: [companyId], references: [id])
+
+  @@map("archived_documents")
+}
+
+// ─────────────────────────────────────────────
+// AUDIT LOG (append-only, never deleted)
+// ─────────────────────────────────────────────
+
+model AuditLog {
+  id         String   @id @default(uuid())
+  companyId  String?
+  userId     String?
+  action     String   // e.g. "VOTE_CAST", "MINUTES_SIGNED"
+  entity     String   // e.g. "Resolution", "Meeting"
+  entityId   String?
+  metadata   Json?    // Additional context
+  ipAddress  String?
+  userAgent  String?
+  createdAt  DateTime @default(now())
+
+  company    Company? @relation(fields: [companyId], references: [id])
+  user       User?    @relation(fields: [userId], references: [id])
+
+  @@map("audit_logs")
+}
+
+// ─────────────────────────────────────────────
+// NOTIFICATIONS
+// ─────────────────────────────────────────────
+
+model Notification {
+  id         String             @id @default(uuid())
+  companyId  String?
+  userId     String
+  type       NotificationType
+  subject    String
+  body       String
+  status     NotificationStatus @default(PENDING)
+  sentAt     DateTime?
+  createdAt  DateTime           @default(now())
+
+  company    Company?           @relation(fields: [companyId], references: [id])
+  user       User               @relation(fields: [userId], references: [id])
+
+  @@map("notifications")
+}

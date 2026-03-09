@@ -1,0 +1,77 @@
+version: '3.9'
+
+services:
+
+  postgres:
+    image: postgres:15-alpine
+    container_name: boardos_postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER:     boardos
+      POSTGRES_PASSWORD: boardos_secret
+      POSTGRES_DB:       boardos
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U boardos"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    container_name: boardos_redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: boardos_backend
+    restart: unless-stopped
+    ports:
+      - "3001:3001"
+    environment:
+      DATABASE_URL:          postgresql://boardos:boardos_secret@postgres:5432/boardos
+      REDIS_HOST:            redis
+      REDIS_PORT:            6379
+      JWT_SECRET:            ${JWT_SECRET:-boardos-dev-secret-change-in-production}
+      AWS_REGION:            ${AWS_REGION:-}
+      AWS_ACCESS_KEY_ID:     ${AWS_ACCESS_KEY_ID:-}
+      AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY:-}
+      S3_BUCKET:             ${S3_BUCKET:-}
+      RESEND_API_KEY:        ${RESEND_API_KEY:-}
+      FRONTEND_URL:          ${FRONTEND_URL:-}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      args:
+        - API_INTERNAL_URL=http://backend:3001
+    container_name: boardos_frontend
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      NEXT_PUBLIC_API_URL: http://34.47.225.65:3001
+      API_INTERNAL_URL: http://backend:3001
+    depends_on:
+      - backend
+
+volumes:
+  postgres_data:
