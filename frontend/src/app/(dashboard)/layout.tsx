@@ -17,6 +17,7 @@ const NAV_STATIC = [
 const NAV_COMPANY = [
   { key: 'meetings',    label: 'Meetings',    icon: '◈' },
   { key: 'resolutions', label: 'Resolutions', icon: '◇' },
+  { key: 'circular-resolutions', label: 'Circular Resolutions', icon: '↻' },
   { key: 'archive',     label: 'Archive',     icon: '▤' },
   { key: '',            label: 'Members & Invites', icon: '◎' },
 ];
@@ -27,18 +28,28 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const { user, token, logout, isLoading } = useRequireAuth();
   const [company,  setCompany]  = useState<CompanyWithMeta | null>(null);
   const [companies, setCompanies] = useState<CompanyWithMeta[]>([]);
-  const [switcherOpen, setSwitcherOpen] = useState(false);
   const [userMenuOpen, setUserMenuOpen] = useState(false);
   const userMenuRef = useRef<HTMLDivElement>(null);
 
-  // Load the user's companies and pick the first as active
+  // Load the user's companies
   useEffect(() => {
     if (!token) return;
     companiesApi.list(token).then(list => {
       setCompanies(list);
-      if (list.length > 0) setCompany(list[0]);
     }).catch(() => {});
   }, [token]);
+
+  // Sync active company with URL — picks the company whose id appears in the pathname
+  useEffect(() => {
+    if (companies.length === 0) return;
+    const match = pathname.match(/\/companies\/([^/]+)/);
+    if (match) {
+      const found = companies.find(c => c.id === match[1]);
+      if (found) { setCompany(found); return; }
+    }
+    // Not on a company route — keep current or default to first
+    setCompany(prev => prev ?? companies[0]);
+  }, [pathname, companies]);
 
   // Close user menu on outside click
   useEffect(() => {
@@ -73,7 +84,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
       {/* ── Top Navbar ────────────────────────────────────────────────────────── */}
       <header className="flex-shrink-0 h-[52px] bg-[#13161B] border-b border-[#232830]
-        flex items-center justify-between px-5 z-10">
+        flex items-center justify-between px-5 relative z-30">
 
         <div className="flex items-center gap-3">
           {/* Logo */}
@@ -85,55 +96,14 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
           <div className="w-px h-5 bg-[#232830]" />
 
-          {/* Company switcher */}
-          <div className="relative">
-            <button
-              onClick={() => setSwitcherOpen(o => !o)}
-              className="flex items-center gap-2 bg-[#191D24] border border-[#232830]
-                px-3 py-1.5 rounded-lg text-sm text-[#F0F2F5] font-medium
-                hover:border-[#374151] transition-colors"
-            >
-              <span className="text-xs">{company?.name ?? 'Select company'}</span>
-              <span className="text-[#6B7280] text-[10px]">▾</span>
-            </button>
-
-              {/* Dropdown */}
-              {switcherOpen && (
-                <div className="absolute top-full left-0 mt-1.5 w-64 bg-[#191D24] border border-[#232830]
-                  rounded-xl shadow-2xl z-50 overflow-hidden">
-                  {companies.map(c => (
-                    <button
-                      key={c.id}
-                      onClick={() => {
-                        setCompany(c);
-                        setSwitcherOpen(false);
-                        router.push(`/companies/${c.id}`);
-                      }}
-                      className="w-full text-left flex items-center gap-3 px-4 py-3
-                        hover:bg-[#232830] transition-colors border-b border-[#232830] last:border-0"
-                    >
-                      <div className="w-7 h-7 rounded-lg bg-[#1A2540] border border-[#2A3A6A]
-                        flex items-center justify-center text-[#4F7FFF] font-bold text-xs">
-                        {c.name[0]}
-                      </div>
-                      <div className="min-w-0">
-                        <p className="text-[#F0F2F5] text-xs font-semibold truncate">{c.name}</p>
-                        <p className="text-[#6B7280] text-[10px]">{c.myRole}</p>
-                      </div>
-                      {company?.id === c.id && <span className="ml-auto text-[#4F7FFF] text-xs">✓</span>}
-                    </button>
-                  ))}
-                  <Link
-                    href="/companies/new"
-                    onClick={() => setSwitcherOpen(false)}
-                    className="flex items-center gap-2 px-4 py-3 text-[#4F7FFF] text-xs
-                      font-medium hover:bg-[#232830] transition-colors"
-                  >
-                    <span>+</span> New company workspace
-                  </Link>
-                </div>
-              )}
-          </div>
+          {/* Breadcrumb — show active company when inside a company route */}
+          {company && (
+            <Link href="/dashboard"
+              className="flex items-center gap-2 text-xs text-[#6B7280] hover:text-[#F0F2F5] transition-colors">
+              <span>⬡</span>
+              <span className="font-medium">{company.name}</span>
+            </Link>
+          )}
         </div>
 
         {/* Right side */}
@@ -291,10 +261,6 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
       </div>
 
-      {/* Overlay to close switcher */}
-      {switcherOpen && (
-        <div className="fixed inset-0 z-40" onClick={() => setSwitcherOpen(false)} />
-      )}
     </div>
   );
 }
