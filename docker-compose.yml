@@ -50,6 +50,8 @@ services:
       AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY:-}
       S3_BUCKET:             ${S3_BUCKET:-}
       RESEND_API_KEY:        ${RESEND_API_KEY:-}
+      SANDBOX_API_KEY:       ${SANDBOX_API_KEY:-}
+      SANDBOX_API_SECRET:    ${SANDBOX_API_SECRET:-}
       FRONTEND_URL:          ${FRONTEND_URL:-}
     depends_on:
       postgres:

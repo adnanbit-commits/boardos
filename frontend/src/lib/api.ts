@@ -278,3 +278,27 @@ export async function fetchDashboardData(companyId: string, token: string) {
     allResolutions,
   };
 }
+
+// ── CIN Lookup ────────────────────────────────────────────────────────────────
+
+export interface CinDirector {
+  din: string;
+  name: string;
+  designation: string;
+  appointedOn: string | null;
+}
+
+export interface CinLookupResult {
+  cin: string;
+  companyName: string;
+  status: string;
+  incorporatedOn: string | null;
+  registeredAddress: string | null;
+  companyEmail: string | null;
+  directors: CinDirector[];
+}
+
+export const cinApi = {
+  lookup: (cinNumber: string, token: string) =>
+    get<CinLookupResult>(`/cin/lookup?cin=${encodeURIComponent(cinNumber)}`, token),
+};
