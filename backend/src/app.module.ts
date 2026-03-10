@@ -15,6 +15,7 @@ import { ArchiveModule } from './archive/archive.module';
 import { AuditModule } from './audit/audit.module';
 import { NotificationModule } from './notification/notification.module';
 import { CinModule } from './cin/cin.module';
+import { CircularModule } from './circular/circular.module';
 import { PrismaModule } from './prisma/prisma.module';
 
 @Module({
@@ -42,6 +43,7 @@ import { PrismaModule } from './prisma/prisma.module';
     AuditModule,
     NotificationModule,
     CinModule,
+    CircularModule,
   ],
 })
 export class AppModule {}

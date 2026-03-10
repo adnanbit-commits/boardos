@@ -302,3 +302,42 @@ export const cinApi = {
   lookup: (cinNumber: string, token: string) =>
     get<CinLookupResult>(`/cin/lookup?cin=${encodeURIComponent(cinNumber)}`, token),
 };
+
+// ── Circular Resolutions ──────────────────────────────────────────────────────
+
+export interface CircularSignature {
+  id:          string;
+  resolutionId: string;
+  userId:      string;
+  value:       'FOR' | 'OBJECT';
+  remarks:     string | null;
+  signedAt:    string;
+  user:        { id: string; name: string; email: string; avatarUrl: string | null };
+}
+
+export interface CircularResolution {
+  id:              string;
+  companyId:       string;
+  title:           string;
+  text:            string;
+  circulationNote: string | null;
+  deadline:        string | null;
+  status:          'DRAFT' | 'PROPOSED' | 'APPROVED' | 'REJECTED';
+  createdAt:       string;
+  signatures:      CircularSignature[];
+}
+
+export const circular = {
+  list:           (companyId: string, token: string) =>
+    get<CircularResolution[]>(`/companies/${companyId}/circular-resolutions`, token),
+  findOne:        (companyId: string, id: string, token: string) =>
+    get<CircularResolution>(`/companies/${companyId}/circular-resolutions/${id}`, token),
+  create:         (companyId: string, body: { title: string; text: string; circulationNote?: string; deadline?: string }, token: string) =>
+    post<CircularResolution>(`/companies/${companyId}/circular-resolutions`, body, token),
+  circulate:      (companyId: string, id: string, token: string) =>
+    post<CircularResolution>(`/companies/${companyId}/circular-resolutions/${id}/circulate`, undefined, token),
+  sign:           (companyId: string, id: string, body: { value: 'FOR' | 'OBJECT'; remarks?: string }, token: string) =>
+    post<CircularSignature>(`/companies/${companyId}/circular-resolutions/${id}/sign`, body, token),
+  requestMeeting: (companyId: string, id: string, token: string) =>
+    post<{ message: string }>(`/companies/${companyId}/circular-resolutions/${id}/request-meeting`, undefined, token),
+};

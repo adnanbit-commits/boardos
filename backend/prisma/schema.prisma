@@ -40,6 +40,16 @@ enum ResolutionStatus {
   REJECTED
 }
 
+enum ResolutionType {
+  MEETING
+  CIRCULAR
+}
+
+enum CircularSignatureValue {
+  FOR
+  OBJECT
+}
+
 enum VoteValue {
   APPROVE
   REJECT
@@ -90,7 +100,8 @@ model User {
   auditLogs     AuditLog[]
   notifications Notification[]
   signedMinutes Minutes[]   @relation("SignedBy")
-  sentInvites   Invitation[] @relation("SentInvites")
+  sentInvites         Invitation[] @relation("SentInvites")
+  circularSignatures  CircularSignature[]
 
   @@map("users")
 }
@@ -211,7 +222,10 @@ model AgendaItem {
 model Resolution {
   id           String           @id @default(uuid())
   companyId    String
-  meetingId    String
+  type         ResolutionType   @default(MEETING)
+  meetingId    String?          // null for CIRCULAR resolutions
+  deadline     DateTime?        // CIRCULAR only
+  circulationNote String?       // covering note sent to directors
   agendaItemId String?
   title        String
   text         String           // Full legal resolution text
@@ -220,10 +234,11 @@ model Resolution {
   updatedAt    DateTime         @updatedAt
 
   company      Company          @relation(fields: [companyId], references: [id])
-  meeting      Meeting          @relation(fields: [meetingId], references: [id])
+  meeting      Meeting?         @relation(fields: [meetingId], references: [id])
   agendaItem   AgendaItem?      @relation(fields: [agendaItemId], references: [id])
   votes        Vote[]
   certifiedCopies CertifiedCopy[]
+  signatures   CircularSignature[]
 
   @@map("resolutions")
 }
@@ -365,4 +380,19 @@ model Notification {
   user       User               @relation(fields: [userId], references: [id])
 
   @@map("notifications")
+}
+
+model CircularSignature {
+  id           String                 @id @default(uuid())
+  resolutionId String
+  userId       String
+  value        CircularSignatureValue // FOR | OBJECT
+  remarks      String?
+  signedAt     DateTime               @default(now())
+
+  resolution   Resolution @relation(fields: [resolutionId], references: [id], onDelete: Cascade)
+  user         User       @relation(fields: [userId], references: [id])
+
+  @@unique([resolutionId, userId]) // one signature per director per resolution
+  @@map("circular_signatures")
 }
