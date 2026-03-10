@@ -279,7 +279,7 @@ export class ResolutionService {
 
     // Meeting must be in VOTING phase
     const meeting = await this.prisma.meeting.findUnique({
-      where: { id: resolution.meetingId },
+      where: { id: resolution.meetingId ?? undefined },
       select: { status: true, title: true },
     });
 

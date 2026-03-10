@@ -13,7 +13,7 @@ export interface CreateCircularDto {
   title:            string;
   text:             string;
   circulationNote?: string;
-  deadline?:        string; // ISO — defaults to 7 days from now
+  deadline?:        string;
 }
 
 export interface SignCircularDto {
@@ -28,8 +28,6 @@ export class CircularService {
     private readonly audit:        AuditService,
     private readonly notification: NotificationService,
   ) {}
-
-  // ── List ──────────────────────────────────────────────────────────────────
 
   async list(companyId: string) {
     return this.prisma.resolution.findMany({
@@ -58,8 +56,6 @@ export class CircularService {
     return res;
   }
 
-  // ── Create ────────────────────────────────────────────────────────────────
-
   async create(companyId: string, userId: string, dto: CreateCircularDto) {
     await this.requireRole(companyId, userId, [UserRole.ADMIN, UserRole.PARTNER]);
 
@@ -79,11 +75,14 @@ export class CircularService {
       },
     });
 
-    await this.audit.log(companyId, userId, 'CIRCULAR_RESOLUTION_CREATED', { resolutionId: resolution.id, title: resolution.title });
+    await this.audit.log({
+      companyId, userId, action: 'CIRCULAR_RESOLUTION_CREATED',
+      entity: 'Resolution', entityId: resolution.id,
+      metadata: { title: resolution.title },
+    });
+
     return resolution;
   }
-
-  // ── Circulate (DRAFT → PROPOSED) ─────────────────────────────────────────
 
   async circulate(companyId: string, resolutionId: string, userId: string) {
     await this.requireRole(companyId, userId, [UserRole.ADMIN, UserRole.PARTNER]);
@@ -97,7 +96,6 @@ export class CircularService {
       data:  { status: ResolutionStatus.PROPOSED },
     });
 
-    // Notify all active directors
     const directors = await this.prisma.companyUser.findMany({
       where:   { companyId, role: { in: [UserRole.DIRECTOR, UserRole.ADMIN] }, acceptedAt: { not: null } },
       include: { user: true },
@@ -113,11 +111,14 @@ export class CircularService {
       }).catch(() => {});
     }
 
-    await this.audit.log(companyId, userId, 'CIRCULAR_RESOLUTION_CIRCULATED', { resolutionId, directorsNotified: directors.length });
+    await this.audit.log({
+      companyId, userId, action: 'CIRCULAR_RESOLUTION_CIRCULATED',
+      entity: 'Resolution', entityId: resolutionId,
+      metadata: { directorsNotified: directors.length },
+    });
+
     return updated;
   }
-
-  // ── Sign ──────────────────────────────────────────────────────────────────
 
   async sign(companyId: string, resolutionId: string, userId: string, dto: SignCircularDto) {
     const resolution = await this.findOne(companyId, resolutionId);
@@ -135,21 +136,27 @@ export class CircularService {
       update: { value: dto.value as CircularSignatureValue, remarks: dto.remarks, signedAt: new Date() },
     });
 
-    await this.audit.log(companyId, userId, 'CIRCULAR_RESOLUTION_SIGNED', { resolutionId, value: dto.value });
+    await this.audit.log({
+      companyId, userId, action: 'CIRCULAR_RESOLUTION_SIGNED',
+      entity: 'Resolution', entityId: resolutionId,
+      metadata: { value: dto.value },
+    });
+
     await this.checkMajority(companyId, resolutionId);
     return signature;
   }
 
-  // ── Request meeting conversion ────────────────────────────────────────────
-
   async requestMeeting(companyId: string, resolutionId: string, userId: string) {
     await this.findOne(companyId, resolutionId);
     await this.requireRole(companyId, userId, [UserRole.DIRECTOR, UserRole.ADMIN]);
-    await this.audit.log(companyId, userId, 'CIRCULAR_RESOLUTION_MEETING_REQUESTED', { resolutionId });
+
+    await this.audit.log({
+      companyId, userId, action: 'CIRCULAR_RESOLUTION_MEETING_REQUESTED',
+      entity: 'Resolution', entityId: resolutionId, metadata: {},
+    });
+
     return { message: 'Meeting request recorded. Admin will be notified to schedule a meeting.' };
   }
-
-  // ── Majority check ────────────────────────────────────────────────────────
 
   private async checkMajority(companyId: string, resolutionId: string) {
     const totalDirectors = await this.prisma.companyUser.count({
@@ -166,13 +173,13 @@ export class CircularService {
         where: { id: resolutionId },
         data:  { status: ResolutionStatus.APPROVED },
       });
-      await this.audit.log(companyId, 'system', 'CIRCULAR_RESOLUTION_AUTO_APPROVED', {
-        resolutionId, forCount, totalDirectors,
+      await this.audit.log({
+        companyId, userId: 'system', action: 'CIRCULAR_RESOLUTION_AUTO_APPROVED',
+        entity: 'Resolution', entityId: resolutionId,
+        metadata: { forCount, totalDirectors },
       });
     }
   }
-
-  // ── Role guard ────────────────────────────────────────────────────────────
 
   private async requireRole(companyId: string, userId: string, roles: UserRole[]) {
     const m = await this.prisma.companyUser.findFirst({
