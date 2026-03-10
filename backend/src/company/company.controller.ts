@@ -4,7 +4,6 @@ import {
   Param, Body, Req, UseGuards, HttpCode,
 } from '@nestjs/common';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
-import { Public } from '../auth/public.decorator';
 import { CompanyGuard } from './guards/company.guard';
 import { RequireRole } from './decorators/require-role.decorator';
 import { CompanyService } from './company.service';

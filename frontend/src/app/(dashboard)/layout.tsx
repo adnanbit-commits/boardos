@@ -47,8 +47,8 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       const found = companies.find(c => c.id === match[1]);
       if (found) { setCompany(found); return; }
     }
-    // Not on a company route — keep current or default to first
-    setCompany(prev => prev ?? companies[0]);
+    // Not on a company route — always default to first company so sidebar shows
+    setCompany(companies[0]);
   }, [pathname, companies]);
 
   // Close user menu on outside click
@@ -201,9 +201,23 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             {company && (
               <>
                 <div style={{ height: 1, background: '#232830', margin: '6px 4px' }} />
-                <p style={{ fontSize: 10, color: '#374151', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', padding: '2px 12px 4px' }}>
-                  {company.name.split(' ')[0]}
-                </p>
+                {/* Company switcher in sidebar */}
+                <div style={{ padding: '2px 4px 4px' }}>
+                  <select
+                    value={company.id}
+                    onChange={e => {
+                      const c = companies.find(x => x.id === e.target.value);
+                      if (c) { setCompany(c); router.push(`/companies/${c.id}`); }
+                    }}
+                    style={{ width: '100%', background: '#13161B', border: '1px solid #232830',
+                      borderRadius: 8, padding: '6px 10px', color: '#F0F2F5', fontSize: 12,
+                      fontWeight: 600, outline: 'none', cursor: 'pointer' }}
+                  >
+                    {companies.map(c => (
+                      <option key={c.id} value={c.id}>{c.name}</option>
+                    ))}
+                  </select>
+                </div>
                 {NAV_COMPANY.map(item => {
                   const href = item.key
                     ? `/companies/${company.id}/${item.key}`
