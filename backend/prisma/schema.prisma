@@ -74,7 +74,10 @@ model User {
   id            String   @id @default(uuid())
   email         String   @unique
   name          String
-  passwordHash  String
+  passwordHash    String?
+  googleId        String?  @unique
+  onboardingDone  Boolean  @default(false)
+  userIntent      String?  // cs_ca | director | observer | other
   phone         String?
   avatarUrl     String?
   isActive      Boolean  @default(true)
