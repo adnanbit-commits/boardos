@@ -13,7 +13,7 @@ import { MinutesService } from './minutes.service';
 export class MinutesController {
   constructor(private readonly minutes: MinutesService) {}
 
-  // GET — fetch existing minutes for a meeting
+  // GET — any member can read minutes
   @Get()
   findOne(
     @Param('companyId') companyId: string,
@@ -22,9 +22,9 @@ export class MinutesController {
     return this.minutes.findByMeeting(companyId, meetingId);
   }
 
-  // POST — auto-generate minutes from meeting data (admin only)
+  // POST — generate minutes from meeting data (CS/PARTNER and above)
   @Post()
-  @RequireRole('ADMIN')
+  @RequireRole('PARTNER')
   generate(
     @Param('companyId') companyId: string,
     @Param('meetingId') meetingId: string,
@@ -33,9 +33,11 @@ export class MinutesController {
     return this.minutes.generate(companyId, meetingId, req.user.userId);
   }
 
-  // POST /sign — chairman signs, freezes content, records SHA-256 hash
+  // POST /sign — role gate is PARTNER+; real gate is isChairman check in service
+  // This allows a chairman who is a DIRECTOR role to be promoted to PARTNER
+  // and still sign — or a PARTNER CS to sign on chairman's behalf if isChairman=true
   @Post('sign')
-  @RequireRole('ADMIN')
+  @RequireRole('PARTNER')
   sign(
     @Param('companyId') companyId: string,
     @Param('meetingId') meetingId: string,

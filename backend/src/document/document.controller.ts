@@ -11,13 +11,15 @@ import { DocumentService } from './document.service';
 export class DocumentController {
   constructor(private readonly documents: DocumentService) {}
 
+  // Any member can list documents
   @Get('documents')
   listDocuments(@Param('companyId') companyId: string) {
     return this.documents.listByCompany(companyId);
   }
 
+  // PARTNER+ can export minutes PDF (CS role needs this)
   @Post('meetings/:meetingId/minutes/export')
-  @RequireRole('ADMIN')
+  @RequireRole('PARTNER')
   exportMinutesPdf(
     @Param('companyId') companyId: string,
     @Param('meetingId') meetingId: string,
@@ -26,6 +28,7 @@ export class DocumentController {
     return this.documents.generateMinutesPdf(companyId, meetingId, req.user.userId);
   }
 
+  // Certify resolution copy stays ADMIN only — legal document, higher stakes
   @Post('resolutions/:resolutionId/certify')
   @RequireRole('ADMIN')
   certifyResolution(

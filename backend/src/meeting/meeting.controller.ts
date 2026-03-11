@@ -1,31 +1,33 @@
 import {
   Controller, Get, Post, Patch, Param, Body, UseGuards, Req,
 } from '@nestjs/common';
-import { JwtAuthGuard } from '../auth/jwt-auth.guard';
+import { JwtAuthGuard }   from '../auth/jwt-auth.guard';
+import { CompanyGuard }   from '../company/guards/company.guard';
+import { RequireRole }    from '../company/decorators/require-role.decorator';
 import { MeetingService } from './meeting.service';
 import { CreateMeetingDto } from './dto/create-meeting.dto';
 import { UpdateMeetingDto } from './dto/update-meeting.dto';
 import { AddAgendaItemDto } from './dto/add-agenda-item.dto';
 
-@UseGuards(JwtAuthGuard)
+@UseGuards(JwtAuthGuard, CompanyGuard)
 @Controller('companies/:companyId/meetings')
 export class MeetingController {
   constructor(private readonly meetingService: MeetingService) {}
 
-  // GET /companies/:companyId/meetings
+  // Read — any member including OBSERVER
   @Get()
   findAll(@Param('companyId') companyId: string) {
     return this.meetingService.findAll(companyId);
   }
 
-  // GET /companies/:companyId/meetings/:id
   @Get(':id')
   findOne(@Param('companyId') companyId: string, @Param('id') id: string) {
     return this.meetingService.findOne(companyId, id);
   }
 
-  // POST /companies/:companyId/meetings
+  // Write — DIRECTOR or above only
   @Post()
+  @RequireRole('DIRECTOR')
   create(
     @Param('companyId') companyId: string,
     @Body() dto: CreateMeetingDto,
@@ -34,8 +36,8 @@ export class MeetingController {
     return this.meetingService.create(companyId, dto, req.user.userId);
   }
 
-  // PATCH /companies/:companyId/meetings/:id
   @Patch(':id')
+  @RequireRole('DIRECTOR')
   update(
     @Param('companyId') companyId: string,
     @Param('id') id: string,
@@ -45,8 +47,8 @@ export class MeetingController {
     return this.meetingService.update(companyId, id, dto, req.user.userId);
   }
 
-  // POST /companies/:companyId/meetings/:id/agenda
   @Post(':id/agenda')
+  @RequireRole('DIRECTOR')
   addAgendaItem(
     @Param('companyId') companyId: string,
     @Param('id') meetingId: string,
@@ -55,9 +57,8 @@ export class MeetingController {
     return this.meetingService.addAgendaItem(meetingId, dto);
   }
 
-  // PATCH /companies/:companyId/meetings/:id/status/:status
-  // Drives the workflow state machine
   @Patch(':id/status/:status')
+  @RequireRole('DIRECTOR')
   transition(
     @Param('companyId') companyId: string,
     @Param('id') id: string,
@@ -67,5 +68,3 @@ export class MeetingController {
     return this.meetingService.transition(companyId, id, status, req.user.userId);
   }
 }
-
-

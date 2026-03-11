@@ -57,7 +57,7 @@ export class CircularService {
   }
 
   async create(companyId: string, userId: string, dto: CreateCircularDto) {
-    await this.requireRole(companyId, userId, [UserRole.ADMIN, UserRole.PARTNER]);
+    await this.requireRole(companyId, userId, [UserRole.ADMIN, UserRole.PARTNER, UserRole.DIRECTOR]);
 
     // Deadline stored if provided — hard cap enforced at circulate time, not create time
     // so drafts can hold any working deadline before it's circulated
