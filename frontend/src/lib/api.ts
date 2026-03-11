@@ -336,7 +336,7 @@ export const circular = {
     get<CircularResolution[]>(`/companies/${companyId}/circular-resolutions`, token),
   findOne:        (companyId: string, id: string, token: string) =>
     get<CircularResolution>(`/companies/${companyId}/circular-resolutions/${id}`, token),
-  create:         (companyId: string, body: { title: string; text: string; circulationNote: string; deadline?: string }, token: string) =>
+  create:         (companyId: string, body: { title: string; text: string; circulationNote?: string; deadline?: string }, token: string) =>
     post<CircularResolution>(`/companies/${companyId}/circular-resolutions`, body, token),
   update:         (companyId: string, id: string, body: Partial<{ title: string; text: string; circulationNote: string; deadline: string }>, token: string) =>
     patch<CircularResolution>(`/companies/${companyId}/circular-resolutions/${id}`, body, token),
