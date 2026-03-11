@@ -1,6 +1,6 @@
 'use client';
 // app/(dashboard)/companies/[companyId]/resolutions/page.tsx
-// All resolutions across all meetings for this company.
+// Board meeting resolutions only (CIRCULAR type has its own dedicated page)
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
@@ -9,12 +9,12 @@ import { useRequireAuth } from '@/hooks/useAuth';
 import { resolutions as resApi, type Resolution } from '@/lib/api';
 
 const STATUS_STYLE: Record<string, { label: string; color: string; bg: string }> = {
-  DRAFT:         { label: 'Draft',    color: '#6B7280', bg: '#1A1D23' },
-  PROPOSED:      { label: 'Proposed', color: '#4F7FFF', bg: '#1A2540' },
-  VOTING:        { label: 'Voting',   color: '#F59E0B', bg: '#261A05' },
-  APPROVED:      { label: 'Approved', color: '#22C55E', bg: '#0D2318' },
-  REJECTED:      { label: 'Rejected', color: '#EF4444', bg: '#2D1515' },
-  WITHDRAWN:     { label: 'Withdrawn',color: '#6B7280', bg: '#1A1D23' },
+  DRAFT:         { label: 'Draft',     color: '#6B7280', bg: '#1A1D23' },
+  PROPOSED:      { label: 'Proposed',  color: '#4F7FFF', bg: '#1A2540' },
+  VOTING:        { label: 'Voting',    color: '#F59E0B', bg: '#261A05' },
+  APPROVED:      { label: 'Approved',  color: '#22C55E', bg: '#0D2318' },
+  REJECTED:      { label: 'Rejected',  color: '#EF4444', bg: '#2D1515' },
+  WITHDRAWN:     { label: 'Withdrawn', color: '#6B7280', bg: '#1A1D23' },
 };
 
 export default function ResolutionsPage() {
@@ -27,7 +27,10 @@ export default function ResolutionsPage() {
   useEffect(() => {
     if (!token || !companyId) return;
     resApi.list(companyId, token)
-      .then(setResolutions)
+      .then(all => {
+        // Only show board meeting resolutions — circular ones have their own page
+        setResolutions(all.filter(r => r.type !== 'CIRCULAR' && r.meetingId != null));
+      })
       .catch(() => {})
       .finally(() => setLoading(false));
   }, [token, companyId]);
@@ -44,8 +47,8 @@ export default function ResolutionsPage() {
   return (
     <div style={{ padding: '36px 48px', maxWidth: 900, fontFamily: "'DM Sans', system-ui, sans-serif" }}>
       <div style={{ marginBottom: 28 }}>
-        <h1 style={{ fontSize: 22, fontWeight: 700, color: '#F0F2F5', marginBottom: 4 }}>Resolutions</h1>
-        <p style={{ fontSize: 13, color: '#6B7280' }}>All board resolutions across meetings</p>
+        <h1 style={{ fontSize: 22, fontWeight: 700, color: '#F0F2F5', marginBottom: 4 }}>Board Resolutions</h1>
+        <p style={{ fontSize: 13, color: '#6B7280' }}>All resolutions passed at board meetings. For circular resolutions, see the Circular Resolutions section.</p>
       </div>
 
       {/* Filter tabs */}
@@ -82,13 +85,13 @@ export default function ResolutionsPage() {
             const reject  = r.tally?.REJECT  ?? 0;
             const abstain = r.tally?.ABSTAIN  ?? 0;
             const total   = approve + reject + abstain;
+            // meetingId is guaranteed non-null here due to filter above
             return (
               <Link key={r.id} href={`/companies/${companyId}/meetings/${r.meetingId}`}
                 style={{ textDecoration: 'none' }}>
                 <div style={{
                   background: '#191D24', border: '1px solid #232830', borderRadius: 14,
                   padding: '18px 20px', cursor: 'pointer',
-                  transition: 'border-color 0.15s',
                 }}
                   onMouseEnter={e => (e.currentTarget as HTMLElement).style.borderColor = '#374151'}
                   onMouseLeave={e => (e.currentTarget as HTMLElement).style.borderColor = '#232830'}

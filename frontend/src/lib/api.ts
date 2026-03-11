@@ -93,7 +93,8 @@ export type MeetingDetail = Meeting & {
 };
 
 export interface Resolution {
-  id: string; meetingId: string; agendaItemId: string | null;
+  id: string; meetingId: string | null; agendaItemId: string | null;
+  type?: 'MEETING' | 'CIRCULAR';
   title: string; text: string; status: string;
   tally?: { APPROVE: number; REJECT: number; ABSTAIN: number };
   votes?: Vote[];
