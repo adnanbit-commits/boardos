@@ -1,14 +1,7 @@
-# Triggered manually or by backend/** file changes
 options:
   logging: CLOUD_LOGGING_ONLY
 
 steps:
-  - name: 'gcr.io/cloud-builders/docker'
-    args: ['build', '-t', 'gcr.io/$PROJECT_ID/boardos-backend:$COMMIT_SHA', './backend']
-
-  - name: 'gcr.io/cloud-builders/docker'
-    args: ['push', 'gcr.io/$PROJECT_ID/boardos-backend:$COMMIT_SHA']
-
   - name: 'gcr.io/cloud-builders/gcloud'
     args:
       - compute
@@ -17,4 +10,4 @@ steps:
       - --zone=asia-south1-c
       - --project=$PROJECT_ID
       - --tunnel-through-iap
-      - --command=/opt/boardos/deploy.sh
+      - --command=cd ~/boardos && git pull && docker compose build --no-cache backend && docker compose up -d
