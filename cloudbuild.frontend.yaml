@@ -10,4 +10,4 @@ steps:
       - --zone=asia-south1-c
       - --project=$PROJECT_ID
       - --tunnel-through-iap
-      - --command=cd /home/adnankhan/boardos && git pull && docker compose build --no-cache frontend && docker compose up -d frontend
+      - --command=git config --global --add safe.directory /home/adnankhan/boardos && cd /home/adnankhan/boardos && git pull && docker compose build --no-cache frontend && docker compose up -d frontend
