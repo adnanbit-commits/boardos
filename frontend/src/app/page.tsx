@@ -11,20 +11,10 @@ export default function LandingPage() {
   const [name, setName] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
-  const [activeSlide, setActiveSlide] = useState(0);
 
   useEffect(() => {
     if (getToken()) router.replace('/dashboard');
   }, [router]);
-
-  const slides = [
-    { number:'01', tag:'Companies Act S.173', headline:'Four meetings. Every year. Non-negotiable.', body:'Every Indian private company must hold a minimum of 4 board meetings annually, with no gap exceeding 120 days between consecutive meetings. A single missed cycle can trigger penalties of Rs.25,000 per officer in default — and in severe cases, director disqualification under S.164.', stat:'Rs.25,000', statLabel:'per officer in default', icon:'⚖️' },
-    { number:'02', tag:'Companies Act S.118 · ICSI SS-1', headline:'Minutes must be sealed within 30 days.', body:'ICSI Secretarial Standard SS-1 mandates that minutes of every board meeting be recorded, signed by the Chairperson, and entered in the minute book within 30 days. These are legal documents — courts have held that actions taken without a proper resolution are unenforceable against the company.', stat:'30 days', statLabel:'to seal meeting minutes', icon:'📋' },
-    { number:'03', tag:'Companies Act S.117 · Form MGT-14', headline:'File resolutions with ROC in 30 days.', body:'Certain board and shareholder resolutions must be filed with the Registrar of Companies via Form MGT-14 within 30 days of passing. This includes director appointments, related-party transactions, and key delegations under S.179(3). Delays invite compounding penalties and regulatory scrutiny.', stat:'MGT-14', statLabel:'filed within 30 days', icon:'🏛️' },
-    { number:'04', tag:'MCA21 V3 · DSC Mandate', headline:'Every filing requires a digital signature.', body:'MCA21 V3 mandates Class 2 or Class 3 Digital Signature Certificates for all corporate filings. Directors, Company Secretaries, and CAs must sign documents digitally — creating a tamper-proof, court-admissible audit trail that links every corporate action to an individual.', stat:'DSC', statLabel:'mandatory for all MCA filings', icon:'🔐' },
-    { number:'05', tag:'Companies Act S.175 · Circular Resolutions', headline:'Pass resolutions without convening a meeting.', body:'Section 175 permits boards to pass circular resolutions — without a physical meeting — for routine matters. These require written consent from a majority of directors and must be noted at the next board meeting. Every vote, signature, and timestamp is a permanent legal record.', stat:'S.175', statLabel:'circular resolution power', icon:'✍️' },
-    { number:'06', tag:'Audit Trail · Court-Ready Records', headline:'Every action, permanently recorded.', body:'BoardOS creates a cryptographically timestamped audit trail for every resolution, vote, signature, and document — meeting the evidentiary standards required by MCA, ICSI, and Indian courts. Directors, CAs, and CSs get role-specific access with full accountability at every step.', stat:'100%', statLabel:'digital, immutable, court-ready', icon:'🛡️' },
-  ];
 
   const handleAuth = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -34,7 +24,11 @@ export default function LandingPage() {
     try {
       const endpoint = isLogin ? '/auth/login' : '/auth/register';
       const body = isLogin ? { email, password } : { name, email, password };
-      const res = await fetch(`${API}${endpoint}`, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(body) });
+      const res = await fetch(`${API}${endpoint}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      });
       const data = await res.json();
       if (!res.ok) throw new Error(data.message || 'Authentication failed');
       localStorage.setItem('token', data.token);
@@ -51,150 +45,229 @@ export default function LandingPage() {
     window.location.href = `${API}/auth/google`;
   };
 
-  const features = [
-    { icon:'📅', title:'Meeting Management', desc:'Schedule, conduct, and close board meetings with agenda builder, quorum tracking, and automatic director notifications — from DRAFT to signed MINUTES in one flow.' },
-    { icon:'🗳️', title:'Digital Voting', desc:"Directors cast FOR/AGAINST votes with timestamped records. Resolutions auto-approve on majority, with full audit log of each vote linked to the director's identity." },
-    { icon:'📝', title:'Circular Resolutions', desc:'Pass board resolutions without a meeting under S.175. Each signature is timestamped and immutably recorded, noted automatically at the next board meeting.' },
-    { icon:'📄', title:'Automated Minutes', desc:'Board minutes generated from meeting data — compliant with ICSI SS-1 format. One-click PDF, watermarked and ready for the statutory minute book.' },
-    { icon:'🏢', title:'Multi-Workspace', desc:'Manage governance for multiple companies from a single account. Role-based access — ADMIN, DIRECTOR, PARTNER — scoped per workspace.' },
-    { icon:'🔗', title:'MCA CIN Lookup', desc:"Import director details directly from the MCA database using the company's CIN. Pre-fill forms and maintain accuracy against the official registry." },
-    { icon:'🗃️', title:'Resolution Archive', desc:'Every resolution, circular, and meeting automatically archived with full metadata. Search, retrieve, and export for statutory audits or legal proceedings.' },
-    { icon:'👥', title:'Director Invitations', desc:'Invite directors via email with secure token-based onboarding. Existing and new users both handled — zero friction for multi-director boards.' },
-    { icon:'🛡️', title:'Immutable Audit Trail', desc:'Every action — creation, vote, signature, status change — permanently logged with user identity, timestamp, and IP. Tamper-evident by design.' },
+  const compliance = [
+    {
+      ref: 'Sec. 173',
+      title: 'Minimum 4 Board Meetings Per Year',
+      body: 'Every Indian private company must hold at least 4 board meetings annually with no gap exceeding 120 days between consecutive meetings. Default attracts a penalty of Rs. 25,000 per officer and can lead to director disqualification under Sec. 164.',
+    },
+    {
+      ref: 'Sec. 118 + ICSI SS-1',
+      title: 'Minutes Must Be Sealed Within 30 Days',
+      body: 'Minutes of every board meeting must be recorded, signed by the Chairperson, and entered into the statutory minute book within 30 days. These are legal documents — actions taken without a properly recorded resolution can be held unenforceable.',
+    },
+    {
+      ref: 'Sec. 117 + Form MGT-14',
+      title: 'Resolutions Filed With ROC in 30 Days',
+      body: 'Certain board and shareholder resolutions must be filed with the Registrar of Companies via Form MGT-14 within 30 days of passing — including director appointments, RPTs, and delegations under Sec. 179(3). Late filings attract compounding penalties.',
+    },
+    {
+      ref: 'MCA21 V3',
+      title: 'Every Filing Requires a Digital Signature',
+      body: 'MCA21 mandates Class 2 or Class 3 DSC for all corporate filings. Directors, Company Secretaries, and CAs must sign digitally — creating a tamper-proof, court-admissible trail linking every corporate action to a named individual.',
+    },
+    {
+      ref: 'Sec. 175',
+      title: 'Circular Resolutions — Without Convening a Meeting',
+      body: 'Routine board matters can be resolved by circular resolution under Sec. 175, without holding a physical meeting. Majority written consent is required, and the resolution must be noted at the next board meeting. Every signature and timestamp is a permanent record.',
+    },
   ];
 
-  const audience = [
-    { emoji:'⚖️', role:'Company Secretary', desc:'Prepare notices, draft agendas, seal minutes, and maintain the statutory minute book — entirely digital, fully SS-1 compliant.' },
-    { emoji:'🏛️', role:'Director', desc:'Attend meetings, cast votes, sign circular resolutions, and access board papers — anytime, from anywhere, with a complete record.' },
-    { emoji:'📊', role:'Chartered Accountant', desc:'Review board-level financial resolutions, track compliance timelines, and access a clean audit trail for annual filings.' },
-    { emoji:'🏢', role:'Promoter / Founder', desc:"Run your company's governance the right way from day one — without a legal team on retainer for every board action." },
+  const features = [
+    { title: 'Meeting Management', body: 'Create meetings, build agendas, track quorum, notify directors, and generate compliant minutes — from draft to signed record in one place.' },
+    { title: 'Digital Voting', body: 'Directors vote FOR or AGAINST on each resolution. Votes are timestamped and linked to identity. Resolutions auto-approve on majority.' },
+    { title: 'Circular Resolutions', body: 'Pass resolutions without a meeting under Sec. 175. Signatures are recorded and noted at the next board meeting automatically.' },
+    { title: 'Automated Minutes', body: 'Minutes generated from meeting data in ICSI SS-1 format. One-click PDF download, ready for the statutory minute book.' },
+    { title: 'Multi-Company Workspace', body: 'Manage multiple companies from one account. Role-based access — Admin, Director, Partner — scoped per entity.' },
+    { title: 'MCA CIN Lookup', body: 'Import director details from the MCA registry using your company CIN. Accurate data, pre-filled, no manual entry.' },
+    { title: 'Resolution Archive', body: 'Every resolution, circular, and meeting archived with full metadata. Exportable for statutory audits and legal proceedings.' },
+    { title: 'Director Invitations', body: 'Invite directors by email. Token-based onboarding handles both new and existing users.' },
+    { title: 'Audit Trail', body: 'Every action — creation, vote, signature, status change — logged with user identity, timestamp, and IP. Immutable by design.' },
   ];
+
+  const s: Record<string, React.CSSProperties> = {
+    page:       { display: 'flex', minHeight: '100vh', fontFamily: 'Georgia, serif', background: '#0C0F1A', color: '#D8D4CC' },
+    left:       { flex: 1, overflowY: 'auto', borderRight: '1px solid #1E2535' },
+    right:      { width: '380px', flexShrink: 0, background: '#0F1320', position: 'sticky', top: 0, height: '100vh', overflowY: 'auto', padding: '48px 36px', display: 'flex', flexDirection: 'column', justifyContent: 'center' },
+
+    // header
+    header:     { padding: '28px 56px', borderBottom: '1px solid #1E2535', display: 'flex', alignItems: 'center', justifyContent: 'space-between' },
+    logoWrap:   { display: 'flex', alignItems: 'center', gap: '12px' },
+    logoMark:   { width: '32px', height: '32px', background: '#8B7355', borderRadius: '6px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '14px', fontWeight: 700, color: '#0C0F1A', fontFamily: 'Georgia, serif' },
+    logoText:   { fontSize: '18px', fontWeight: 600, color: '#D8D4CC', letterSpacing: '0.04em' },
+    headerBadge:{ fontSize: '10px', letterSpacing: '0.12em', textTransform: 'uppercase' as const, color: '#6B7A94', border: '1px solid #1E2535', borderRadius: '4px', padding: '4px 10px' },
+
+    // hero
+    hero:       { padding: '64px 56px 48px' },
+    eyebrow:    { fontSize: '10px', letterSpacing: '0.18em', textTransform: 'uppercase' as const, color: '#8B7355', marginBottom: '20px' },
+    h1:         { fontSize: 'clamp(32px, 3.5vw, 52px)', fontWeight: 400, lineHeight: 1.15, color: '#E8E4DC', maxWidth: '620px', marginBottom: '20px', fontStyle: 'italic' },
+    h1span:     { fontStyle: 'normal', fontWeight: 600 },
+    heroSub:    { fontSize: '15px', fontWeight: 400, lineHeight: 1.7, color: '#8B95A8', maxWidth: '540px', marginBottom: '36px', fontFamily: "'DM Sans', sans-serif" },
+    pills:      { display: 'flex', flexWrap: 'wrap' as const, gap: '8px' },
+    pill:       { fontSize: '11px', color: '#6B7A94', border: '1px solid #1E2535', borderRadius: '3px', padding: '4px 12px', fontFamily: "'DM Sans', sans-serif", letterSpacing: '0.04em' },
+
+    // alert
+    alert:      { margin: '0 56px 64px', padding: '20px 24px', background: 'rgba(139,115,85,0.08)', border: '1px solid rgba(139,115,85,0.2)', borderLeft: '3px solid #8B7355', borderRadius: '4px' },
+    alertText:  { fontSize: '13px', color: '#B0A898', lineHeight: 1.65, fontFamily: "'DM Sans', sans-serif" },
+
+    // section
+    section:    { padding: '0 56px', marginBottom: '40px' },
+    secLabel:   { fontSize: '10px', letterSpacing: '0.18em', textTransform: 'uppercase' as const, color: '#8B7355', marginBottom: '10px', fontFamily: "'DM Sans', sans-serif" },
+    secTitle:   { fontSize: '28px', fontWeight: 400, color: '#D8D4CC', lineHeight: 1.2 },
+
+    // compliance table
+    compWrap:   { padding: '0 56px', marginBottom: '80px' },
+    compRow:    { display: 'grid', gridTemplateColumns: '120px 1fr', gap: '0', borderTop: '1px solid #1A2030' },
+    compRef:    { padding: '24px 16px 24px 0', fontSize: '11px', color: '#8B7355', fontFamily: "'DM Sans', sans-serif", letterSpacing: '0.06em', lineHeight: 1.5 },
+    compBody:   { padding: '24px 0', borderLeft: '1px solid #1A2030', paddingLeft: '24px' },
+    compTitle:  { fontSize: '15px', fontWeight: 600, color: '#D8D4CC', marginBottom: '8px', fontFamily: "'DM Sans', sans-serif" },
+    compText:   { fontSize: '13px', color: '#7A8499', lineHeight: 1.7, fontFamily: "'DM Sans', sans-serif" },
+    compLast:   { borderBottom: '1px solid #1A2030' },
+
+    // features
+    featWrap:   { padding: '0 56px', marginBottom: '80px', display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '1px', background: '#1A2030', border: '1px solid #1A2030', borderRadius: '8px', overflow: 'hidden' },
+    featCard:   { background: '#0C0F1A', padding: '28px 24px' },
+    featTitle:  { fontSize: '14px', fontWeight: 600, color: '#C8C4BC', marginBottom: '8px', fontFamily: "'DM Sans', sans-serif" },
+    featBody:   { fontSize: '12px', color: '#5A6478', lineHeight: 1.65, fontFamily: "'DM Sans', sans-serif" },
+
+    // footer
+    footer:     { padding: '28px 56px', borderTop: '1px solid #1A2030', display: 'flex', justifyContent: 'space-between', alignItems: 'center' },
+    footerL:    { fontSize: '11px', color: '#3A4455', fontFamily: "'DM Sans', sans-serif" },
+    footerR:    { fontSize: '11px', color: '#3A4455', fontFamily: "'DM Sans', sans-serif", display: 'flex', gap: '20px' },
+
+    // login
+    loginH:     { fontSize: '24px', fontWeight: 400, color: '#D8D4CC', marginBottom: '6px', fontStyle: 'italic' },
+    loginSub:   { fontSize: '13px', color: '#5A6478', marginBottom: '32px', lineHeight: 1.6, fontFamily: "'DM Sans', sans-serif" },
+    tabRow:     { display: 'flex', background: '#161B28', borderRadius: '6px', padding: '3px', marginBottom: '24px' },
+    tabBtn:     { flex: 1, padding: '8px', fontSize: '13px', border: 'none', borderRadius: '4px', cursor: 'pointer', background: 'transparent', color: '#5A6478', fontFamily: "'DM Sans', sans-serif", fontWeight: 500 },
+    tabBtnActive:{ flex: 1, padding: '8px', fontSize: '13px', border: 'none', borderRadius: '4px', cursor: 'pointer', background: '#1E2535', color: '#D8D4CC', fontFamily: "'DM Sans', sans-serif", fontWeight: 500 },
+    formGroup:  { marginBottom: '14px' },
+    label:      { display: 'block', fontSize: '10px', fontWeight: 600, letterSpacing: '0.12em', textTransform: 'uppercase' as const, color: '#5A6478', marginBottom: '7px', fontFamily: "'DM Sans', sans-serif" },
+    input:      { width: '100%', padding: '11px 14px', background: '#161B28', border: '1px solid #1E2535', borderRadius: '6px', color: '#D8D4CC', fontSize: '14px', fontFamily: "'DM Sans', sans-serif", outline: 'none' },
+    errorBox:   { fontSize: '12px', color: '#E05252', background: 'rgba(224,82,82,0.08)', border: '1px solid rgba(224,82,82,0.2)', borderRadius: '4px', padding: '10px 14px', marginBottom: '14px', fontFamily: "'DM Sans', sans-serif" },
+    btnPrimary: { width: '100%', padding: '12px', background: '#8B7355', color: '#0C0F1A', fontSize: '14px', fontWeight: 600, fontFamily: "'DM Sans', sans-serif", border: 'none', borderRadius: '6px', cursor: 'pointer', marginBottom: '12px' },
+    btnDisabled:{ width: '100%', padding: '12px', background: '#8B7355', color: '#0C0F1A', fontSize: '14px', fontWeight: 600, fontFamily: "'DM Sans', sans-serif", border: 'none', borderRadius: '6px', cursor: 'not-allowed', opacity: 0.6, marginBottom: '12px' },
+    divider:    { display: 'flex', alignItems: 'center', gap: '12px', margin: '14px 0' },
+    divLine:    { flex: 1, height: '1px', background: '#1E2535' },
+    divText:    { fontSize: '11px', color: '#3A4455', fontFamily: "'DM Sans', sans-serif" },
+    btnGoogle:  { width: '100%', padding: '11px', background: 'transparent', border: '1px solid #1E2535', borderRadius: '6px', color: '#6B7A94', fontSize: '13px', fontFamily: "'DM Sans', sans-serif", cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px' },
+    loginNote:  { marginTop: '24px', paddingTop: '20px', borderTop: '1px solid #1A2030', fontSize: '11px', color: '#3A4455', lineHeight: 1.6, fontFamily: "'DM Sans', sans-serif" },
+  };
 
   return (
-    <div className="page-wrap">
-
-      {/* ── LEFT PANEL ── */}
-      <div className="left-panel">
-        <header className="lp-header">
-          <div className="lp-logo">
-            <div className="lp-logo-mark">B</div>
-            BoardOS
+    <div style={s.page}>
+      {/* ── LEFT ── */}
+      <div style={s.left}>
+        <header style={s.header}>
+          <div style={s.logoWrap}>
+            <div style={s.logoMark}>B</div>
+            <span style={s.logoText}>BoardOS</span>
           </div>
-          <span className="lp-header-tag">MCA · ICSI · Companies Act 2013</span>
+          <span style={s.headerBadge}>MCA · ICSI · Companies Act 2013</span>
         </header>
 
-        <section className="lp-hero">
-          <div className="lp-eyebrow">Board Governance for India</div>
-          <h1 className="lp-headline">The <em>complete digital record</em> your board is legally required to keep.</h1>
-          <p className="lp-sub">BoardOS is the compliance backbone for Indian private companies — turning board meetings, resolutions, and secretarial obligations into an immutable, court-ready digital trail. Built for directors, Company Secretaries, CAs, and promoters.</p>
-          <div className="lp-pills">
-            {['Companies Act 2013','ICSI SS-1','MCA21 V3','MGT-14','Sec 118 Minutes','Sec 173-175','DSC Compliant'].map(p => (
-              <span key={p} className="lp-pill">{p}</span>
+        <section style={s.hero}>
+          <div style={s.eyebrow}>Board Governance · Indian Private Companies</div>
+          <h1 style={s.h1}>
+            The <span style={s.h1span}>complete digital record</span> your board is legally required to keep.
+          </h1>
+          <p style={s.heroSub}>
+            BoardOS handles the full governance cycle for Indian private companies — meetings, resolutions, minutes, and audit trails — in a single compliant platform. Built for directors, Company Secretaries, CAs, and promoters.
+          </p>
+          <div style={s.pills}>
+            {['Companies Act 2013', 'ICSI SS-1', 'MCA21 V3', 'MGT-14', 'Sec. 118 Minutes', 'Sec. 173-175', 'DSC Compliant'].map(p => (
+              <span key={p} style={s.pill}>{p}</span>
             ))}
           </div>
         </section>
 
-        <div className="lp-warn">
-          <span className="lp-warn-icon">⚠️</span>
-          <p className="lp-warn-text"><strong>Non-compliance is not a technicality.</strong> Directors defaulting on board meeting records face fines up to Rs.25,000 each, automatic disqualification under S.164, and ROC strike-off proceedings. BoardOS makes compliance the default.</p>
+        <div style={s.alert}>
+          <p style={s.alertText}>
+            <strong style={{ color: '#C8B898' }}>Non-compliance is not a technicality.</strong> Directors of defaulting companies face penalties of Rs. 25,000 per officer, automatic disqualification under Sec. 164, and ROC strike-off proceedings. BoardOS makes compliance the default outcome — not an afterthought.
+          </p>
         </div>
 
-        <div className="lp-section">
-          <div className="lp-tag">Regulatory Framework</div>
-          <h2 className="lp-title">What Indian law demands from every board.</h2>
+        {/* Compliance Requirements */}
+        <div style={s.section}>
+          <div style={s.secLabel}>Regulatory Framework</div>
+          <h2 style={s.secTitle}>What Indian law requires of every board.</h2>
         </div>
 
-        <div className="lp-tabs">
-          {slides.map((s,i) => (
-            <button key={i} className={`lp-tab${activeSlide===i?' active':''}`} onClick={() => setActiveSlide(i)}>
-              {s.number} {s.tag.split(' ·')[0].replace('Companies Act ','Act ')}
-            </button>
-          ))}
-        </div>
-
-        <div className="lp-slides">
-          {slides.map((s,i) => (
-            <div key={i} className={`lp-slide${activeSlide===i?' active':''}`}>
-              <div className="lp-slide-num">{s.number}</div>
-              <div className="lp-slide-chip">{s.icon} {s.tag}</div>
-              <h3 className="lp-slide-h">{s.headline}</h3>
-              <p className="lp-slide-p">{s.body}</p>
-              <div className="lp-stat">
-                <span className="lp-stat-val">{s.stat}</span>
-                <span className="lp-stat-lbl">{s.statLabel}</span>
+        <div style={s.compWrap}>
+          {compliance.map((c, i) => (
+            <div key={c.ref} style={{ ...s.compRow, ...(i === compliance.length - 1 ? s.compLast : {}) }}>
+              <div style={s.compRef}>{c.ref}</div>
+              <div style={s.compBody}>
+                <div style={s.compTitle}>{c.title}</div>
+                <div style={s.compText}>{c.body}</div>
               </div>
             </div>
           ))}
         </div>
 
-        <div className="lp-section">
-          <div className="lp-tag">Platform</div>
-          <h2 className="lp-title">Everything your board needs. Nothing it doesn't.</h2>
+        {/* Features */}
+        <div style={s.section}>
+          <div style={s.secLabel}>Platform</div>
+          <h2 style={s.secTitle}>Everything your board needs.</h2>
         </div>
-        <div className="lp-features">
+
+        <div style={s.featWrap}>
           {features.map(f => (
-            <div key={f.title} className="lp-feature">
-              <span className="lp-feature-icon">{f.icon}</span>
-              <div className="lp-feature-title">{f.title}</div>
-              <div className="lp-feature-desc">{f.desc}</div>
+            <div key={f.title} style={s.featCard}>
+              <div style={s.featTitle}>{f.title}</div>
+              <div style={s.featBody}>{f.body}</div>
             </div>
           ))}
         </div>
 
-        <section className="lp-audience">
-          <div className="lp-tag">Who It's For</div>
-          <h2 className="lp-title">Built for every seat at the board table.</h2>
-          <div className="lp-audience-grid">
-            {audience.map(a => (
-              <div key={a.role} className="lp-aud-card">
-                <span className="lp-aud-emoji">{a.emoji}</span>
-                <div className="lp-aud-role">{a.role}</div>
-                <div className="lp-aud-desc">{a.desc}</div>
-              </div>
-            ))}
-          </div>
-        </section>
-
-        <footer className="lp-footer">
-          <div className="lp-footer-l">© 2026 BoardOS · MCA21 · Companies Act 2013 · ICSI Secretarial Standards</div>
-          <div className="lp-footer-r"><span>Privacy</span><span>Terms</span><span>Security</span></div>
+        <footer style={s.footer}>
+          <span style={s.footerL}>© 2026 BoardOS — Companies Act 2013 · MCA21 · ICSI Secretarial Standards</span>
+          <span style={s.footerR}>
+            <span>Privacy</span><span>Terms</span>
+          </span>
         </footer>
       </div>
 
-      {/* ── RIGHT PANEL – LOGIN ── */}
-      <div className="right-panel">
-        <h2 className="lp-login-h">{isLogin ? 'Welcome back.' : 'Join BoardOS.'}</h2>
-        <p className="lp-login-sub">{isLogin ? 'Sign in to access your board workspace and compliance dashboard.' : 'Create your account and set up your first board workspace in minutes.'}</p>
+      {/* ── RIGHT — LOGIN ── */}
+      <div style={s.right}>
+        <h2 style={s.loginH}>{isLogin ? 'Welcome back.' : 'Create account.'}</h2>
+        <p style={s.loginSub}>
+          {isLogin ? 'Sign in to your board workspace.' : 'Set up your first board workspace in minutes.'}
+        </p>
 
-        <div className="lp-tab-row">
-          <button className={`lp-tab-btn${isLogin?' active':''}`} onClick={() => { setIsLogin(true); setError(''); }}>Sign In</button>
-          <button className={`lp-tab-btn${!isLogin?' active':''}`} onClick={() => { setIsLogin(false); setError(''); }}>Register</button>
+        <div style={s.tabRow}>
+          <button style={isLogin ? s.tabBtnActive : s.tabBtn} onClick={() => { setIsLogin(true); setError(''); }}>Sign In</button>
+          <button style={!isLogin ? s.tabBtnActive : s.tabBtn} onClick={() => { setIsLogin(false); setError(''); }}>Register</button>
         </div>
 
         <form onSubmit={handleAuth}>
           {!isLogin && (
-            <div className="lp-form-group">
-              <label className="lp-label">Full Name</label>
-              <input type="text" className="lp-input" placeholder="Rajesh Sharma" value={name} onChange={e => setName(e.target.value)} required />
+            <div style={s.formGroup}>
+              <label style={s.label}>Full Name</label>
+              <input style={s.input} type="text" placeholder="Rajesh Sharma" value={name} onChange={e => setName(e.target.value)} required />
             </div>
           )}
-          <div className="lp-form-group">
-            <label className="lp-label">Email Address</label>
-            <input type="email" className="lp-input" placeholder="director@company.in" value={email} onChange={e => setEmail(e.target.value)} required />
+          <div style={s.formGroup}>
+            <label style={s.label}>Email</label>
+            <input style={s.input} type="email" placeholder="director@company.in" value={email} onChange={e => setEmail(e.target.value)} required />
           </div>
-          <div className="lp-form-group">
-            <label className="lp-label">Password</label>
-            <input type="password" className="lp-input" placeholder="••••••••" value={password} onChange={e => setPassword(e.target.value)} required />
+          <div style={s.formGroup}>
+            <label style={s.label}>Password</label>
+            <input style={s.input} type="password" placeholder="••••••••" value={password} onChange={e => setPassword(e.target.value)} required />
           </div>
-          {error && <div className="lp-error">{error}</div>}
-          <button type="submit" className="lp-btn-primary" disabled={loading}>
-            {loading ? 'Please wait…' : isLogin ? 'Sign In →' : 'Create Account →'}
+          {error && <div style={s.errorBox}>{error}</div>}
+          <button type="submit" style={loading ? s.btnDisabled : s.btnPrimary} disabled={loading}>
+            {loading ? 'Please wait...' : isLogin ? 'Sign In' : 'Create Account'}
           </button>
         </form>
 
-        <div className="lp-divider"><span>or continue with</span></div>
+        <div style={s.divider}>
+          <div style={s.divLine} />
+          <span style={s.divText}>or</span>
+          <div style={s.divLine} />
+        </div>
 
-        <button className="lp-btn-google" onClick={handleGoogle}>
+        <button style={s.btnGoogle} onClick={handleGoogle}>
           <svg width="16" height="16" viewBox="0 0 24 24">
             <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
             <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
@@ -204,7 +277,9 @@ export default function LandingPage() {
           Continue with Google
         </button>
 
-        <div className="lp-note"><strong>Secure & Compliant.</strong> BoardOS uses encrypted storage and DSC-linked identity verification. Your board data is protected under Indian data governance standards.</div>
+        <div style={s.loginNote}>
+          BoardOS uses encrypted storage and identity-linked access. Your board data is private and protected.
+        </div>
       </div>
     </div>
   );
