@@ -60,4 +60,16 @@ export class CircularController {
   ) {
     return this.circular.requestMeeting(companyId, id, req.user.userId);
   }
+
+  // Sec. 175(2) — mark approved circular as noted at a subsequent board meeting
+  @Post(':id/mark-noted')
+  @HttpCode(HttpStatus.OK)
+  markNoted(
+    @Param('companyId') companyId: string,
+    @Param('id') id: string,
+    @Req() req: any,
+    @Body() body: { meetingId: string },
+  ) {
+    return this.circular.markNoted(companyId, id, body.meetingId, req.user.userId);
+  }
 }

@@ -226,6 +226,8 @@ model Resolution {
   meetingId    String?          // null for CIRCULAR resolutions
   deadline     DateTime?        // CIRCULAR only
   circulationNote String?       // covering note sent to directors
+  serialNumber String?          // e.g. CR/2026/001 — assigned on circulate
+  notedAtMeetingId String?      // Sec. 175(2) — noted at subsequent board meeting
   agendaItemId String?
   title        String
   text         String           // Full legal resolution text

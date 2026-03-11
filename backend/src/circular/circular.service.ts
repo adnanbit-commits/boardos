@@ -59,9 +59,11 @@ export class CircularService {
   async create(companyId: string, userId: string, dto: CreateCircularDto) {
     await this.requireRole(companyId, userId, [UserRole.ADMIN, UserRole.PARTNER]);
 
+    // Deadline stored if provided — hard cap enforced at circulate time, not create time
+    // so drafts can hold any working deadline before it's circulated
     const deadline = dto.deadline
       ? new Date(dto.deadline)
-      : new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+      : null;
 
     const resolution = await this.prisma.resolution.create({
       data: {
@@ -91,11 +93,31 @@ export class CircularService {
     if (resolution.status !== ResolutionStatus.DRAFT)
       throw new BadRequestException('Only DRAFT resolutions can be circulated');
 
+    // SS-1: explanatory note is required before circulation
+    if (!resolution.circulationNote?.trim())
+      throw new BadRequestException(
+        'An explanatory note (covering note) is required before circulating — SS-1 compliance'
+      );
+
+    // SS-1: deadline must not exceed 7 days from today
+    const maxDeadline = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+    const deadline    = resolution.deadline && resolution.deadline < maxDeadline
+      ? resolution.deadline
+      : maxDeadline;
+
+    // Assign serial number: CR/<YYYY>/<NNN> — scoped per company
+    const serialNumber = await this.assignSerialNumber(companyId);
+
     const updated = await this.prisma.resolution.update({
       where: { id: resolutionId },
-      data:  { status: ResolutionStatus.PROPOSED },
+      data:  {
+        status: ResolutionStatus.PROPOSED,
+        deadline,
+        serialNumber,
+      },
     });
 
+    // Notify all directors and admins who have accepted membership
     const directors = await this.prisma.companyUser.findMany({
       where:   { companyId, role: { in: [UserRole.DIRECTOR, UserRole.ADMIN] }, acceptedAt: { not: null } },
       include: { user: true },
@@ -106,15 +128,15 @@ export class CircularService {
         userId:    d.userId,
         companyId,
         type:      'SIGNATURE_REQUEST',
-        subject:   `Circular Resolution: ${resolution.title}`,
-        body:      `A resolution by circulation requires your consent.\n\n${resolution.circulationNote ?? ''}\n\nDeadline: ${updated.deadline?.toDateString() ?? '7 days'}.\n\nPlease log in to BoardOS to sign or object.`,
+        subject:   `Circular Resolution ${serialNumber}: ${resolution.title}`,
+        body:      `A resolution by circulation requires your consent.\n\n${resolution.circulationNote}\n\nDeadline: ${deadline.toDateString()}.\n\nPlease log in to BoardOS to sign or object.`,
       }).catch(() => {});
     }
 
     await this.audit.log({
       companyId, userId, action: 'CIRCULAR_RESOLUTION_CIRCULATED',
       entity: 'Resolution', entityId: resolutionId,
-      metadata: { directorsNotified: directors.length },
+      metadata: { serialNumber, directorsNotified: directors.length, deadline: deadline.toISOString() },
     });
 
     return updated;
@@ -139,7 +161,7 @@ export class CircularService {
     await this.audit.log({
       companyId, userId, action: 'CIRCULAR_RESOLUTION_SIGNED',
       entity: 'Resolution', entityId: resolutionId,
-      metadata: { value: dto.value },
+      metadata: { value: dto.value, serialNumber: resolution.serialNumber },
     });
 
     await this.checkMajority(companyId, resolutionId);
@@ -147,15 +169,143 @@ export class CircularService {
   }
 
   async requestMeeting(companyId: string, resolutionId: string, userId: string) {
-    await this.findOne(companyId, resolutionId);
+    const resolution = await this.findOne(companyId, resolutionId);
     await this.requireRole(companyId, userId, [UserRole.DIRECTOR, UserRole.ADMIN]);
+
+    // Sec. 175(2): 1/3rd of total directors must request before it becomes mandatory
+    const totalDirectors = await this.prisma.companyUser.count({
+      where: { companyId, role: { in: [UserRole.DIRECTOR, UserRole.ADMIN] }, acceptedAt: { not: null } },
+    });
+    const threshold = Math.ceil(totalDirectors / 3);
+
+    // Count unique meeting requests from audit log
+    const existingRequests = await this.prisma.auditLog.count({
+      where: {
+        companyId,
+        entityId: resolutionId,
+        action:   'CIRCULAR_RESOLUTION_MEETING_REQUESTED',
+      },
+    });
+
+    // Check if this user already requested
+    const alreadyRequested = await this.prisma.auditLog.findFirst({
+      where: {
+        companyId,
+        userId,
+        entityId: resolutionId,
+        action:   'CIRCULAR_RESOLUTION_MEETING_REQUESTED',
+      },
+    });
+    if (alreadyRequested)
+      throw new BadRequestException('You have already requested a meeting for this resolution');
 
     await this.audit.log({
       companyId, userId, action: 'CIRCULAR_RESOLUTION_MEETING_REQUESTED',
-      entity: 'Resolution', entityId: resolutionId, metadata: {},
+      entity: 'Resolution', entityId: resolutionId,
+      metadata: { requestsAfterThis: existingRequests + 1, threshold },
     });
 
-    return { message: 'Meeting request recorded. Admin will be notified to schedule a meeting.' };
+    const newCount = existingRequests + 1;
+    const thresholdMet = newCount >= threshold;
+
+    // If threshold met, notify admins
+    if (thresholdMet) {
+      const admins = await this.prisma.companyUser.findMany({
+        where: { companyId, role: UserRole.ADMIN, acceptedAt: { not: null } },
+        include: { user: true },
+      });
+      for (const admin of admins) {
+        await this.notification.send({
+          userId:    admin.userId,
+          companyId,
+          type:      'GENERAL',
+          subject:   `Meeting Required: Circular Resolution ${resolution.serialNumber ?? resolution.title}`,
+          body:      `${newCount} of ${totalDirectors} directors have requested this resolution be moved to a board meeting. The 1/3rd threshold has been met — a board meeting must be convened.`,
+        }).catch(() => {});
+      }
+    }
+
+    return {
+      message:       thresholdMet
+        ? `Meeting threshold met (${newCount}/${totalDirectors}). Admins have been notified to schedule a board meeting.`
+        : `Meeting request recorded (${newCount}/${threshold} required to mandate a meeting).`,
+      requestCount:  newCount,
+      threshold,
+      thresholdMet,
+    };
+  }
+
+  // Mark a circular resolution as noted at a subsequent board meeting (Sec. 175(2))
+  async markNoted(companyId: string, resolutionId: string, meetingId: string, userId: string) {
+    await this.requireRole(companyId, userId, [UserRole.ADMIN, UserRole.PARTNER]);
+
+    const resolution = await this.findOne(companyId, resolutionId);
+    if (resolution.status !== ResolutionStatus.APPROVED)
+      throw new BadRequestException('Only approved circular resolutions can be marked as noted');
+    if (resolution.notedAtMeetingId)
+      throw new BadRequestException('This resolution has already been noted at a meeting');
+
+    // Verify the meeting belongs to this company
+    const meeting = await this.prisma.meeting.findFirst({ where: { id: meetingId, companyId } });
+    if (!meeting) throw new NotFoundException('Meeting not found');
+
+    const updated = await this.prisma.resolution.update({
+      where: { id: resolutionId },
+      data:  { notedAtMeetingId: meetingId },
+    });
+
+    await this.audit.log({
+      companyId, userId, action: 'CIRCULAR_RESOLUTION_NOTED',
+      entity: 'Resolution', entityId: resolutionId,
+      metadata: { notedAtMeetingId: meetingId, serialNumber: resolution.serialNumber },
+    });
+
+    return updated;
+  }
+
+  // Expire overdue circulars — called by cron job
+  async expireOverdue() {
+    const overdue = await this.prisma.resolution.findMany({
+      where: {
+        type:     ResolutionType.CIRCULAR,
+        status:   ResolutionStatus.PROPOSED,
+        deadline: { lt: new Date() },
+      },
+    });
+
+    for (const res of overdue) {
+      // Check if majority was reached — if so, already APPROVED, skip
+      if (res.status !== ResolutionStatus.PROPOSED) continue;
+
+      await this.prisma.resolution.update({
+        where: { id: res.id },
+        data:  { status: ResolutionStatus.REJECTED },
+      });
+
+      await this.audit.log({
+        companyId: res.companyId, userId: 'system',
+        action: 'CIRCULAR_RESOLUTION_EXPIRED',
+        entity: 'Resolution', entityId: res.id,
+        metadata: { deadline: res.deadline, serialNumber: res.serialNumber },
+      });
+    }
+
+    return overdue.length;
+  }
+
+  // ── Private helpers ──────────────────────────────────────────────────────────
+
+  private async assignSerialNumber(companyId: string): Promise<string> {
+    const year  = new Date().getFullYear();
+    const count = await this.prisma.resolution.count({
+      where: {
+        companyId,
+        type:         ResolutionType.CIRCULAR,
+        serialNumber: { not: null },
+      },
+    });
+    const seq = String(count + 1).padStart(3, '0');
+    return `CR/${year}/${seq}`;
   }
 
   private async checkMajority(companyId: string, resolutionId: string) {
