@@ -316,15 +316,17 @@ export interface CircularSignature {
 }
 
 export interface CircularResolution {
-  id:              string;
-  companyId:       string;
-  title:           string;
-  text:            string;
-  circulationNote: string | null;
-  deadline:        string | null;
-  status:          'DRAFT' | 'PROPOSED' | 'APPROVED' | 'REJECTED';
-  createdAt:       string;
-  signatures:      CircularSignature[];
+  id:                string;
+  companyId:         string;
+  title:             string;
+  text:              string;
+  circulationNote:   string | null;
+  deadline:          string | null;
+  serialNumber:      string | null;
+  notedAtMeetingId:  string | null;
+  status:            'DRAFT' | 'PROPOSED' | 'APPROVED' | 'REJECTED';
+  createdAt:         string;
+  signatures:        CircularSignature[];
 }
 
 export const circular = {
@@ -339,5 +341,7 @@ export const circular = {
   sign:           (companyId: string, id: string, body: { value: 'FOR' | 'OBJECT'; remarks?: string }, token: string) =>
     post<CircularSignature>(`/companies/${companyId}/circular-resolutions/${id}/sign`, body, token),
   requestMeeting: (companyId: string, id: string, token: string) =>
-    post<{ message: string }>(`/companies/${companyId}/circular-resolutions/${id}/request-meeting`, undefined, token),
+    post<{ message: string; requestCount: number; threshold: number; thresholdMet: boolean }>(`/companies/${companyId}/circular-resolutions/${id}/request-meeting`, undefined, token),
+  markNoted: (companyId: string, id: string, meetingId: string, token: string) =>
+    post<CircularResolution>(`/companies/${companyId}/circular-resolutions/${id}/mark-noted`, { meetingId }, token),
 };
