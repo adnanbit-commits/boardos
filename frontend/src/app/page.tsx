@@ -169,7 +169,7 @@ export default function LandingPage() {
         <section style={s.hero}>
           <div style={s.eyebrow}>Board Governance · Indian Private Companies</div>
           <h1 style={s.h1}>
-            The <span style={s.h1span}>complete digital record</span> your board is legally required to keep.
+            The <span style={s.h1span}>complete digital record</span> your board is legally required to maintain.
           </h1>
           <p style={s.heroSub}>
             BoardOS handles the full governance cycle for Indian private companies — meetings, resolutions, minutes, and audit trails — in a single compliant platform. Built for directors, Company Secretaries, CAs, and promoters.
