@@ -99,7 +99,7 @@ export class ResolutionController {
    * Only allowed in DRAFT status — once proposed it must be rejected, not deleted
    */
   @Delete('resolutions/:id')
-  @RequireRole('ADMIN')
+  @RequireRole('DIRECTOR')
   @HttpCode(204)
   remove(
     @Param('companyId') companyId: string,

@@ -10,10 +10,10 @@ import { NotificationService } from '../notification/notification.service';
 import { ResolutionStatus, ResolutionType, CircularSignatureValue, UserRole } from '@prisma/client';
 
 export interface CreateCircularDto {
-  title:            string;
-  text:             string;
-  circulationNote?: string;
-  deadline?:        string;
+  title:           string;
+  text:            string;
+  circulationNote: string;   // Required — SS-1 mandates explanatory note
+  deadline?:       string;
 }
 
 export interface SignCircularDto {
@@ -87,7 +87,7 @@ export class CircularService {
   }
 
   async circulate(companyId: string, resolutionId: string, userId: string) {
-    await this.requireRole(companyId, userId, [UserRole.ADMIN, UserRole.PARTNER]);
+    await this.requireRole(companyId, userId, [UserRole.ADMIN, UserRole.PARTNER, UserRole.DIRECTOR]);
 
     const resolution = await this.findOne(companyId, resolutionId);
     if (resolution.status !== ResolutionStatus.DRAFT)
@@ -261,6 +261,49 @@ export class CircularService {
     });
 
     return updated;
+  }
+
+  // Edit a DRAFT circular — only allowed while still in DRAFT
+  async update(companyId: string, resolutionId: string, userId: string, dto: Partial<CreateCircularDto>) {
+    await this.requireRole(companyId, userId, [UserRole.ADMIN, UserRole.PARTNER, UserRole.DIRECTOR]);
+    const resolution = await this.findOne(companyId, resolutionId);
+    if (resolution.status !== ResolutionStatus.DRAFT)
+      throw new BadRequestException('Only DRAFT resolutions can be edited');
+
+    const updated = await this.prisma.resolution.update({
+      where: { id: resolutionId },
+      data: {
+        ...(dto.title           !== undefined && { title:           dto.title }),
+        ...(dto.text            !== undefined && { text:            dto.text }),
+        ...(dto.circulationNote !== undefined && { circulationNote: dto.circulationNote }),
+        ...(dto.deadline        !== undefined && { deadline:        new Date(dto.deadline) }),
+      },
+    });
+
+    await this.audit.log({
+      companyId, userId, action: 'CIRCULAR_RESOLUTION_UPDATED',
+      entity: 'Resolution', entityId: resolutionId, metadata: {},
+    });
+
+    return updated;
+  }
+
+  // Delete a DRAFT circular — only allowed while still in DRAFT
+  async remove(companyId: string, resolutionId: string, userId: string) {
+    await this.requireRole(companyId, userId, [UserRole.ADMIN, UserRole.PARTNER, UserRole.DIRECTOR]);
+    const resolution = await this.findOne(companyId, resolutionId);
+    if (resolution.status !== ResolutionStatus.DRAFT)
+      throw new BadRequestException('Only DRAFT resolutions can be deleted');
+
+    await this.prisma.resolution.delete({ where: { id: resolutionId } });
+
+    await this.audit.log({
+      companyId, userId, action: 'CIRCULAR_RESOLUTION_DELETED',
+      entity: 'Resolution', entityId: resolutionId,
+      metadata: { title: resolution.title },
+    });
+
+    return { message: 'Resolution deleted' };
   }
 
   // Expire overdue circulars — called by cron job

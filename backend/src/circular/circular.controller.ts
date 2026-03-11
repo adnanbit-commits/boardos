@@ -1,7 +1,5 @@
-// src/circular/circular.controller.ts
-
 import {
-  Controller, Get, Post, Body, Param, UseGuards, Req, HttpCode, HttpStatus,
+  Controller, Get, Post, Patch, Delete, Body, Param, UseGuards, Req, HttpCode, HttpStatus,
 } from '@nestjs/common';
 import { JwtAuthGuard }   from '../auth/jwt-auth.guard';
 import { CircularService, CreateCircularDto, SignCircularDto } from './circular.service';
@@ -28,6 +26,26 @@ export class CircularController {
     @Body() body: CreateCircularDto,
   ) {
     return this.circular.create(companyId, req.user.userId, body);
+  }
+
+  @Patch(':id')
+  update(
+    @Param('companyId') companyId: string,
+    @Param('id') id: string,
+    @Req() req: any,
+    @Body() body: Partial<CreateCircularDto>,
+  ) {
+    return this.circular.update(companyId, id, req.user.userId, body);
+  }
+
+  @Delete(':id')
+  @HttpCode(HttpStatus.OK)
+  remove(
+    @Param('companyId') companyId: string,
+    @Param('id') id: string,
+    @Req() req: any,
+  ) {
+    return this.circular.remove(companyId, id, req.user.userId);
   }
 
   @Post(':id/circulate')
@@ -61,7 +79,6 @@ export class CircularController {
     return this.circular.requestMeeting(companyId, id, req.user.userId);
   }
 
-  // Sec. 175(2) — mark approved circular as noted at a subsequent board meeting
   @Post(':id/mark-noted')
   @HttpCode(HttpStatus.OK)
   markNoted(
