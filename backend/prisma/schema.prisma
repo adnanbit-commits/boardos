@@ -62,7 +62,14 @@ enum MinutesStatus {
   LOCKED
 }
 
-enum NotificationStatus {
+enum AttendanceMode {
+  IN_PERSON
+  VIDEO
+  PHONE
+  ABSENT
+}
+
+
   PENDING
   SENT
   FAILED
@@ -101,6 +108,7 @@ model User {
   notifications Notification[]
   signedMinutes Minutes[]   @relation("SignedBy")
   sentInvites         Invitation[] @relation("SentInvites")
+  attendance    MeetingAttendance[]
   circularSignatures  CircularSignature[]
 
   @@map("users")
@@ -197,8 +205,23 @@ model Meeting {
   agendaItems   AgendaItem[]
   resolutions   Resolution[]
   minutes       Minutes?
+  attendance    MeetingAttendance[]
 
   @@map("meetings")
+}
+
+model MeetingAttendance {
+  id         String         @id @default(uuid())
+  meetingId  String
+  userId     String
+  mode       AttendanceMode @default(IN_PERSON)
+  recordedAt DateTime       @default(now())
+
+  meeting    Meeting @relation(fields: [meetingId], references: [id], onDelete: Cascade)
+  user       User    @relation(fields: [userId], references: [id])
+
+  @@unique([meetingId, userId])
+  @@map("meeting_attendance")
 }
 
 model AgendaItem {

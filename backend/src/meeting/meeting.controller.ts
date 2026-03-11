@@ -14,7 +14,6 @@ import { AddAgendaItemDto } from './dto/add-agenda-item.dto';
 export class MeetingController {
   constructor(private readonly meetingService: MeetingService) {}
 
-  // Read — any member including OBSERVER
   @Get()
   findAll(@Param('companyId') companyId: string) {
     return this.meetingService.findAll(companyId);
@@ -25,7 +24,6 @@ export class MeetingController {
     return this.meetingService.findOne(companyId, id);
   }
 
-  // Write — DIRECTOR or above only
   @Post()
   @RequireRole('DIRECTOR')
   create(
@@ -66,5 +64,24 @@ export class MeetingController {
     @Req() req: any,
   ) {
     return this.meetingService.transition(companyId, id, status, req.user.userId);
+  }
+
+  @Get(':id/attendance')
+  getAttendance(
+    @Param('companyId') companyId: string,
+    @Param('id') id: string,
+  ) {
+    return this.meetingService.getAttendance(companyId, id);
+  }
+
+  @Post(':id/attendance')
+  @RequireRole('DIRECTOR')
+  recordAttendance(
+    @Param('companyId') companyId: string,
+    @Param('id') id: string,
+    @Req() req: any,
+    @Body() body: { userId: string; mode: 'IN_PERSON' | 'VIDEO' | 'PHONE' | 'ABSENT' },
+  ) {
+    return this.meetingService.recordAttendance(companyId, id, req.user.userId, body.userId, body.mode);
   }
 }

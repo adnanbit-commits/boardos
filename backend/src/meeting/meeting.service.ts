@@ -126,4 +126,76 @@ export class MeetingService {
 
     return updated;
   }
+
+  async remove(companyId: string, id: string, userId: string) {
+    const meeting = await this.prisma.meeting.findFirst({ where: { id, companyId } });
+    if (!meeting) throw new NotFoundException('Meeting not found');
+    if (meeting.status !== 'DRAFT')
+      throw new BadRequestException('Only DRAFT meetings can be deleted');
+
+    await this.prisma.meeting.delete({ where: { id } });
+
+    await this.audit.log({
+      companyId, userId,
+      action: 'MEETING_DELETED',
+      entity: 'Meeting',
+      entityId: id,
+      metadata: { title: meeting.title },
+    });
+
+    return { message: 'Meeting deleted' };
+  }
 }
+
+  // ── Attendance ─────────────────────────────────────────────────────────────
+
+  async getAttendance(companyId: string, meetingId: string) {
+    await this.findOne(companyId, meetingId); // ownership check
+
+    // Return all directors in company alongside their attendance record if any
+    const members = await this.prisma.companyUser.findMany({
+      where:   { companyId, role: { in: ['ADMIN', 'DIRECTOR'] }, acceptedAt: { not: null } },
+      include: { user: { select: { id: true, name: true, email: true } } },
+    });
+
+    const records = await this.prisma.meetingAttendance.findMany({
+      where: { meetingId },
+    });
+
+    const recordMap = new Map(records.map(r => [r.userId, r]));
+
+    return members.map(m => ({
+      userId:     m.user.id,
+      name:       m.user.name,
+      email:      m.user.email,
+      role:       m.role,
+      isChairman: m.isChairman,
+      attendance: recordMap.get(m.user.id) ?? null,
+    }));
+  }
+
+  async recordAttendance(
+    companyId: string,
+    meetingId: string,
+    userId: string,
+    targetUserId: string,
+    mode: string,
+  ) {
+    await this.findOne(companyId, meetingId); // ownership check
+
+    const record = await this.prisma.meetingAttendance.upsert({
+      where:  { meetingId_userId: { meetingId, userId: targetUserId } },
+      create: { meetingId, userId: targetUserId, mode: mode as any },
+      update: { mode: mode as any, recordedAt: new Date() },
+    });
+
+    await this.audit.log({
+      companyId, userId,
+      action:   'ATTENDANCE_RECORDED',
+      entity:   'Meeting',
+      entityId: meetingId,
+      metadata: { targetUserId, mode },
+    });
+
+    return record;
+  }
