@@ -53,6 +53,7 @@ function CreateModal({ companyId, onClose, onCreated }: {
 
   async function handleSubmit() {
     if (!title.trim() || !text.trim()) { setError('Title and resolution text are required.'); return; }
+    if (!note.trim()) { setError('A covering note is required before the resolution can be circulated — SS-1 compliance.'); return; }
     setSubmitting(true); setError('');
     try {
       await circularApi.create(companyId, {
@@ -103,7 +104,7 @@ function CreateModal({ companyId, onClose, onCreated }: {
 
           <div>
             <label style={{ display:'block', fontSize:11, fontWeight:700, color:'#6B7280', textTransform:'uppercase', letterSpacing:'0.06em', marginBottom:6 }}>
-              Covering Note <span style={{ color:'#374151', textTransform:'none', fontWeight:400 }}>(optional — sent to directors)</span>
+              Covering Note * <span style={{ color:'#EF4444', textTransform:'none', fontWeight:400 }}>(required — SS-1 compliance)</span>
             </label>
             <textarea value={note} onChange={e => setNote(e.target.value)} rows={3}
               placeholder="Please find attached a resolution by circulation for your consideration..."
@@ -113,11 +114,12 @@ function CreateModal({ companyId, onClose, onCreated }: {
 
           <div>
             <label style={{ display:'block', fontSize:11, fontWeight:700, color:'#6B7280', textTransform:'uppercase', letterSpacing:'0.06em', marginBottom:6 }}>
-              Deadline <span style={{ color:'#374151', textTransform:'none', fontWeight:400 }}>(defaults to 7 days)</span>
+              Deadline <span style={{ color:'#F59E0B', textTransform:'none', fontWeight:400 }}>(max 7 days — SS-1)</span>
             </label>
             <input type="date" value={deadline || defaultDeadline}
               onChange={e => setDeadline(e.target.value)}
               min={new Date().toISOString().split('T')[0]}
+              max={new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]}
               style={{ background:'#13161B', border:'1px solid #232830', borderRadius:10,
                 padding:'10px 14px', color:'#F0F2F5', fontSize:14, outline:'none' }} />
           </div>
@@ -173,16 +175,21 @@ function ResolutionCard({ res, companyId, currentUserId, onRefresh }: {
     try {
       await circularApi.circulate(companyId, res.id, token);
       onRefresh();
-    } catch {}
+    } catch (err: any) {
+      alert(err?.body?.message ?? 'Failed to circulate resolution.');
+    }
     setLoading(false);
   }
 
   async function handleRequestMeeting() {
     setLoading(true);
     try {
-      await circularApi.requestMeeting(companyId, res.id, token);
-      alert('Meeting request recorded. Admin has been notified.');
-    } catch {}
+      const result = await circularApi.requestMeeting(companyId, res.id, token);
+      alert(result.message);
+      onRefresh();
+    } catch (err: any) {
+      alert(err?.body?.message ?? 'Failed to submit meeting request.');
+    }
     setLoading(false);
   }
 
@@ -194,10 +201,26 @@ function ResolutionCard({ res, companyId, currentUserId, onRefresh }: {
           <div style={{ flex:1 }}>
             <div style={{ display:'flex', alignItems:'center', gap:10, marginBottom:6, flexWrap:'wrap' }}>
               <StatusBadge status={res.status} />
+              {res.serialNumber && (
+                <span style={{ fontSize:11, color:'#6B7280', fontWeight:600, fontFamily:'monospace' }}>
+                  {res.serialNumber}
+                </span>
+              )}
               {res.deadline && res.status === 'PROPOSED' && (
                 <span style={{ fontSize:11, color: new Date(res.deadline) < new Date() ? '#EF4444' : '#F59E0B',
                   fontWeight:600 }}>
                   {daysLeft(res.deadline)}
+                </span>
+              )}
+              {res.status === 'APPROVED' && !res.notedAtMeetingId && (
+                <span style={{ fontSize:11, color:'#F59E0B', fontWeight:600, background:'rgba(245,158,11,0.1)',
+                  padding:'2px 8px', borderRadius:4 }}>
+                  Pending noting at next board meeting
+                </span>
+              )}
+              {res.status === 'APPROVED' && res.notedAtMeetingId && (
+                <span style={{ fontSize:11, color:'#22C55E', fontWeight:600 }}>
+                  Noted at meeting
                 </span>
               )}
             </div>
