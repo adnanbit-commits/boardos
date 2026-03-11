@@ -145,7 +145,6 @@ export class MeetingService {
 
     return { message: 'Meeting deleted' };
   }
-}
 
   // ── Attendance ─────────────────────────────────────────────────────────────
 
@@ -199,3 +198,4 @@ export class MeetingService {
 
     return record;
   }
+}
