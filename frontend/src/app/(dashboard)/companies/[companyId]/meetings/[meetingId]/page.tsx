@@ -431,26 +431,26 @@ function AttendancePanel({
         </div>
       ) : (
         <div className="space-y-3">
-          {attendance.map(record => {
-            const currentMode = record.attendance?.mode ?? null;
-            const isSaving    = saving === record.userId;
+          {attendance.map(dir => {
+            const currentMode = dir.attendance?.mode ?? null;
+            const isSaving    = saving === dir.userId;
 
             return (
-              <div key={record.userId}
+              <div key={dir.userId}
                 className="bg-[#191D24] border border-[#232830] rounded-xl p-4 flex items-center gap-4">
 
                 {/* Director info */}
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2">
-                    <p className="text-sm font-semibold text-zinc-200 truncate">{record.name}</p>
-                    {record.isChairman && (
+                    <p className="text-sm font-semibold text-zinc-200 truncate">{dir.name}</p>
+                    {dir.isChairman && (
                       <span className="text-[9px] font-bold bg-amber-900/40 text-amber-400 border border-amber-700/30 px-1.5 py-0.5 rounded-full">
                         Chairman
                       </span>
                     )}
-                    <span className="text-[9px] text-zinc-600">{record.role}</span>
+                    <span className="text-[9px] text-zinc-600">{dir.role}</span>
                   </div>
-                  <p className="text-zinc-600 text-[11px] mt-0.5 truncate">{record.email}</p>
+                  <p className="text-zinc-600 text-[11px] mt-0.5 truncate">{dir.email}</p>
                 </div>
 
                 {/* Mode selector */}
@@ -460,7 +460,7 @@ function AttendancePanel({
                       <button
                         key={opt.value}
                         disabled={isSaving}
-                        onClick={() => record(record.userId, opt.value)}
+                        onClick={() => record(dir.userId, opt.value)}
                         className={`px-2.5 py-1.5 rounded-lg text-[11px] font-semibold border transition-all
                           ${currentMode === opt.value
                             ? opt.value === 'ABSENT'
