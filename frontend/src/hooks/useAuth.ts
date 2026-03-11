@@ -50,7 +50,7 @@ export function useAuth(): UseAuthReturn {
     clearSession();
     setToken(null);
     setUser(null);
-    router.push('/login');
+    router.push('/');
   }, [router]);
 
   return { user, token, isLoading, login, register, logout };
@@ -64,7 +64,7 @@ export function useRequireAuth() {
 
   useEffect(() => {
     if (!auth.isLoading && !auth.token) {
-      router.replace('/login');
+      router.replace('/');
     }
   }, [auth.isLoading, auth.token, router]);
 
