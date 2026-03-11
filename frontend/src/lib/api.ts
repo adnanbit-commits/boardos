@@ -117,6 +117,22 @@ export interface Minutes {
   signatureHash?: string; signedAt?: string;
 }
 
+
+export type AttendanceMode = 'IN_PERSON' | 'VIDEO' | 'PHONE' | 'ABSENT';
+
+export interface AttendanceRecord {
+  userId:     string;
+  name:       string;
+  email:      string;
+  role:       string;
+  isChairman: boolean;
+  attendance: {
+    id:         string;
+    mode:       AttendanceMode;
+    recordedAt: string;
+  } | null;
+}
+
 export interface Document {
   id: string; companyId: string; minutesId?: string | null;
   name: string; type: string; s3Key: string; s3Url: string;
@@ -192,6 +208,10 @@ export const meetings = {
     patch<Meeting>(`/companies/${companyId}/meetings/${meetingId}/status/${status}`, undefined, token),
   addAgendaItem: (companyId: string, meetingId: string, body: { title: string; description?: string }, token: string) =>
     post<AgendaItem>(`/companies/${companyId}/meetings/${meetingId}/agenda`, body, token),
+  getAttendance: (companyId: string, meetingId: string, token: string) =>
+    get<AttendanceRecord[]>(`/companies/${companyId}/meetings/${meetingId}/attendance`, token),
+  recordAttendance: (companyId: string, meetingId: string, body: { userId: string; mode: AttendanceMode }, token: string) =>
+    post<AttendanceRecord>(`/companies/${companyId}/meetings/${meetingId}/attendance`, body, token),
 };
 
 // ── Resolutions ───────────────────────────────────────────────────────────────
