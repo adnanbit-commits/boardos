@@ -204,6 +204,8 @@ export const resolutions = {
     post<Resolution>(`/companies/${companyId}/meetings/${meetingId}/resolutions`, body, token),
   update: (companyId: string, resolutionId: string, body: Partial<{ title: string; text: string }>, token: string) =>
     patch<Resolution>(`/companies/${companyId}/resolutions/${resolutionId}`, body, token),
+  remove: (companyId: string, resolutionId: string, token: string) =>
+    del<{ message: string }>(`/companies/${companyId}/resolutions/${resolutionId}`, token),
   propose: (companyId: string, resolutionId: string, token: string) =>
     patch<Resolution>(`/companies/${companyId}/resolutions/${resolutionId}/propose`, undefined, token),
   openVoting: (companyId: string, resolutionId: string, token: string) =>
@@ -334,8 +336,12 @@ export const circular = {
     get<CircularResolution[]>(`/companies/${companyId}/circular-resolutions`, token),
   findOne:        (companyId: string, id: string, token: string) =>
     get<CircularResolution>(`/companies/${companyId}/circular-resolutions/${id}`, token),
-  create:         (companyId: string, body: { title: string; text: string; circulationNote?: string; deadline?: string }, token: string) =>
+  create:         (companyId: string, body: { title: string; text: string; circulationNote: string; deadline?: string }, token: string) =>
     post<CircularResolution>(`/companies/${companyId}/circular-resolutions`, body, token),
+  update:         (companyId: string, id: string, body: Partial<{ title: string; text: string; circulationNote: string; deadline: string }>, token: string) =>
+    patch<CircularResolution>(`/companies/${companyId}/circular-resolutions/${id}`, body, token),
+  remove:         (companyId: string, id: string, token: string) =>
+    del<{ message: string }>(`/companies/${companyId}/circular-resolutions/${id}`, token),
   circulate:      (companyId: string, id: string, token: string) =>
     post<CircularResolution>(`/companies/${companyId}/circular-resolutions/${id}/circulate`, undefined, token),
   sign:           (companyId: string, id: string, body: { value: 'FOR' | 'OBJECT'; remarks?: string }, token: string) =>

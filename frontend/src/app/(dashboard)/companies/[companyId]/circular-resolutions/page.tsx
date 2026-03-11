@@ -151,8 +151,12 @@ function ResolutionCard({ res, companyId, currentUserId, onRefresh }: {
   const token      = getToken()!;
   const [expanded, setExpanded]   = useState(false);
   const [signing,  setSigning]    = useState(false);
+  const [editing,  setEditing]    = useState(false);
   const [remarks,  setRemarks]    = useState('');
   const [loading,  setLoading]    = useState(false);
+  const [editTitle, setEditTitle] = useState(res.title);
+  const [editText,  setEditText]  = useState(res.text);
+  const [editNote,  setEditNote]  = useState(res.circulationNote ?? '');
 
   const mySignature   = res.signatures.find(s => s.userId === currentUserId);
   const forCount      = res.signatures.filter(s => s.value === 'FOR').length;
@@ -189,6 +193,38 @@ function ResolutionCard({ res, companyId, currentUserId, onRefresh }: {
       onRefresh();
     } catch (err: any) {
       alert(err?.body?.message ?? 'Failed to submit meeting request.');
+    }
+    setLoading(false);
+  }
+
+  async function handleSaveEdit() {
+    if (!editTitle.trim() || !editText.trim() || !editNote.trim()) {
+      alert('Title, resolution text, and covering note are all required.');
+      return;
+    }
+    setLoading(true);
+    try {
+      await circularApi.update(companyId, res.id, {
+        title: editTitle.trim(),
+        text: editText.trim(),
+        circulationNote: editNote.trim(),
+      }, token);
+      onRefresh();
+      setEditing(false);
+    } catch (err: any) {
+      alert(err?.body?.message ?? 'Failed to save changes.');
+    }
+    setLoading(false);
+  }
+
+  async function handleDelete() {
+    if (!confirm(`Delete "${res.title}"? This cannot be undone.`)) return;
+    setLoading(true);
+    try {
+      await circularApi.remove(companyId, res.id, token);
+      onRefresh();
+    } catch (err: any) {
+      alert(err?.body?.message ?? 'Failed to delete resolution.');
     }
     setLoading(false);
   }
@@ -301,6 +337,20 @@ function ResolutionCard({ res, companyId, currentUserId, onRefresh }: {
                 {loading ? '…' : '📨 Circulate to Directors'}
               </button>
             )}
+            {res.status === 'DRAFT' && (
+              <button onClick={() => { setEditing(e => !e); setExpanded(true); }}
+                style={{ padding:'9px 18px', background:'transparent', border:'1px solid #374151',
+                  borderRadius:10, color:'#9CA3AF', fontSize:13, cursor:'pointer' }}>
+                ✏️ Edit
+              </button>
+            )}
+            {res.status === 'DRAFT' && (
+              <button onClick={handleDelete} disabled={loading}
+                style={{ padding:'9px 18px', background:'transparent', border:'1px solid #7F1D1D',
+                  borderRadius:10, color:'#EF4444', fontSize:13, cursor:'pointer' }}>
+                Delete
+              </button>
+            )}
 
             {canSign && !signing && (
               <button onClick={() => setSigning(true)}
@@ -347,6 +397,50 @@ function ResolutionCard({ res, companyId, currentUserId, onRefresh }: {
                     borderRadius:10, color:'#6B7280', fontSize:13, cursor:'pointer' }}>
                   Cancel
                 </button>
+              </div>
+            </div>
+          )}
+          {/* Edit form — DRAFT only */}
+          {editing && res.status === 'DRAFT' && (
+            <div style={{ marginTop:16, background:'#13161B', border:'1px solid #374151',
+              borderRadius:12, padding:'20px' }}>
+              <p style={{ fontSize:13, fontWeight:600, color:'#F0F2F5', marginBottom:16 }}>Edit Draft</p>
+              <div style={{ display:'flex', flexDirection:'column', gap:12 }}>
+                <div>
+                  <label style={{ display:'block', fontSize:11, fontWeight:700, color:'#6B7280',
+                    textTransform:'uppercase', letterSpacing:'0.06em', marginBottom:6 }}>Title *</label>
+                  <input value={editTitle} onChange={e => setEditTitle(e.target.value)}
+                    style={{ width:'100%', background:'#191D24', border:'1px solid #232830', borderRadius:8,
+                      padding:'8px 12px', color:'#F0F2F5', fontSize:13, outline:'none', boxSizing:'border-box' }} />
+                </div>
+                <div>
+                  <label style={{ display:'block', fontSize:11, fontWeight:700, color:'#6B7280',
+                    textTransform:'uppercase', letterSpacing:'0.06em', marginBottom:6 }}>Resolution Text *</label>
+                  <textarea value={editText} onChange={e => setEditText(e.target.value)} rows={5}
+                    style={{ width:'100%', background:'#191D24', border:'1px solid #232830', borderRadius:8,
+                      padding:'8px 12px', color:'#F0F2F5', fontSize:13, outline:'none',
+                      boxSizing:'border-box', resize:'vertical', fontFamily:'monospace' }} />
+                </div>
+                <div>
+                  <label style={{ display:'block', fontSize:11, fontWeight:700, color:'#6B7280',
+                    textTransform:'uppercase', letterSpacing:'0.06em', marginBottom:6 }}>Covering Note *</label>
+                  <textarea value={editNote} onChange={e => setEditNote(e.target.value)} rows={3}
+                    style={{ width:'100%', background:'#191D24', border:'1px solid #232830', borderRadius:8,
+                      padding:'8px 12px', color:'#F0F2F5', fontSize:13, outline:'none',
+                      boxSizing:'border-box', resize:'vertical' }} />
+                </div>
+                <div style={{ display:'flex', gap:10 }}>
+                  <button onClick={handleSaveEdit} disabled={loading}
+                    style={{ padding:'9px 20px', background:'#4F7FFF', border:'none', borderRadius:8,
+                      color:'#fff', fontSize:13, fontWeight:600, cursor:'pointer' }}>
+                    {loading ? '…' : 'Save Changes'}
+                  </button>
+                  <button onClick={() => setEditing(false)}
+                    style={{ padding:'9px 16px', background:'transparent', border:'1px solid #232830',
+                      borderRadius:8, color:'#6B7280', fontSize:13, cursor:'pointer' }}>
+                    Cancel
+                  </button>
+                </div>
               </div>
             </div>
           )}
