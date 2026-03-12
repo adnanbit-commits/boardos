@@ -10,7 +10,7 @@ async function sendViaResend(to: string, subject: string, html: string): Promise
     return;
   }
   const payload = JSON.stringify({
-    from: 'BoardOS <onboarding@resend.dev>',
+    from: process.env.RESEND_FROM_EMAIL ?? 'BoardOS <noreply@bitpers.com>',
     to, subject, html,
   });
   return new Promise((resolve, reject) => {
