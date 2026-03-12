@@ -20,13 +20,10 @@ import { getToken, getUser } from '@/lib/auth';
 // ── Shared atoms ──────────────────────────────────────────────────────────────
 
 const ROLE_CLS: Record<string, string> = {
-  DIRECTOR:           'text-blue-400 bg-blue-950/60 border-blue-800/40',
-  COMPANY_SECRETARY:  'text-purple-400 bg-purple-950/60 border-purple-800/40',
-  AUDITOR:            'text-green-400 bg-green-950/60 border-green-800/40',
-  OBSERVER:           'text-slate-400 bg-slate-900/60 border-slate-700/40',
-  DIRECTOR: 'text-blue-400  bg-blue-950/60  border-blue-800/40',
-  OBSERVER: 'text-zinc-400  bg-zinc-800/60  border-zinc-700/40',
-  COMPANY_SECRETARY:  'text-purple-400 bg-purple-950/60 border-purple-800/40',
+  DIRECTOR:          'text-blue-400 bg-blue-950/60 border-blue-800/40',
+  COMPANY_SECRETARY: 'text-purple-400 bg-purple-950/60 border-purple-800/40',
+  AUDITOR:           'text-green-400 bg-green-950/60 border-green-800/40',
+  OBSERVER:          'text-slate-400 bg-slate-900/60 border-slate-700/40',
 };
 
 function RoleBadge({ role, isWorkspaceAdmin, designationLabel }: { role: string; isWorkspaceAdmin?: boolean; designationLabel?: string }) {
