@@ -13,11 +13,9 @@ function greeting() {
 
 const ROLE_STYLE: Record<string, { color: string; bg: string }> = {
   DIRECTOR:          { color: '#3B82F6', bg: '#0F1E3D' },
-  DIRECTOR: { color: '#4F7FFF', bg: '#1A2540' },
   COMPANY_SECRETARY: { color: '#A78BFA', bg: '#1A1030' },
   AUDITOR:           { color: '#34D399', bg: '#0A2018' },
   OBSERVER:          { color: '#94A3B8', bg: '#1A1F2E' },
-  OBSERVER: { color: '#6B7280', bg: '#1A1D23' },
 };
 
 function CompanyCard({ company, delay }: { company: CompanyWithMeta; delay: number }) {
