@@ -58,7 +58,8 @@ export default function MeetingWorkspacePage() {
       setMembers(memberList);
       const me2 = memberList.find((mem: any) => mem.user.id === (me?.id ?? ''));
       if (me2) setMyRole(me2.role);
-      if (!activeAgenda && m.agendaItems[0]) setActiveAgenda(m.agendaItems[0].id);
+      // Always sync activeAgenda — auto-select first item if none selected yet
+      setActiveAgenda(prev => (!prev && m.agendaItems[0]) ? m.agendaItems[0].id : prev);
 
       if (m.status !== 'DRAFT') {
         const [att, decl] = await Promise.all([
@@ -70,7 +71,7 @@ export default function MeetingWorkspacePage() {
       }
     } catch { setError('Failed to load meeting. Please refresh.'); }
     finally { setLoading(false); }
-  }, [companyId, meetingId, jwt]);
+  }, [companyId, meetingId, jwt, me?.id]);
 
   useEffect(() => { reload(); }, [reload]);
 

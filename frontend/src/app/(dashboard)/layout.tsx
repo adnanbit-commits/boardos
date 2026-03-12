@@ -8,7 +8,7 @@ import { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { useRequireAuth } from '@/hooks/useAuth';
-import { companies as companiesApi, type CompanyWithMeta } from '@/lib/api';
+import { companies as companiesApi, notifications as notifApi, type CompanyWithMeta, type AppNotification } from '@/lib/api';
 
 // NAV items — company-scoped ones use a key so we can build the href dynamically
 const NAV_STATIC = [
@@ -30,6 +30,28 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const [companies, setCompanies] = useState<CompanyWithMeta[]>([]);
   const [userMenuOpen, setUserMenuOpen] = useState(false);
   const userMenuRef = useRef<HTMLDivElement>(null);
+  const [notifs,       setNotifs]       = useState<AppNotification[]>([]);
+  const [bellOpen,     setBellOpen]     = useState(false);
+  const bellRef = useRef<HTMLDivElement>(null);
+  const unreadCount = notifs.filter(n => !n.sentAt).length;
+
+  // Load notifications + refresh every 30s
+  useEffect(() => {
+    if (!token) return;
+    const load = () => notifApi.list(token).then(setNotifs).catch(() => {});
+    load();
+    const id = setInterval(load, 30_000);
+    return () => clearInterval(id);
+  }, [token]);
+
+  // Close bell on outside click
+  useEffect(() => {
+    function handler(e: MouseEvent) {
+      if (bellRef.current && !bellRef.current.contains(e.target as Node)) setBellOpen(false);
+    }
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, []);
 
   // Load the user's companies
   useEffect(() => {
@@ -108,10 +130,63 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
         {/* Right side */}
         <div className="flex items-center gap-3">
-          {/* Pending indicator */}
-          <div className="flex items-center gap-2">
-            <div className="w-1.5 h-1.5 rounded-full bg-[#F59E0B] shadow-[0_0_6px_#F59E0B]" />
-            <span className="text-[#6B7280] text-xs">Pending actions</span>
+
+          {/* Notification bell */}
+          <div className="relative" ref={bellRef}>
+            <button
+              onClick={async () => {
+                setBellOpen(o => !o);
+                if (!bellOpen && unreadCount > 0 && token) {
+                  await notifApi.markAllRead(token).catch(() => {});
+                  setNotifs(prev => prev.map(n => ({ ...n, sentAt: n.sentAt ?? new Date().toISOString() })));
+                }
+              }}
+              className="relative w-8 h-8 rounded-full bg-[#191D24] border border-[#232830]
+                flex items-center justify-center text-[#6B7280] hover:text-[#F0F2F5]
+                hover:border-[#3A4050] transition-colors"
+              title="Notifications"
+            >
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/>
+                <path d="M13.73 21a2 2 0 0 1-3.46 0"/>
+              </svg>
+              {unreadCount > 0 && (
+                <span className="absolute -top-1 -right-1 w-4 h-4 bg-blue-500 rounded-full
+                  text-[9px] font-bold text-white flex items-center justify-center">
+                  {unreadCount > 9 ? '9+' : unreadCount}
+                </span>
+              )}
+            </button>
+
+            {bellOpen && (
+              <div className="absolute top-full right-0 mt-1.5 w-80 bg-[#191D24] border border-[#232830]
+                rounded-xl shadow-2xl z-50 overflow-hidden">
+                <div className="px-4 py-3 border-b border-[#232830] flex items-center justify-between">
+                  <p className="text-[#F0F2F5] text-sm font-semibold">Notifications</p>
+                  {notifs.length > 0 && (
+                    <span className="text-[#6B7280] text-[10px]">{notifs.length} total</span>
+                  )}
+                </div>
+                <div className="max-h-80 overflow-y-auto">
+                  {notifs.length === 0 ? (
+                    <div className="px-4 py-8 text-center text-[#6B7280] text-xs">
+                      No notifications yet
+                    </div>
+                  ) : notifs.map(n => (
+                    <div key={n.id}
+                      className={`px-4 py-3 border-b border-[#232830]/50 last:border-0
+                        ${!n.sentAt ? 'bg-blue-950/20' : ''}`}>
+                      <p className="text-[#F0F2F5] text-xs font-medium leading-snug">{n.subject}</p>
+                      <p className="text-[#6B7280] text-[11px] mt-0.5 leading-snug line-clamp-2">{n.body}</p>
+                      <p className="text-[#4B5563] text-[10px] mt-1">
+                        {new Date(n.createdAt).toLocaleDateString('en-IN', { day:'numeric', month:'short', hour:'2-digit', minute:'2-digit' })}
+                        {!n.sentAt && <span className="ml-2 text-blue-400 font-semibold">● new</span>}
+                      </p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
 
           {/* User menu */}

@@ -65,3 +65,26 @@ export class NotificationService {
     await Promise.all(jobs);
   }
 }
+
+  async listForUser(userId: string, limit = 30) {
+    return this.prisma.notification.findMany({
+      where: { userId },
+      orderBy: { createdAt: 'desc' },
+      take: limit,
+    });
+  }
+
+  async markRead(notificationId: string, userId: string) {
+    // We use sentAt as the "read" timestamp — no separate field needed
+    return this.prisma.notification.updateMany({
+      where: { id: notificationId, userId },
+      data: { sentAt: new Date() },
+    });
+  }
+
+  async markAllRead(userId: string) {
+    return this.prisma.notification.updateMany({
+      where: { userId, sentAt: null },
+      data: { sentAt: new Date() },
+    });
+  }

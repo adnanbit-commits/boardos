@@ -405,3 +405,24 @@ export const circular = {
   markNoted: (companyId: string, id: string, meetingId: string, token: string) =>
     post<CircularResolution>(`/companies/${companyId}/circular-resolutions/${id}/mark-noted`, { meetingId }, token),
 };
+
+// ── Notifications ─────────────────────────────────────────────────────────────
+
+export interface AppNotification {
+  id: string;
+  type: string;
+  subject: string;
+  body: string;
+  sentAt: string | null;  // null = unread
+  createdAt: string;
+  companyId?: string | null;
+}
+
+export const notifications = {
+  list:       (token: string) =>
+    get<AppNotification[]>('/notifications', token),
+  markRead:   (id: string, token: string) =>
+    patch<unknown>(`/notifications/${id}/read`, undefined, token),
+  markAllRead:(token: string) =>
+    patch<unknown>('/notifications/read-all', undefined, token),
+};

@@ -37,11 +37,9 @@ export default function InvitePage() {
     invitations.preview(token)
       .then(data => {
         setInvite(data);
-
-        // If already logged in, skip to accepting immediately
         const jwt = getToken();
         if (jwt) {
-          handleAccept(jwt);
+          handleAccept(jwt, data.company.id); // pass companyId directly — state not yet flushed
         } else {
           setStage('preview');
         }
@@ -57,12 +55,14 @@ export default function InvitePage() {
   }, [token]);
 
   // ── 2. Accept invite ────────────────────────────────────────────────────────
-  async function handleAccept(jwt: string) {
+  async function handleAccept(jwt: string, companyId?: string) {
     setStage('accepting');
     try {
       await invitations.accept(token, jwt);
       setStage('success');
-      setTimeout(() => router.push(`/companies/${invite?.company.id}`), 2500);
+      // Use passed companyId (when called before state flush) or fall back to state
+      const destId = companyId ?? invite?.company.id;
+      setTimeout(() => router.push(`/companies/${destId}`), 2500);
     } catch (err: any) {
       setError(
         (err as any).status === 400 ? (err as any).body?.message ?? 'Email mismatch — log in with the invited email.' :
@@ -86,6 +86,7 @@ export default function InvitePage() {
         : await auth.register({ name: form.name, email: form.email, password: form.password });
 
       saveSession(result.token, result.user);
+      // invite state is already set here (auth form only shows after preview loads)
       await handleAccept(result.token);
     } catch (err: any) {
       setFormError(

@@ -19,7 +19,7 @@ import {
   BadRequestException,
   ConflictException,
 } from '@nestjs/common';
-import { ResolutionStatus, MeetingStatus } from '@prisma/client';
+import { ResolutionStatus, ResolutionType, MeetingStatus } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { AuditService } from '../audit/audit.service';
 import { NotificationService } from '../notification/notification.service';
@@ -332,11 +332,12 @@ export class ResolutionService {
       );
     }
 
-    // Determine which resolutions to open
+    // Pick up DRAFT and PROPOSED resolutions — NOTING type never votes
     const where: any = {
       companyId,
       meetingId,
-      status: ResolutionStatus.PROPOSED,
+      type:   { not: ResolutionType.NOTING },
+      status: { in: [ResolutionStatus.DRAFT, ResolutionStatus.PROPOSED] },
     };
     if (dto.resolutionIds?.length) {
       where.id = { in: dto.resolutionIds };
@@ -345,19 +346,15 @@ export class ResolutionService {
     const candidates = await this.prisma.resolution.findMany({ where });
 
     if (candidates.length === 0) {
-      throw new BadRequestException(
-        'No PROPOSED resolutions found for this meeting. ' +
-        'Resolutions must be in PROPOSED status before voting can open.',
-      );
+      // Silently succeed — meeting may only have NOTING items, that's valid
+      return { opened: 0, resolutions: [] };
     }
 
-    // Open all in a single update
     await this.prisma.resolution.updateMany({
       where: { id: { in: candidates.map(r => r.id) } },
       data: { status: ResolutionStatus.VOTING },
     });
 
-    // One notification batch — notify directors once with list of resolutions
     await this.notifyDirectorsBulk(companyId, meeting.title, candidates.length);
 
     await this.audit.log({
