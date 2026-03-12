@@ -117,6 +117,7 @@ export default function MeetingWorkspacePage() {
   if (!meeting) return null;
 
   const next    = nextStatus(meeting.status as MeetingStatus);
+  const myMembership  = members.find((m: any) => m.user?.id === me?.id);
   const isWorkspaceAdmin = myMembership?.isWorkspaceAdmin === true;
   const isDirector = myRole === 'DIRECTOR';
   const isParticipant = myRole === 'DIRECTOR' || myRole === 'COMPANY_SECRETARY';
