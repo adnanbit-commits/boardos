@@ -75,7 +75,7 @@ function CompanyCard({ company, delay }: { company: CompanyWithMeta; delay: numb
             <span style={{ background: '#261A05', color: '#F59E0B', fontSize: 10,
               fontWeight: 700, padding: '3px 10px', borderRadius: 20,
               textTransform: 'uppercase', letterSpacing: '0.06em' }}>
-              Chairman
+              Workspace Admin
             </span>
           )}
         </div>

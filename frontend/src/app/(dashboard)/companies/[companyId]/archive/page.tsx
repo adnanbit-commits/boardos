@@ -66,7 +66,7 @@ function ArchiveCard({ meeting, companyId, jwt }: { meeting: Meeting; companyId:
           <div className="bg-green-950/20 border border-green-800/20 rounded-xl p-3.5 flex items-start gap-3">
             <span className="text-green-500 text-sm mt-0.5">✓</span>
             <div>
-              <p className="text-green-400 text-xs font-semibold mb-1">Digitally signed by Chairman</p>
+              <p className="text-green-400 text-xs font-semibold mb-1">Digitally signed by Chairperson</p>
               <p className="text-zinc-600 text-[10px] font-mono break-all leading-relaxed">
                 {(meeting as any).signatureHash
                   ? `sha256: ${(meeting as any).signatureHash}`
@@ -144,7 +144,7 @@ export default function ArchivePage() {
         <div className="text-center py-20 text-zinc-600">
           <p className="text-4xl mb-4 opacity-30">▤</p>
           <p className="text-sm font-medium">{search ? 'No meetings match.' : 'No archived meetings yet.'}</p>
-          <p className="text-xs mt-2 text-zinc-700">Meetings appear here once signed by the Chairman.</p>
+          <p className="text-xs mt-2 text-zinc-700">Meetings appear here once signed by the Chairperson.</p>
         </div>
       ) : (
         <div className="space-y-3">

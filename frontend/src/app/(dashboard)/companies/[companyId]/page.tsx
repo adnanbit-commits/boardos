@@ -34,7 +34,12 @@ function RoleBadge({ role, isWorkspaceAdmin, designationLabel }: { role: string;
       </span>
       {isWorkspaceAdmin && (
         <span className="text-[10px] font-bold px-2.5 py-0.5 rounded-full border uppercase tracking-wide text-amber-400 bg-amber-950/60 border-amber-800/40">
-          Chairman
+          Workspace Admin
+        </span>
+      )}
+      {designationLabel && (
+        <span className="text-[10px] px-2.5 py-0.5 rounded-full border text-slate-400 bg-slate-900/40 border-slate-700/40 italic">
+          {designationLabel}
         </span>
       )}
     </div>

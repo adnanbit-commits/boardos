@@ -416,7 +416,7 @@ function ChairpersonModal({ directors, companyId, meetingId, jwt, onElected, onC
                 <option key={d.user.id} value={d.user.id}>{d.user.name}</option>
               ))}
             </select>
-            <p className="text-zinc-600 text-[10px] mt-1">For 2-director boards: best practice is non-Chairman director records the minutes</p>
+            <p className="text-zinc-600 text-[10px] mt-1">For 2-director boards: best practice is non-Chairperson director records the minutes</p>
           </div>
         </div>
 
@@ -535,7 +535,7 @@ function DeclarationsPanel({ companyId, meetingId, jwt, meeting, declarations, i
               </div>
               {dir.isWorkspaceAdmin && (
                 <span className="text-[9px] font-bold bg-amber-900/40 text-amber-400 border border-amber-700/30 px-1.5 py-0.5 rounded-full">
-                  Chairman
+                  WS Admin
                 </span>
               )}
             </div>
@@ -666,7 +666,7 @@ function AttendancePanel({ companyId, meetingId, jwt, meeting, attendance, isAdm
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2">
                   <p className="text-sm font-semibold text-zinc-200 truncate">{dir.name}</p>
-                  {dir.isWorkspaceAdmin && <span className="text-[9px] font-bold bg-amber-900/40 text-amber-400 border border-amber-700/30 px-1.5 py-0.5 rounded-full">Admin</span>}
+                  {dir.isWorkspaceAdmin && <span className="text-[9px] font-bold bg-amber-900/40 text-amber-400 border border-amber-700/30 px-1.5 py-0.5 rounded-full">WS Admin</span>}
                   <span className="text-[9px] text-zinc-600">{dir.role}</span>
                 </div>
                 <p className="text-zinc-600 text-[11px] mt-0.5">{dir.email}</p>
