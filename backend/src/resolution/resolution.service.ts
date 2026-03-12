@@ -151,7 +151,7 @@ export class ResolutionService {
         agendaItemId: dto.agendaItemId,
         title: dto.title,
         text: dto.text,
-        type: (dto as any).type ?? 'MEETING',  // MEETING | NOTING
+        type: dto.type ?? 'MEETING',  // MEETING | NOTING
         status: ResolutionStatus.DRAFT,
       },
       include: {

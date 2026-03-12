@@ -251,7 +251,7 @@ export const resolutions = {
     get<Resolution[]>(`/companies/${companyId}/resolutions${params?.status ? `?status=${params.status}` : ''}`, token),
   listForMeeting: (companyId: string, meetingId: string, token: string) =>
     get<Resolution[]>(`/companies/${companyId}/meetings/${meetingId}/resolutions`, token),
-  create: (companyId: string, meetingId: string, body: { title: string; text: string; agendaItemId?: string }, token: string) =>
+  create: (companyId: string, meetingId: string, body: { title: string; text: string; agendaItemId?: string; type?: 'MEETING' | 'NOTING' }, token: string) =>
     post<Resolution>(`/companies/${companyId}/meetings/${meetingId}/resolutions`, body, token),
   update: (companyId: string, resolutionId: string, body: Partial<{ title: string; text: string }>, token: string) =>
     patch<Resolution>(`/companies/${companyId}/resolutions/${resolutionId}`, body, token),
