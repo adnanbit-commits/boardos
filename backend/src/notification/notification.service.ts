@@ -1,3 +1,4 @@
+// src/notification/notification.service.ts
 import { Injectable } from '@nestjs/common';
 import { InjectQueue } from '@nestjs/bullmq';
 import { Queue } from 'bullmq';
@@ -5,7 +6,7 @@ import { PrismaService } from '../prisma/prisma.service';
 
 export interface SendNotificationParams {
   userId: string;
-  toEmail?: string; // Override — use when recipient has no account yet
+  toEmail?: string;
   companyId?: string;
   type: 'MEETING_INVITE' | 'VOTE_REQUEST' | 'SIGNATURE_REQUEST' | 'MINUTES_READY' | 'GENERAL';
   subject: string;
@@ -34,7 +35,7 @@ export class NotificationService {
     await this.queue.add('send-email', {
       notificationId: notification.id,
       userId:  params.userId,
-      toEmail: params.toEmail ?? null, // Pass override through to processor
+      toEmail: params.toEmail ?? null,
       subject: params.subject,
       body:    params.body,
     }, {
@@ -52,19 +53,16 @@ export class NotificationService {
       include: { user: true },
     });
 
-    const jobs = directors.map(d =>
+    await Promise.all(directors.map(d =>
       this.send({
         userId: d.userId,
         companyId,
         type: 'VOTE_REQUEST',
         subject: `Action Required: Vote on "${resolutionTitle}"`,
-        body: `You are requested to cast your vote on the board resolution: "${resolutionTitle}". Please log in to BoardOS to vote.`,
+        body: 'You are requested to cast your vote on the board resolution: "' + resolutionTitle + '". Please log in to BoardOS to vote.',
       }),
-    );
-
-    await Promise.all(jobs);
+    ));
   }
-}
 
   async listForUser(userId: string, limit = 30) {
     return this.prisma.notification.findMany({
@@ -75,7 +73,6 @@ export class NotificationService {
   }
 
   async markRead(notificationId: string, userId: string) {
-    // We use sentAt as the "read" timestamp — no separate field needed
     return this.prisma.notification.updateMany({
       where: { id: notificationId, userId },
       data: { sentAt: new Date() },
@@ -88,3 +85,4 @@ export class NotificationService {
       data: { sentAt: new Date() },
     });
   }
+}
