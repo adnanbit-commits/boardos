@@ -781,7 +781,7 @@ function ResolutionCard({ resolution, index, companyId, jwt, currentUserId, meet
 
   async function castVote(value: string) {
     setMyVote(value); setIsVoting(true); setCastError('');
-    try { await voting.castVote(companyId, resolution.id, { value }, jwt); onRefresh(); }
+    try { await voting.castVote(companyId, resolution.id, { value: value as 'APPROVE' | 'REJECT' | 'ABSTAIN' }, jwt); onRefresh(); }
     catch (e: any) { setCastError((e as any).body?.message ?? 'Could not cast vote'); setMyVote(null); }
     finally { setIsVoting(false); }
   }
