@@ -259,6 +259,8 @@ export const resolutions = {
     del<{ message: string }>(`/companies/${companyId}/resolutions/${resolutionId}`, token),
   propose: (companyId: string, resolutionId: string, token: string) =>
     patch<Resolution>(`/companies/${companyId}/resolutions/${resolutionId}/propose`, undefined, token),
+  note: (companyId: string, resolutionId: string, token: string) =>
+    patch<Resolution>(`/companies/${companyId}/resolutions/${resolutionId}/note`, undefined, token),
   openVoting: (companyId: string, resolutionId: string, token: string) =>
     patch<Resolution>(`/companies/${companyId}/resolutions/${resolutionId}/open-voting`, undefined, token),
   withdraw: (companyId: string, resolutionId: string, token: string) =>
