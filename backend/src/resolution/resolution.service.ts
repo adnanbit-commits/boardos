@@ -151,6 +151,7 @@ export class ResolutionService {
         agendaItemId: dto.agendaItemId,
         title: dto.title,
         text: dto.text,
+        type: (dto as any).type ?? 'MEETING',  // MEETING | NOTING
         status: ResolutionStatus.DRAFT,
       },
       include: {
@@ -374,6 +375,42 @@ export class ResolutionService {
       opened: candidates.length,
       resolutions: candidates.map(r => ({ id: r.id, title: r.title })),
     };
+  }
+
+
+  /**
+   * Place a NOTING-type resolution on record.
+   * NOTING resolutions bypass the PROPOSED → VOTING → APPROVED flow entirely.
+   * They represent documents taken on record (COI, MoA, DIR-2, DIR-8, MBP-1).
+   * DRAFT → NOTED in one step.
+   */
+  async noteResolution(companyId: string, id: string, userId: string) {
+    const resolution = await this.assertExists(companyId, id);
+
+    if (resolution.type !== 'NOTING') {
+      throw new BadRequestException(
+        'Only NOTING-type resolutions can be placed on record. ' +
+        'Voting resolutions must follow the PROPOSED → VOTING → APPROVED flow.',
+      );
+    }
+
+    if (resolution.status !== 'DRAFT') {
+      throw new BadRequestException(`Resolution is already ${resolution.status}`);
+    }
+
+    const updated = await this.prisma.resolution.update({
+      where: { id },
+      data: { status: 'NOTED' as any },
+    });
+
+    await this.audit.log({
+      companyId, userId,
+      action: 'RESOLUTION_NOTED',
+      entity: 'Resolution', entityId: id,
+      metadata: { title: resolution.title },
+    });
+
+    return updated;
   }
 
   // ── Helpers ──────────────────────────────────────────────────────────────────

@@ -1,6 +1,13 @@
 // ─── minutes/minutes.service.ts ───────────────────────────────────────────────
 // Generates structured meeting minutes from meeting data,
-// handles chairman signature, and locks the document permanently.
+// handles signing by the designated recorder (or chairman as fallback),
+// and locks the document permanently.
+//
+// SS-1 compliance:
+//   • Minutes include director declarations (DIR-2, DIR-8, MBP-1)
+//   • AOB items flagged in agenda
+//   • Signed by minutesRecorderId if set, else by isChairman
+//   • MINUTES_CIRCULATED stage respected — signing blocked until circulated
 
 import {
   Injectable, NotFoundException, ForbiddenException, BadRequestException,
@@ -21,24 +28,22 @@ export class MinutesService {
     const meeting = await this.prisma.meeting.findFirst({
       where: { id: meetingId, companyId },
       include: {
-        agendaItems: { orderBy: { order: 'asc' } },
-        resolutions: {
-          include: {
-            votes: { include: { user: { select: { name: true } } } },
-          },
-        },
-        attendance: {
-          include: { user: { select: { id: true, name: true } } },
-        },
+        agendaItems:  { orderBy: { order: 'asc' } },
+        resolutions:  { include: { votes: { include: { user: { select: { name: true } } } } } },
+        attendance:   { include: { user: { select: { id: true, name: true } } } },
+        declarations: { include: { user: { select: { id: true, name: true } } } },
         company: true,
       },
     });
     if (!meeting) throw new NotFoundException('Meeting not found');
 
-    const content = this.buildMinutesContent(meeting);
+    // Resolve chairperson and recorder names for minutes header
+    const chairpersonName  = await this.resolveUserName(meeting.chairpersonId);
+    const recorderName     = await this.resolveUserName(meeting.minutesRecorderId);
+
+    const content = this.buildMinutesContent(meeting, chairpersonName, recorderName);
 
     const existing = await this.prisma.minutes.findUnique({ where: { meetingId } });
-
     if (existing && existing.status !== MinutesStatus.DRAFT) {
       throw new BadRequestException('Minutes have already been signed and cannot be regenerated');
     }
@@ -47,20 +52,13 @@ export class MinutesService {
       ? await this.prisma.minutes.update({ where: { meetingId }, data: { content } })
       : await this.prisma.minutes.create({ data: { meetingId, content } });
 
-    await this.audit.log({
-      companyId, userId,
-      action: 'MINUTES_GENERATED',
-      entity: 'Minutes',
-      entityId: minutes.id,
-    });
-
+    await this.audit.log({ companyId, userId, action: 'MINUTES_GENERATED', entity: 'Minutes', entityId: minutes.id });
     return minutes;
   }
 
   async findByMeeting(companyId: string, meetingId: string) {
     const meeting = await this.prisma.meeting.findFirst({ where: { id: meetingId, companyId } });
     if (!meeting) throw new NotFoundException('Meeting not found');
-
     const minutes = await this.prisma.minutes.findUnique({ where: { meetingId } });
     if (!minutes) throw new NotFoundException('Minutes not yet generated');
     return minutes;
@@ -68,19 +66,36 @@ export class MinutesService {
 
   async sign(companyId: string, meetingId: string, userId: string) {
     const minutes = await this.findByMeeting(companyId, meetingId);
-
     if (minutes.status !== MinutesStatus.DRAFT) {
       throw new BadRequestException('Minutes are already signed');
+    }
+
+    const meeting = await this.prisma.meeting.findFirst({ where: { id: meetingId, companyId } });
+    if (!meeting) throw new NotFoundException('Meeting not found');
+
+    // SS-1: minutes must have been circulated before signing
+    if (meeting.status !== 'MINUTES_CIRCULATED' && meeting.status !== 'SIGNED') {
+      throw new BadRequestException(
+        'Draft minutes must be circulated to all directors before signing. ' +
+        'Advance the meeting to MINUTES_CIRCULATED first.',
+      );
     }
 
     const membership = await this.prisma.companyUser.findUnique({
       where: { userId_companyId: { userId, companyId } },
     });
-    if (!membership?.isChairman) {
-      throw new ForbiddenException('Only the Chairman can sign the minutes');
+
+    // Authorised signatories: designated recorder, OR chairman if no recorder set
+    const isDesignatedRecorder = (meeting as any).minutesRecorderId === userId;
+    const isChairman = membership?.isChairman ?? false;
+    const isPerMeetingChair = (meeting as any).chairpersonId === userId;
+
+    if (!isDesignatedRecorder && !isChairman && !isPerMeetingChair) {
+      throw new ForbiddenException(
+        'Only the designated minutes recorder or the meeting chairperson can sign the minutes.',
+      );
     }
 
-    // SHA-256 of content + signer identity — unique to this signing event
     const signatureHash = crypto
       .createHash('sha256')
       .update(`${minutes.content}|${userId}|${new Date().toISOString()}`)
@@ -88,47 +103,36 @@ export class MinutesService {
 
     const signed = await this.prisma.minutes.update({
       where: { id: minutes.id },
-      data: {
-        status: MinutesStatus.SIGNED,
-        signedById: userId,
-        signedAt: new Date(),
-        signatureHash,
-      },
+      data: { status: MinutesStatus.SIGNED, signedById: userId, signedAt: new Date(), signatureHash },
     });
 
-    await this.prisma.meeting.update({
-      where: { id: meetingId },
-      data: { status: 'SIGNED' },
-    });
+    await this.prisma.meeting.update({ where: { id: meetingId }, data: { status: 'SIGNED' } });
 
-    await this.audit.log({
-      companyId, userId,
-      action: 'MINUTES_SIGNED',
-      entity: 'Minutes',
-      entityId: minutes.id,
-      metadata: { signatureHash },
-    });
-
+    await this.audit.log({ companyId, userId, action: 'MINUTES_SIGNED', entity: 'Minutes', entityId: minutes.id, metadata: { signatureHash } });
     return signed;
   }
 
-  private buildMinutesContent(meeting: any): string {
+  // ── Minutes HTML builder ─────────────────────────────────────────────────────
+
+  private async resolveUserName(userId: string | null | undefined): Promise<string | null> {
+    if (!userId) return null;
+    const user = await this.prisma.user.findUnique({ where: { id: userId }, select: { name: true } });
+    return user?.name ?? null;
+  }
+
+  private buildMinutesContent(meeting: any, chairpersonName: string | null, recorderName: string | null): string {
     const modeLabel: Record<string, string> = {
-      IN_PERSON: 'In Person',
-      VIDEO:     'Video Conference',
-      PHONE:     'Phone',
+      IN_PERSON: 'In Person', VIDEO: 'Video Conference', PHONE: 'Phone',
     };
 
     const present = (meeting.attendance ?? []).filter((a: any) => a.mode !== 'ABSENT');
     const absent  = (meeting.attendance ?? []).filter((a: any) => a.mode === 'ABSENT');
-
     const presentRows = present.map((a: any) =>
       `<tr><td>${a.user.name}</td><td>${modeLabel[a.mode] ?? a.mode}</td></tr>`
     ).join('');
-
     const absentNames = absent.map((a: any) => a.user.name).join(', ') || 'None';
 
-    // Sec. 174 — quorum is 1/3rd of total directors or 2, whichever is higher
+    // Sec. 174 quorum
     const totalDirectors  = meeting.attendance?.length ?? 0;
     const quorumRequired  = Math.max(2, Math.ceil(totalDirectors / 3));
     const presentCount    = present.length;
@@ -137,33 +141,66 @@ export class MinutesService {
       ? `Quorum was present. ${presentCount} of ${totalDirectors} directors attended (minimum required: ${quorumRequired}).`
       : `<strong style="color:red">WARNING: Quorum was NOT met. ${presentCount} of ${totalDirectors} directors attended (minimum required: ${quorumRequired}).</strong>`;
 
-    const resolutionBlocks = (meeting.resolutions ?? [])
-      .map((res: any, idx: number) => {
-        const approvals   = res.votes.filter((v: any) => v.value === 'APPROVE').map((v: any) => v.user.name);
-        const rejections  = res.votes.filter((v: any) => v.value === 'REJECT').map((v: any) => v.user.name);
-        const abstentions = res.votes.filter((v: any) => v.value === 'ABSTAIN').map((v: any) => v.user.name);
+    // Director declarations section (DIR-2, DIR-8, MBP-1)
+    const declarationsByUser = new Map<string, any[]>();
+    for (const d of (meeting.declarations ?? [])) {
+      if (!declarationsByUser.has(d.userId)) declarationsByUser.set(d.userId, []);
+      declarationsByUser.get(d.userId)!.push(d);
+    }
 
-        // Sec. 118(5) — dissenting directors must be named explicitly
-        const dissentLine = rejections.length > 0
-          ? `<p style="color:#c0392b"><strong>Directors who dissented (Sec. 118(5)):</strong> ${rejections.join(', ')}</p>`
-          : '';
-        const abstainLine = abstentions.length > 0
-          ? `<p><strong>Directors who abstained:</strong> ${abstentions.join(', ')}</p>`
-          : '';
+    const formLabels: Record<string, string> = {
+      DIR_2: 'DIR-2 (Consent to act as Director)',
+      DIR_8: 'DIR-8 (Non-disqualification declaration)',
+      MBP_1: 'MBP-1 (Disclosure of interest)',
+    };
 
+    const declarationRows = Array.from(declarationsByUser.entries()).map(([uid, forms]) => {
+      const director = meeting.declarations.find((d: any) => d.userId === uid)?.user?.name ?? uid;
+      const formCells = ['DIR_2', 'DIR_8', 'MBP_1'].map(f => {
+        const rec = forms.find((d: any) => d.formType === f);
+        const status = rec?.received ? '✓ Received' : '— Not received';
+        const notes  = rec?.notes ? ` <em>(${rec.notes})</em>` : '';
+        return `<td>${status}${notes}</td>`;
+      }).join('');
+      return `<tr><td>${director}</td>${formCells}</tr>`;
+    }).join('');
+
+    // Agenda with AOB flag
+    const agendaItems = (meeting.agendaItems ?? []).map((a: any, i: number) =>
+      `<li><strong>${a.title}</strong>${a.description ? ` — ${a.description}` : ''}${a.isAob ? ' <span style="color:#b45309;font-size:10pt">[AOB — admitted with Chairman\'s permission]</span>' : ''}</li>`
+    ).join('');
+
+    // Resolutions: NOTING type shown differently from VOTING type
+    const resolutionBlocks = (meeting.resolutions ?? []).map((res: any, idx: number) => {
+      if (res.type === 'NOTING') {
         return `
-          <div class="resolution">
-            <h3>Resolution ${idx + 1}: ${res.title}</h3>
+          <div class="resolution noting">
+            <h3>Item ${idx + 1}: ${res.title} <span style="font-size:10pt;color:#6b7280">[Taken on Record]</span></h3>
             <div class="resolution-text">${res.text}</div>
-            <div class="vote-summary">
-              <strong>Result: ${res.status}</strong><br/>
-              <p><strong>In favour (${approvals.length}):</strong> ${approvals.join(', ') || 'None'}</p>
-              ${dissentLine}
-              ${abstainLine}
-            </div>
+            <p><strong>Status:</strong> ${res.status === 'NOTED' ? 'Placed on record' : res.status}</p>
           </div>`;
-      })
-      .join('');
+      }
+
+      const approvals   = res.votes.filter((v: any) => v.value === 'APPROVE').map((v: any) => v.user.name);
+      const rejections  = res.votes.filter((v: any) => v.value === 'REJECT').map((v: any) => v.user.name);
+      const abstentions = res.votes.filter((v: any) => v.value === 'ABSTAIN').map((v: any) => v.user.name);
+
+      const dissentLine  = rejections.length > 0
+        ? `<p style="color:#c0392b"><strong>Directors who dissented (Sec. 118(5)):</strong> ${rejections.join(', ')}</p>` : '';
+      const abstainLine  = abstentions.length > 0
+        ? `<p><strong>Directors who abstained:</strong> ${abstentions.join(', ')}</p>` : '';
+
+      return `
+        <div class="resolution">
+          <h3>Resolution ${idx + 1}: ${res.title}</h3>
+          <div class="resolution-text">${res.text}</div>
+          <div class="vote-summary">
+            <strong>Result: ${res.status}</strong><br/>
+            <p><strong>In favour (${approvals.length}):</strong> ${approvals.join(', ') || 'None'}</p>
+            ${dissentLine}${abstainLine}
+          </div>
+        </div>`;
+    }).join('');
 
     return `
       <html>
@@ -177,6 +214,7 @@ export class MinutesService {
             th, td { border: 1px solid #ccc; padding: 8px 12px; text-align: left; font-size: 11pt; }
             th { background: #f5f5f5; font-weight: bold; }
             .resolution { margin: 20px 0; padding: 16px; border-left: 3px solid #333; }
+            .resolution.noting { border-left-color: #6b7280; background: #f9fafb; }
             .resolution-text { margin: 10px 0; font-style: italic; }
             .vote-summary { margin-top: 12px; font-size: 10pt; color: #444; }
             .quorum-box { padding: 12px 16px; border: 1px solid #ccc; background: #fafafa; margin: 12px 0; font-size: 11pt; }
@@ -192,6 +230,8 @@ export class MinutesService {
             <tr><th>Title</th><td>${meeting.title}</td></tr>
             <tr><th>Date &amp; Time</th><td>${new Date(meeting.scheduledAt).toLocaleString('en-IN')}</td></tr>
             <tr><th>Mode</th><td>${meeting.videoUrl ? `Video Conference (${meeting.videoProvider})` : meeting.location || 'In Person'}</td></tr>
+            <tr><th>Chairman</th><td>${chairpersonName ?? '—'}</td></tr>
+            <tr><th>Minutes Recorded by</th><td>${recorderName ?? '—'} ${recorderName ? '(Authorised by Board)' : ''}</td></tr>
           </table>
 
           <h2>Attendance</h2>
@@ -205,22 +245,26 @@ export class MinutesService {
           <h2>Quorum (Section 174)</h2>
           <div class="quorum-box">${quorumStatement}</div>
 
-          <h2>Agenda</h2>
-          <ol>${(meeting.agendaItems ?? []).map((a: any) =>
-            `<li><strong>${a.title}</strong>${a.description ? ` — ${a.description}` : ''}</li>`
-          ).join('')}</ol>
+          ${declarationsByUser.size > 0 ? `
+          <h2>Director Declarations</h2>
+          <table>
+            <tr><th>Director</th><th>DIR-2 (Consent)</th><th>DIR-8 (Non-disqualification)</th><th>MBP-1 (Disclosure of Interest)</th></tr>
+            ${declarationRows}
+          </table>` : ''}
 
-          <h2>Resolutions</h2>
+          <h2>Agenda</h2>
+          <ol>${agendaItems}</ol>
+
+          <h2>Business Transacted</h2>
           ${resolutionBlocks || '<p>No resolutions recorded for this meeting.</p>'}
 
           <div class="signature-block">
             <div>
               <p>________________________</p>
-              <p>Chairman's Signature</p>
+              <p>${recorderName ?? chairpersonName ?? 'Authorised Signatory'}</p>
+              <p style="font-size:10pt;color:#666">${recorderName ? 'Minutes Recorder (Authorised by Board)' : 'Chairman'}</p>
             </div>
-            <div>
-              <p>Date: _______________</p>
-            </div>
+            <div><p>Date: _______________</p></div>
           </div>
         </body>
       </html>`;

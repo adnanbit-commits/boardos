@@ -157,6 +157,21 @@ export class ResolutionController {
   }
 
   /**
+   * PATCH /companies/:companyId/resolutions/:id/note
+   * DRAFT → NOTED: places a NOTING-type resolution on record (no voting)
+   * Used for: COI, MoA/AoA, DIR-2, DIR-8, MBP-1 recordings
+   */
+  @Patch('resolutions/:id/note')
+  @RequireRole('DIRECTOR')
+  noteResolution(
+    @Param('companyId') companyId: string,
+    @Param('id') id: string,
+    @Req() req: any,
+  ) {
+    return this.resolutionService.noteResolution(companyId, id, req.user.userId);
+  }
+
+    /**
    * PATCH /companies/:companyId/resolutions/:id/withdraw
    * PROPOSED → DRAFT: pull a resolution back before voting starts
    */

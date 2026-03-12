@@ -6,15 +6,15 @@ import { CreateMeetingDto } from './dto/create-meeting.dto';
 import { UpdateMeetingDto } from './dto/update-meeting.dto';
 import { AddAgendaItemDto } from './dto/add-agenda-item.dto';
 
-// Valid forward transitions for the meeting workflow
 const ALLOWED_TRANSITIONS: Record<MeetingStatus, MeetingStatus[]> = {
-  DRAFT:         ['SCHEDULED'],
-  SCHEDULED:     ['IN_PROGRESS', 'DRAFT'],
-  IN_PROGRESS:   ['VOTING'],
-  VOTING:        ['MINUTES_DRAFT'],
-  MINUTES_DRAFT: ['SIGNED'],
-  SIGNED:        ['LOCKED'],
-  LOCKED:        [],
+  DRAFT:              ['SCHEDULED'],
+  SCHEDULED:          ['IN_PROGRESS', 'DRAFT'],
+  IN_PROGRESS:        ['VOTING'],
+  VOTING:             ['MINUTES_DRAFT'],
+  MINUTES_DRAFT:      ['MINUTES_CIRCULATED'],
+  MINUTES_CIRCULATED: ['SIGNED'],
+  SIGNED:             ['LOCKED'],
+  LOCKED:             [],
 };
 
 @Injectable()
@@ -39,6 +39,9 @@ export class MeetingService {
         agendaItems: { orderBy: { order: 'asc' } },
         resolutions: { include: { votes: true } },
         minutes: true,
+        declarations: {
+          include: { user: { select: { id: true, name: true, email: true } } },
+        },
       },
     });
     if (!meeting) throw new NotFoundException('Meeting not found');
@@ -46,156 +49,164 @@ export class MeetingService {
   }
 
   async create(companyId: string, dto: CreateMeetingDto, userId: string) {
-    const meeting = await this.prisma.meeting.create({
-      data: { companyId, ...dto },
-    });
-
-    await this.audit.log({
-      companyId, userId,
-      action: 'MEETING_CREATED',
-      entity: 'Meeting',
-      entityId: meeting.id,
-    });
-
+    const meeting = await this.prisma.meeting.create({ data: { companyId, ...dto } });
+    await this.audit.log({ companyId, userId, action: 'MEETING_CREATED', entity: 'Meeting', entityId: meeting.id });
     return meeting;
   }
 
   async update(companyId: string, id: string, dto: UpdateMeetingDto, userId: string) {
-    await this.findOne(companyId, id); // ensure it exists and belongs to company
+    await this.findOne(companyId, id);
     return this.prisma.meeting.update({ where: { id }, data: dto });
   }
 
-  async addAgendaItem(meetingId: string, dto: AddAgendaItemDto) {
-    // Auto-increment order based on existing items
+  async addAgendaItem(companyId: string, meetingId: string, dto: AddAgendaItemDto) {
+    const meeting = await this.prisma.meeting.findFirst({ where: { id: meetingId, companyId } });
+    if (!meeting) throw new NotFoundException('Meeting not found');
     const count = await this.prisma.agendaItem.count({ where: { meetingId } });
-    return this.prisma.agendaItem.create({
-      data: { meetingId, ...dto, order: count + 1 },
-    });
+    const isAob = ['IN_PROGRESS', 'VOTING'].includes(meeting.status);
+    return this.prisma.agendaItem.create({ data: { meetingId, ...dto, order: count + 1, isAob } });
   }
+
+  // ── Chairperson ──────────────────────────────────────────────────────────────
+
+  async electChairperson(companyId: string, meetingId: string, chairpersonId: string, userId: string) {
+    const meeting = await this.prisma.meeting.findFirst({ where: { id: meetingId, companyId } });
+    if (!meeting) throw new NotFoundException('Meeting not found');
+    if (['SIGNED', 'LOCKED'].includes(meeting.status))
+      throw new BadRequestException('Cannot change chairperson on a signed meeting');
+
+    const membership = await this.prisma.companyUser.findFirst({
+      where: { companyId, userId: chairpersonId, role: { in: ['ADMIN', 'DIRECTOR'] } },
+    });
+    if (!membership) throw new BadRequestException('Nominated chairperson must be a Director or Admin');
+
+    const updated = await this.prisma.meeting.update({ where: { id: meetingId }, data: { chairpersonId } });
+    await this.audit.log({ companyId, userId, action: 'MEETING_CHAIRPERSON_ELECTED', entity: 'Meeting', entityId: meetingId, metadata: { chairpersonId } });
+    return updated;
+  }
+
+  async setMinutesRecorder(companyId: string, meetingId: string, recorderId: string, userId: string) {
+    const meeting = await this.prisma.meeting.findFirst({ where: { id: meetingId, companyId } });
+    if (!meeting) throw new NotFoundException('Meeting not found');
+    if (['SIGNED', 'LOCKED'].includes(meeting.status))
+      throw new BadRequestException('Cannot change recorder on a signed meeting');
+
+    const membership = await this.prisma.companyUser.findFirst({
+      where: { companyId, userId: recorderId, role: { in: ['ADMIN', 'DIRECTOR'] } },
+    });
+    if (!membership) throw new BadRequestException('Recorder must be a Director or Admin');
+
+    const updated = await this.prisma.meeting.update({ where: { id: meetingId }, data: { minutesRecorderId: recorderId } });
+    await this.audit.log({ companyId, userId, action: 'MEETING_RECORDER_DESIGNATED', entity: 'Meeting', entityId: meetingId, metadata: { recorderId } });
+    return updated;
+  }
+
+  // ── Declarations ──────────────────────────────────────────────────────────────
+
+  async getDeclarations(companyId: string, meetingId: string) {
+    await this.findOne(companyId, meetingId);
+    const members = await this.prisma.companyUser.findMany({
+      where: { companyId, role: { in: ['ADMIN', 'DIRECTOR'] }, acceptedAt: { not: null } },
+      include: { user: { select: { id: true, name: true, email: true } } },
+    });
+    const declarations = await this.prisma.directorDeclaration.findMany({ where: { meetingId } });
+    const declMap = new Map(declarations.map(d => [`${d.userId}:${d.formType}`, d]));
+    const FORMS = ['DIR_2', 'DIR_8', 'MBP_1'] as const;
+
+    return members.map(m => ({
+      userId: m.user.id, name: m.user.name, email: m.user.email,
+      role: m.role, isChairman: m.isChairman,
+      forms: FORMS.map(form => {
+        const rec = declMap.get(`${m.user.id}:${form}`);
+        return { formType: form, received: rec?.received ?? false, notes: rec?.notes ?? null, recordedAt: rec?.recordedAt ?? null };
+      }),
+    }));
+  }
+
+  async recordDeclaration(
+    companyId: string, meetingId: string,
+    body: { userId: string; formType: 'DIR_2' | 'DIR_8' | 'MBP_1'; received: boolean; notes?: string },
+    actorId: string,
+  ) {
+    await this.findOne(companyId, meetingId);
+    const declaration = await this.prisma.directorDeclaration.upsert({
+      where: { meetingId_userId_formType: { meetingId, userId: body.userId, formType: body.formType as any } },
+      create: { meetingId, userId: body.userId, formType: body.formType as any, received: body.received, notes: body.notes },
+      update: { received: body.received, notes: body.notes, recordedAt: new Date() },
+    });
+    await this.audit.log({ companyId, userId: actorId, action: 'DECLARATION_RECORDED', entity: 'Meeting', entityId: meetingId, metadata: { targetUserId: body.userId, formType: body.formType, received: body.received } });
+    return declaration;
+  }
+
+  // ── Transition ──────────────────────────────────────────────────────────────
 
   async transition(companyId: string, id: string, targetStatus: string, userId: string) {
     const meeting = await this.findOne(companyId, id);
     const allowed = ALLOWED_TRANSITIONS[meeting.status];
 
     if (!allowed.includes(targetStatus as MeetingStatus)) {
+      throw new BadRequestException(`Cannot transition from ${meeting.status} to ${targetStatus}`);
+    }
+
+    // Chairperson must be elected before meeting starts
+    if (targetStatus === 'IN_PROGRESS' && !(meeting as any).chairpersonId) {
       throw new BadRequestException(
-        `Cannot transition from ${meeting.status} to ${targetStatus}`,
+        'A chairperson must be elected before the meeting can be opened. Use POST /meetings/:id/chairperson first.',
       );
     }
 
-    // When closing voting → auto-finalize any resolutions still in VOTING
-    // (handles case where not all directors voted before chairman closes)
+    // Auto-finalize VOTING resolutions when closing voting
     if (targetStatus === 'MINUTES_DRAFT') {
       const votingResolutions = await this.prisma.resolution.findMany({
         where: { meetingId: id, status: 'VOTING' },
         include: { votes: true },
       });
-
       for (const res of votingResolutions) {
-        const directorCount = await this.prisma.companyUser.count({
-          where: { companyId, role: { in: ['ADMIN', 'DIRECTOR'] } },
-        });
+        const directorCount = await this.prisma.companyUser.count({ where: { companyId, role: { in: ['ADMIN', 'DIRECTOR'] } } });
         const approveCount = res.votes.filter(v => v.value === 'APPROVE').length;
         const finalStatus = approveCount > directorCount / 2 ? 'APPROVED' : 'REJECTED';
-        await this.prisma.resolution.update({
-          where: { id: res.id },
-          data: { status: finalStatus as any },
-        });
-        await this.audit.log({
-          companyId, userId,
-          action: `RESOLUTION_${finalStatus}_AUTO`,
-          entity: 'Resolution',
-          entityId: res.id,
-          metadata: { reason: 'voting_closed_by_chair', approveCount, directorCount },
-        });
+        await this.prisma.resolution.update({ where: { id: res.id }, data: { status: finalStatus as any } });
+        await this.audit.log({ companyId, userId, action: `RESOLUTION_${finalStatus}_AUTO`, entity: 'Resolution', entityId: res.id, metadata: { approveCount, directorCount } });
       }
     }
 
+    const extraData: any = {};
+    if (targetStatus === 'MINUTES_CIRCULATED') extraData.minutesCirculatedAt = new Date();
+
     const updated = await this.prisma.meeting.update({
       where: { id },
-      data: { status: targetStatus as MeetingStatus },
+      data: { status: targetStatus as MeetingStatus, ...extraData },
     });
 
-    await this.audit.log({
-      companyId, userId,
-      action: `MEETING_STATUS_${targetStatus}`,
-      entity: 'Meeting',
-      entityId: id,
-      metadata: { from: meeting.status, to: targetStatus },
-    });
-
+    await this.audit.log({ companyId, userId, action: `MEETING_STATUS_${targetStatus}`, entity: 'Meeting', entityId: id, metadata: { from: meeting.status, to: targetStatus } });
     return updated;
   }
 
-  async remove(companyId: string, id: string, userId: string) {
-    const meeting = await this.prisma.meeting.findFirst({ where: { id, companyId } });
-    if (!meeting) throw new NotFoundException('Meeting not found');
-    if (meeting.status !== 'DRAFT')
-      throw new BadRequestException('Only DRAFT meetings can be deleted');
-
-    await this.prisma.meeting.delete({ where: { id } });
-
-    await this.audit.log({
-      companyId, userId,
-      action: 'MEETING_DELETED',
-      entity: 'Meeting',
-      entityId: id,
-      metadata: { title: meeting.title },
-    });
-
-    return { message: 'Meeting deleted' };
-  }
-
-  // ── Attendance ─────────────────────────────────────────────────────────────
+  // ── Attendance ──────────────────────────────────────────────────────────────
 
   async getAttendance(companyId: string, meetingId: string) {
-    await this.findOne(companyId, meetingId); // ownership check
-
-    // Return all directors in company alongside their attendance record if any
+    await this.findOne(companyId, meetingId);
     const members = await this.prisma.companyUser.findMany({
-      where:   { companyId, role: { in: ['ADMIN', 'DIRECTOR'] }, acceptedAt: { not: null } },
+      where: { companyId, role: { in: ['ADMIN', 'DIRECTOR'] }, acceptedAt: { not: null } },
       include: { user: { select: { id: true, name: true, email: true } } },
     });
-
-    const records = await this.prisma.meetingAttendance.findMany({
-      where: { meetingId },
-    });
-
+    const records = await this.prisma.meetingAttendance.findMany({ where: { meetingId } });
     const recordMap = new Map(records.map(r => [r.userId, r]));
-
     return members.map(m => ({
-      userId:     m.user.id,
-      name:       m.user.name,
-      email:      m.user.email,
-      role:       m.role,
-      isChairman: m.isChairman,
+      userId: m.user.id, name: m.user.name, email: m.user.email,
+      role: m.role, isChairman: m.isChairman,
       attendance: recordMap.get(m.user.id) ?? null,
     }));
   }
 
-  async recordAttendance(
-    companyId: string,
-    meetingId: string,
-    userId: string,
-    targetUserId: string,
-    mode: string,
-  ) {
-    await this.findOne(companyId, meetingId); // ownership check
-
+  async recordAttendance(companyId: string, meetingId: string, userId: string, targetUserId: string, mode: string) {
+    await this.findOne(companyId, meetingId);
     const record = await this.prisma.meetingAttendance.upsert({
       where:  { meetingId_userId: { meetingId, userId: targetUserId } },
       create: { meetingId, userId: targetUserId, mode: mode as any },
       update: { mode: mode as any, recordedAt: new Date() },
     });
-
-    await this.audit.log({
-      companyId, userId,
-      action:   'ATTENDANCE_RECORDED',
-      entity:   'Meeting',
-      entityId: meetingId,
-      metadata: { targetUserId, mode },
-    });
-
+    await this.audit.log({ companyId, userId, action: 'ATTENDANCE_RECORDED', entity: 'Meeting', entityId: meetingId, metadata: { targetUserId, mode } });
     return record;
   }
 }

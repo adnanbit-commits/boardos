@@ -76,7 +76,7 @@ export interface AgendaItem {
 
 export type MeetingStatus =
   | 'DRAFT' | 'SCHEDULED' | 'IN_PROGRESS' | 'VOTING'
-  | 'MINUTES_DRAFT' | 'SIGNED' | 'LOCKED';
+  | 'MINUTES_DRAFT' | 'MINUTES_CIRCULATED' | 'SIGNED' | 'LOCKED';
 
 export interface Meeting {
   id: string; companyId: string; title: string; description?: string | null;
@@ -85,6 +85,9 @@ export interface Meeting {
   videoUrl?: string | null;
   videoProvider?: string | null;
   videoMeetingId?: string | null;
+  chairpersonId?: string | null;
+  minutesRecorderId?: string | null;
+  minutesCirculatedAt?: string | null;
 }
 
 export type MeetingDetail = Meeting & {
@@ -94,7 +97,7 @@ export type MeetingDetail = Meeting & {
 
 export interface Resolution {
   id: string; meetingId: string | null; agendaItemId: string | null;
-  type?: 'MEETING' | 'CIRCULAR';
+  type?: 'MEETING' | 'CIRCULAR' | 'NOTING';
   title: string; text: string; status: string;
   tally?: { APPROVE: number; REJECT: number; ABSTAIN: number };
   votes?: Vote[];
@@ -131,6 +134,25 @@ export interface AttendanceRecord {
     mode:       AttendanceMode;
     recordedAt: string;
   } | null;
+}
+
+
+export type DeclarationFormType = 'DIR_2' | 'DIR_8' | 'MBP_1';
+
+export interface DirectorDeclarationForm {
+  formType:   DeclarationFormType;
+  received:   boolean;
+  notes:      string | null;
+  recordedAt: string | null;
+}
+
+export interface DirectorDeclarationRecord {
+  userId:     string;
+  name:       string;
+  email:      string;
+  role:       string;
+  isChairman: boolean;
+  forms:      DirectorDeclarationForm[];
 }
 
 export interface Document {
@@ -212,6 +234,14 @@ export const meetings = {
     get<AttendanceRecord[]>(`/companies/${companyId}/meetings/${meetingId}/attendance`, token),
   recordAttendance: (companyId: string, meetingId: string, body: { userId: string; mode: AttendanceMode }, token: string) =>
     post<AttendanceRecord>(`/companies/${companyId}/meetings/${meetingId}/attendance`, body, token),
+  electChairperson: (companyId: string, meetingId: string, chairpersonId: string, token: string) =>
+    post<Meeting>(`/companies/${companyId}/meetings/${meetingId}/chairperson`, { chairpersonId }, token),
+  setRecorder: (companyId: string, meetingId: string, recorderId: string, token: string) =>
+    post<Meeting>(`/companies/${companyId}/meetings/${meetingId}/recorder`, { recorderId }, token),
+  getDeclarations: (companyId: string, meetingId: string, token: string) =>
+    get<DirectorDeclarationRecord[]>(`/companies/${companyId}/meetings/${meetingId}/declarations`, token),
+  recordDeclaration: (companyId: string, meetingId: string, body: { userId: string; formType: DeclarationFormType; received: boolean; notes?: string }, token: string) =>
+    post<DirectorDeclarationRecord>(`/companies/${companyId}/meetings/${meetingId}/declarations`, body, token),
 };
 
 // ── Resolutions ───────────────────────────────────────────────────────────────

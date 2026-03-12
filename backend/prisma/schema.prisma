@@ -28,6 +28,7 @@ enum MeetingStatus {
   IN_PROGRESS
   VOTING
   MINUTES_DRAFT
+  MINUTES_CIRCULATED  // Draft circulated to directors for 7-day comment window (SS-1)
   SIGNED
   LOCKED
 }
@@ -38,11 +39,13 @@ enum ResolutionStatus {
   VOTING
   APPROVED
   REJECTED
+  NOTED     // For NOTING-type only — placed on record
 }
 
 enum ResolutionType {
   MEETING
   CIRCULAR
+  NOTING    // Board takes document/declaration on record — no vote
 }
 
 enum CircularSignatureValue {
@@ -83,6 +86,13 @@ enum NotificationType {
   GENERAL
 }
 
+
+enum DeclarationFormType {
+  DIR_2   // Consent to act as director — Sec. 152(5)
+  DIR_8   // Non-disqualification declaration — Sec. 164(2)
+  MBP_1   // Disclosure of interest — Sec. 184(1)
+}
+
 // ─────────────────────────────────────────────
 // USERS
 // ─────────────────────────────────────────────
@@ -97,7 +107,7 @@ model User {
   userIntent      String?  // cs_ca | director | observer | other
   phone         String?
   avatarUrl     String?
-  isActive      Boolean  @default(true)
+  isActive            Boolean  @default(true)
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 
@@ -110,6 +120,7 @@ model User {
   sentInvites         Invitation[] @relation("SentInvites")
   attendance    MeetingAttendance[]
   circularSignatures  CircularSignature[]
+  declarations  DirectorDeclaration[]
 
   @@map("users")
 }
@@ -125,7 +136,8 @@ model Company {
   pan           String?
   registeredAt  String?           // e.g. "Mumbai, MH"
   logoUrl       String?
-  isActive      Boolean  @default(true)
+  isActive            Boolean  @default(true)
+  minutesCustodianId  String?  // Director authorised to keep statutory registers (Rule 25(1)(f))
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 
@@ -198,6 +210,9 @@ model Meeting {
   videoUrl      String?
   videoMeetingId String?
 
+  chairpersonId    String?       // Director elected as chairperson for this specific meeting
+  minutesRecorderId String?      // Director authorised to record proceedings for this meeting (SS-1)
+  minutesCirculatedAt DateTime?   // When draft minutes were circulated to directors
   createdAt     DateTime      @default(now())
   updatedAt     DateTime      @updatedAt
 
@@ -206,6 +221,7 @@ model Meeting {
   resolutions   Resolution[]
   minutes       Minutes?
   attendance    MeetingAttendance[]
+  declarations  DirectorDeclaration[]
 
   @@map("meetings")
 }
@@ -224,12 +240,30 @@ model MeetingAttendance {
   @@map("meeting_attendance")
 }
 
+
+model DirectorDeclaration {
+  id         String              @id @default(uuid())
+  meetingId  String
+  userId     String
+  formType   DeclarationFormType
+  received   Boolean             @default(false)
+  notes      String?             // Interests disclosed (MBP-1), remarks
+  recordedAt DateTime            @default(now())
+
+  meeting    Meeting @relation(fields: [meetingId], references: [id], onDelete: Cascade)
+  user       User    @relation(fields: [userId], references: [id])
+
+  @@unique([meetingId, userId, formType])
+  @@map("director_declarations")
+}
+
 model AgendaItem {
   id          String   @id @default(uuid())
   meetingId   String
   title       String
   description String?
   order       Int      @default(0)
+  isAob       Boolean  @default(false)  // Added after meeting started — Any Other Business (SS-1 Clause 6)
   createdAt   DateTime @default(now())
 
   meeting     Meeting      @relation(fields: [meetingId], references: [id], onDelete: Cascade)

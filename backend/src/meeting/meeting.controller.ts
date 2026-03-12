@@ -1,6 +1,4 @@
-import {
-  Controller, Get, Post, Patch, Param, Body, UseGuards, Req,
-} from '@nestjs/common';
+import { Controller, Get, Post, Patch, Param, Body, UseGuards, Req } from '@nestjs/common';
 import { JwtAuthGuard }   from '../auth/jwt-auth.guard';
 import { CompanyGuard }   from '../company/guards/company.guard';
 import { RequireRole }    from '../company/decorators/require-role.decorator';
@@ -26,51 +24,74 @@ export class MeetingController {
 
   @Post()
   @RequireRole('DIRECTOR')
-  create(
-    @Param('companyId') companyId: string,
-    @Body() dto: CreateMeetingDto,
-    @Req() req: any,
-  ) {
+  create(@Param('companyId') companyId: string, @Body() dto: CreateMeetingDto, @Req() req: any) {
     return this.meetingService.create(companyId, dto, req.user.userId);
   }
 
   @Patch(':id')
   @RequireRole('DIRECTOR')
-  update(
-    @Param('companyId') companyId: string,
-    @Param('id') id: string,
-    @Body() dto: UpdateMeetingDto,
-    @Req() req: any,
-  ) {
+  update(@Param('companyId') companyId: string, @Param('id') id: string, @Body() dto: UpdateMeetingDto, @Req() req: any) {
     return this.meetingService.update(companyId, id, dto, req.user.userId);
   }
 
   @Post(':id/agenda')
   @RequireRole('DIRECTOR')
-  addAgendaItem(
-    @Param('companyId') companyId: string,
-    @Param('id') meetingId: string,
-    @Body() dto: AddAgendaItemDto,
-  ) {
-    return this.meetingService.addAgendaItem(meetingId, dto);
+  addAgendaItem(@Param('companyId') companyId: string, @Param('id') meetingId: string, @Body() dto: AddAgendaItemDto) {
+    return this.meetingService.addAgendaItem(companyId, meetingId, dto);
   }
 
   @Patch(':id/status/:status')
   @RequireRole('DIRECTOR')
-  transition(
-    @Param('companyId') companyId: string,
-    @Param('id') id: string,
-    @Param('status') status: string,
-    @Req() req: any,
-  ) {
+  transition(@Param('companyId') companyId: string, @Param('id') id: string, @Param('status') status: string, @Req() req: any) {
     return this.meetingService.transition(companyId, id, status, req.user.userId);
   }
 
-  @Get(':id/attendance')
-  getAttendance(
+  // ── Chairperson ─────────────────────────────────────────────────────────────
+
+  @Post(':id/chairperson')
+  @RequireRole('DIRECTOR')
+  electChairperson(
+    @Param('companyId') companyId: string,
+    @Param('id') meetingId: string,
+    @Body() body: { chairpersonId: string },
+    @Req() req: any,
+  ) {
+    return this.meetingService.electChairperson(companyId, meetingId, body.chairpersonId, req.user.userId);
+  }
+
+  @Post(':id/recorder')
+  @RequireRole('DIRECTOR')
+  setMinutesRecorder(
+    @Param('companyId') companyId: string,
+    @Param('id') meetingId: string,
+    @Body() body: { recorderId: string },
+    @Req() req: any,
+  ) {
+    return this.meetingService.setMinutesRecorder(companyId, meetingId, body.recorderId, req.user.userId);
+  }
+
+  // ── Declarations (DIR-2, DIR-8, MBP-1) ─────────────────────────────────────
+
+  @Get(':id/declarations')
+  getDeclarations(@Param('companyId') companyId: string, @Param('id') id: string) {
+    return this.meetingService.getDeclarations(companyId, id);
+  }
+
+  @Post(':id/declarations')
+  @RequireRole('DIRECTOR')
+  recordDeclaration(
     @Param('companyId') companyId: string,
     @Param('id') id: string,
+    @Body() body: { userId: string; formType: 'DIR_2' | 'DIR_8' | 'MBP_1'; received: boolean; notes?: string },
+    @Req() req: any,
   ) {
+    return this.meetingService.recordDeclaration(companyId, id, body, req.user.userId);
+  }
+
+  // ── Attendance ───────────────────────────────────────────────────────────────
+
+  @Get(':id/attendance')
+  getAttendance(@Param('companyId') companyId: string, @Param('id') id: string) {
     return this.meetingService.getAttendance(companyId, id);
   }
 
