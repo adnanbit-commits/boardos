@@ -2,27 +2,28 @@
 //
 // Applied to every route under /companies/:companyId/*.
 // Checks two things:
-//   1. The authenticated user is a member of that company
-//   2. (Optional) The user holds the required role — via @RequireRole()
+//   1. The authenticated user is a member of that company (tenant isolation)
+//   2. (Optional) The user satisfies a role requirement via decorators:
 //
-// This is what prevents data leaks across tenants.
+//      @RequireWorkspaceAdmin()    — isWorkspaceAdmin flag (invite, settings, transfer)
+//      @RequireRole('DIRECTOR')    — exact DIRECTOR role (voting, signing resolutions)
+//      @RequireRole('PARTICIPANT') — DIRECTOR or COMPANY_SECRETARY (meeting management)
+//      No decorator                — any member can access (AUDITOR, OBSERVER included)
 
 import {
   Injectable, CanActivate, ExecutionContext,
-  ForbiddenException, NotFoundException,
+  ForbiddenException,
 } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import { PrismaService } from '../../prisma/prisma.service';
-import { REQUIRE_ROLE_KEY } from '../decorators/require-role.decorator';
+import {
+  REQUIRE_ROLE_KEY,
+  REQUIRE_WORKSPACE_ADMIN_KEY,
+} from '../decorators/require-role.decorator';
 import { UserRole } from '@prisma/client';
 
-// Role hierarchy — higher index = more permissions
-const ROLE_RANK: Record<UserRole, number> = {
-  OBSERVER: 0,
-  DIRECTOR: 1,
-  PARTNER:  2,
-  ADMIN:    3,
-};
+// Roles that can take active actions in meetings
+const PARTICIPANT_ROLES: UserRole[] = [UserRole.DIRECTOR, UserRole.COMPANY_SECRETARY];
 
 @Injectable()
 export class CompanyGuard implements CanActivate {
@@ -33,12 +34,12 @@ export class CompanyGuard implements CanActivate {
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
     const req = context.switchToHttp().getRequest();
-    const userId = req.user?.userId;
+    const userId    = req.user?.userId;
     const companyId = req.params?.companyId;
 
-    if (!companyId) return true; // Route doesn't have :companyId — skip
+    if (!companyId) return true; // Route doesn't carry :companyId — skip
 
-    // Fetch membership record
+    // ── 1. Membership check (tenant isolation) ─────────────────────────────
     const membership = await this.prisma.companyUser.findUnique({
       where: { userId_companyId: { userId, companyId } },
     });
@@ -47,23 +48,49 @@ export class CompanyGuard implements CanActivate {
       throw new ForbiddenException('You are not a member of this company');
     }
 
-    // Attach membership to request — services can use it without re-querying
+    // Attach to request — services can use it without re-querying
     req.membership = membership;
 
-    // Check role requirement from @RequireRole() decorator, if present
-    const requiredRole = this.reflector.getAllAndOverride<UserRole>(REQUIRE_ROLE_KEY, [
-      context.getHandler(),
-      context.getClass(),
-    ]);
+    // ── 2. Workspace admin check ───────────────────────────────────────────
+    const requiresAdmin = this.reflector.getAllAndOverride<boolean>(
+      REQUIRE_WORKSPACE_ADMIN_KEY,
+      [context.getHandler(), context.getClass()],
+    );
+
+    if (requiresAdmin && !membership.isWorkspaceAdmin) {
+      throw new ForbiddenException(
+        'This action requires workspace admin privileges.',
+      );
+    }
+
+    // ── 3. Role check ──────────────────────────────────────────────────────
+    const requiredRole = this.reflector.getAllAndOverride<string>(
+      REQUIRE_ROLE_KEY,
+      [context.getHandler(), context.getClass()],
+    );
 
     if (requiredRole) {
-      const userRank = ROLE_RANK[membership.role];
-      const requiredRank = ROLE_RANK[requiredRole];
-
-      if (userRank < requiredRank) {
-        throw new ForbiddenException(
-          `This action requires the ${requiredRole} role. You are a ${membership.role}.`,
-        );
+      if (requiredRole === 'PARTICIPANT') {
+        // DIRECTOR or COMPANY_SECRETARY — meeting management, minutes, declarations
+        if (!PARTICIPANT_ROLES.includes(membership.role as UserRole)) {
+          throw new ForbiddenException(
+            'This action requires Director or Company Secretary role.',
+          );
+        }
+      } else if (requiredRole === 'DIRECTOR') {
+        // Exact match — voting, signing resolutions, electing chairperson
+        if (membership.role !== UserRole.DIRECTOR) {
+          throw new ForbiddenException(
+            'This action requires Director role.',
+          );
+        }
+      } else {
+        // Explicit role — exact match
+        if (membership.role !== requiredRole) {
+          throw new ForbiddenException(
+            `This action requires the ${requiredRole} role. You are a ${membership.role}.`,
+          );
+        }
       }
     }
 

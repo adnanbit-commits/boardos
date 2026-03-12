@@ -43,8 +43,8 @@ export interface User {
 
 export interface CompanyWithMeta {
   id: string; name: string; cin?: string;
-  myRole: 'ADMIN' | 'DIRECTOR' | 'OBSERVER' | 'PARTNER';
-  isChairman: boolean; createdAt: string;
+  myRole: 'DIRECTOR' | 'COMPANY_SECRETARY' | 'AUDITOR' | 'OBSERVER';
+  isWorkspaceAdmin: boolean; createdAt: string;
   pendingVotes?: number; unsignedDocs?: number; live?: boolean;
 }
 
@@ -53,7 +53,8 @@ export interface CompanyDetail extends CompanyWithMeta {
 }
 
 export interface CompanyMember {
-  id: string; userId: string; role: string; isChairman: boolean;
+  id: string; userId: string; role: string; isWorkspaceAdmin: boolean;
+  additionalDesignation?: string; designationLabel?: string;
   acceptedAt: string | null;
   user: { id: string; name: string; email: string };
 }
@@ -65,7 +66,7 @@ export interface PendingInvite {
 
 export interface InvitePreview {
   company: CompanyWithMeta; role: string; email: string;
-  expiresAt: string; isChairman: boolean;
+  expiresAt: string;
   invitedBy: { name: string };
 }
 
@@ -128,7 +129,7 @@ export interface AttendanceRecord {
   name:       string;
   email:      string;
   role:       string;
-  isChairman: boolean;
+  isWorkspaceAdmin: boolean;
   attendance: {
     id:         string;
     mode:       AttendanceMode;
@@ -151,7 +152,7 @@ export interface DirectorDeclarationRecord {
   name:       string;
   email:      string;
   role:       string;
-  isChairman: boolean;
+  isWorkspaceAdmin: boolean;
   forms:      DirectorDeclarationForm[];
 }
 

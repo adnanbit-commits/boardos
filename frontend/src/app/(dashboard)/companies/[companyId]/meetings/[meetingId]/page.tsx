@@ -117,7 +117,10 @@ export default function MeetingWorkspacePage() {
   if (!meeting) return null;
 
   const next    = nextStatus(meeting.status as MeetingStatus);
-  const isAdmin = myRole === 'ADMIN' || myRole === 'DIRECTOR';
+  const isWorkspaceAdmin = myMembership?.isWorkspaceAdmin === true;
+  const isDirector = myRole === 'DIRECTOR';
+  const isParticipant = myRole === 'DIRECTOR' || myRole === 'COMPANY_SECRETARY';
+  const isAdmin = isWorkspaceAdmin || isDirector; // legacy alias — use specific flags below
 
   const visibleResolutions = activeAgenda
     ? resolutions.filter(r => r.agendaItemId === activeAgenda)
@@ -130,7 +133,7 @@ export default function MeetingWorkspacePage() {
     ['SCHEDULED', 'IN_PROGRESS'].includes(meeting.status);
 
   // Directors for chairperson/recorder selection
-  const directors = members.filter((m: any) => ['ADMIN','DIRECTOR'].includes(m.role));
+  const directors = members.filter((m: any) => ['DIRECTOR','COMPANY_SECRETARY'].includes(m.role));
 
   return (
     <div className="flex flex-col h-screen bg-[#0D0F12] overflow-hidden"
@@ -396,7 +399,7 @@ function ChairpersonModal({ directors, companyId, meetingId, jwt, onElected, onC
               <option value="">Select a director...</option>
               {directors.map((d: any) => (
                 <option key={d.user.id} value={d.user.id}>
-                  {d.user.name} {d.isChairman ? '(Standing Chairman)' : ''}
+                  {d.user.name}
                 </option>
               ))}
             </select>
@@ -529,7 +532,7 @@ function DeclarationsPanel({ companyId, meetingId, jwt, meeting, declarations, i
                 <p className="text-sm font-semibold text-zinc-200">{dir.name}</p>
                 <p className="text-zinc-600 text-[11px]">{dir.email}</p>
               </div>
-              {dir.isChairman && (
+              {dir.isWorkspaceAdmin && (
                 <span className="text-[9px] font-bold bg-amber-900/40 text-amber-400 border border-amber-700/30 px-1.5 py-0.5 rounded-full">
                   Chairman
                 </span>
@@ -662,7 +665,7 @@ function AttendancePanel({ companyId, meetingId, jwt, meeting, attendance, isAdm
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2">
                   <p className="text-sm font-semibold text-zinc-200 truncate">{dir.name}</p>
-                  {dir.isChairman && <span className="text-[9px] font-bold bg-amber-900/40 text-amber-400 border border-amber-700/30 px-1.5 py-0.5 rounded-full">Chairman</span>}
+                  {dir.isWorkspaceAdmin && <span className="text-[9px] font-bold bg-amber-900/40 text-amber-400 border border-amber-700/30 px-1.5 py-0.5 rounded-full">Admin</span>}
                   <span className="text-[9px] text-zinc-600">{dir.role}</span>
                 </div>
                 <p className="text-zinc-600 text-[11px] mt-0.5">{dir.email}</p>

@@ -57,7 +57,7 @@ export class CircularService {
   }
 
   async create(companyId: string, userId: string, dto: CreateCircularDto) {
-    await this.requireRole(companyId, userId, [UserRole.ADMIN, UserRole.PARTNER, UserRole.DIRECTOR]);
+    await this.requireRole(companyId, userId, [UserRole.DIRECTOR, UserRole.COMPANY_SECRETARY]);
 
     // Deadline stored if provided — hard cap enforced at circulate time, not create time
     // so drafts can hold any working deadline before it's circulated
@@ -87,7 +87,7 @@ export class CircularService {
   }
 
   async circulate(companyId: string, resolutionId: string, userId: string) {
-    await this.requireRole(companyId, userId, [UserRole.ADMIN, UserRole.PARTNER, UserRole.DIRECTOR]);
+    await this.requireRole(companyId, userId, [UserRole.DIRECTOR, UserRole.COMPANY_SECRETARY]);
 
     const resolution = await this.findOne(companyId, resolutionId);
     if (resolution.status !== ResolutionStatus.DRAFT)
@@ -119,7 +119,7 @@ export class CircularService {
 
     // Notify all directors and admins who have accepted membership
     const directors = await this.prisma.companyUser.findMany({
-      where:   { companyId, role: { in: [UserRole.DIRECTOR, UserRole.ADMIN] }, acceptedAt: { not: null } },
+      where:   { companyId, role: { in: [UserRole.DIRECTOR, UserRole.COMPANY_SECRETARY] }, acceptedAt: { not: null } },
       include: { user: true },
     });
 
@@ -150,7 +150,7 @@ export class CircularService {
     if (resolution.deadline && new Date() > resolution.deadline)
       throw new BadRequestException('The deadline for this resolution has passed');
 
-    await this.requireRole(companyId, userId, [UserRole.DIRECTOR, UserRole.ADMIN, UserRole.PARTNER]);
+    await this.requireRole(companyId, userId, [UserRole.DIRECTOR, UserRole.DIRECTOR, UserRole.COMPANY_SECRETARY]);
 
     const signature = await this.prisma.circularSignature.upsert({
       where:  { resolutionId_userId: { resolutionId, userId } },
@@ -170,11 +170,11 @@ export class CircularService {
 
   async requestMeeting(companyId: string, resolutionId: string, userId: string) {
     const resolution = await this.findOne(companyId, resolutionId);
-    await this.requireRole(companyId, userId, [UserRole.DIRECTOR, UserRole.ADMIN]);
+    await this.requireRole(companyId, userId, [UserRole.DIRECTOR, UserRole.COMPANY_SECRETARY]);
 
     // Sec. 175(2): 1/3rd of total directors must request before it becomes mandatory
     const totalDirectors = await this.prisma.companyUser.count({
-      where: { companyId, role: { in: [UserRole.DIRECTOR, UserRole.ADMIN] }, acceptedAt: { not: null } },
+      where: { companyId, role: { in: [UserRole.DIRECTOR, UserRole.COMPANY_SECRETARY] }, acceptedAt: { not: null } },
     });
     const threshold = Math.ceil(totalDirectors / 3);
 
@@ -211,7 +211,7 @@ export class CircularService {
     // If threshold met, notify admins
     if (thresholdMet) {
       const admins = await this.prisma.companyUser.findMany({
-        where: { companyId, role: UserRole.ADMIN, acceptedAt: { not: null } },
+        where: { companyId, role: UserRole.DIRECTOR, acceptedAt: { not: null } },
         include: { user: true },
       });
       for (const admin of admins) {
@@ -237,7 +237,7 @@ export class CircularService {
 
   // Mark a circular resolution as noted at a subsequent board meeting (Sec. 175(2))
   async markNoted(companyId: string, resolutionId: string, meetingId: string, userId: string) {
-    await this.requireRole(companyId, userId, [UserRole.ADMIN, UserRole.PARTNER]);
+    await this.requireRole(companyId, userId, [UserRole.DIRECTOR, UserRole.COMPANY_SECRETARY]);
 
     const resolution = await this.findOne(companyId, resolutionId);
     if (resolution.status !== ResolutionStatus.APPROVED)
@@ -265,7 +265,7 @@ export class CircularService {
 
   // Edit a DRAFT circular — only allowed while still in DRAFT
   async update(companyId: string, resolutionId: string, userId: string, dto: Partial<CreateCircularDto>) {
-    await this.requireRole(companyId, userId, [UserRole.ADMIN, UserRole.PARTNER, UserRole.DIRECTOR]);
+    await this.requireRole(companyId, userId, [UserRole.DIRECTOR, UserRole.COMPANY_SECRETARY]);
     const resolution = await this.findOne(companyId, resolutionId);
     if (resolution.status !== ResolutionStatus.DRAFT)
       throw new BadRequestException('Only DRAFT resolutions can be edited');
@@ -290,7 +290,7 @@ export class CircularService {
 
   // Delete a DRAFT circular — only allowed while still in DRAFT
   async remove(companyId: string, resolutionId: string, userId: string) {
-    await this.requireRole(companyId, userId, [UserRole.ADMIN, UserRole.PARTNER, UserRole.DIRECTOR]);
+    await this.requireRole(companyId, userId, [UserRole.DIRECTOR, UserRole.COMPANY_SECRETARY]);
     const resolution = await this.findOne(companyId, resolutionId);
     if (resolution.status !== ResolutionStatus.DRAFT)
       throw new BadRequestException('Only DRAFT resolutions can be deleted');
@@ -353,7 +353,7 @@ export class CircularService {
 
   private async checkMajority(companyId: string, resolutionId: string) {
     const totalDirectors = await this.prisma.companyUser.count({
-      where: { companyId, role: { in: [UserRole.DIRECTOR, UserRole.ADMIN] }, acceptedAt: { not: null } },
+      where: { companyId, role: { in: [UserRole.DIRECTOR, UserRole.COMPANY_SECRETARY] }, acceptedAt: { not: null } },
     });
     if (totalDirectors === 0) return;
 

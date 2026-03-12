@@ -10,7 +10,7 @@ import {
 } from '@nestjs/common';
 import { JwtAuthGuard }    from '../auth/jwt-auth.guard';
 import { CompanyGuard }    from '../company/guards/company.guard';
-import { RequireRole }     from '../company/decorators/require-role.decorator';
+import { RequireRole, RequireWorkspaceAdmin }     from '../company/decorators/require-role.decorator';
 import { ArchiveService }  from './archive.service';
 
 @Controller('companies/:companyId')
@@ -29,7 +29,7 @@ export class ArchiveController {
   // POST /companies/:companyId/archive/meetings/:meetingId/lock
   // Transitions a SIGNED meeting to LOCKED. Admin or Chairman only.
   @Post('archive/meetings/:meetingId/lock')
-  @RequireRole('ADMIN')
+  @RequireWorkspaceAdmin()
   lockMeeting(
     @Param('companyId') companyId: string,
     @Param('meetingId') meetingId: string,
@@ -42,7 +42,7 @@ export class ArchiveController {
   // Issues a certified copy PDF for a signed or locked meeting.
   // Admin or Chairman only.
   @Post('archive/meetings/:meetingId/certify')
-  @RequireRole('ADMIN')
+  @RequireWorkspaceAdmin()
   issueCertifiedCopy(
     @Param('companyId') companyId: string,
     @Param('meetingId') meetingId: string,

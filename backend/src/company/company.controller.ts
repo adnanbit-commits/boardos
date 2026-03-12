@@ -6,7 +6,7 @@ import {
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { Public } from '../auth/public.decorator';
 import { CompanyGuard } from './guards/company.guard';
-import { RequireRole } from './decorators/require-role.decorator';
+import { RequireRole, RequireWorkspaceAdmin } from './decorators/require-role.decorator';
 import { CompanyService } from './company.service';
 import { InviteService } from './invite.service';
 import { CreateCompanyDto } from './dto/create-company.dto';
@@ -33,7 +33,7 @@ export class CompanyController {
     return this.companyService.listForUser(req.user.userId);
   }
 
-  /** Create a new company workspace — caller becomes ADMIN + Chairman */
+  /** Create a new company workspace — caller becomes DIRECTOR + workspace admin */
   @Post()
   create(@Body() dto: CreateCompanyDto, @Req() req: any) {
     return this.companyService.create(dto, req.user.userId);
@@ -46,10 +46,10 @@ export class CompanyController {
     return this.companyService.findOne(companyId);
   }
 
-  /** Update company profile — ADMIN only */
+  /** Update company profile — workspace admin only */
   @Patch(':companyId')
   @UseGuards(CompanyGuard)
-  @RequireRole('ADMIN')
+  @RequireWorkspaceAdmin()
   update(
     @Param('companyId') companyId: string,
     @Body() dto: UpdateCompanyDto,
@@ -67,10 +67,10 @@ export class CompanyController {
     return this.companyService.listMembers(companyId);
   }
 
-  /** Update a member's role or chairman status — ADMIN only */
+  /** Update a member role or designation — workspace admin only */
   @Patch(':companyId/members/:userId')
   @UseGuards(CompanyGuard)
-  @RequireRole('ADMIN')
+  @RequireWorkspaceAdmin()
   updateMemberRole(
     @Param('companyId') companyId: string,
     @Param('userId') targetUserId: string,
@@ -80,10 +80,10 @@ export class CompanyController {
     return this.companyService.updateMemberRole(companyId, targetUserId, dto, req.user.userId);
   }
 
-  /** Remove a member from the company — ADMIN only */
+  /** Remove a member from the company — workspace admin only */
   @Delete(':companyId/members/:userId')
   @UseGuards(CompanyGuard)
-  @RequireRole('ADMIN')
+  @RequireWorkspaceAdmin()
   @HttpCode(204)
   removeMember(
     @Param('companyId') companyId: string,
@@ -93,12 +93,24 @@ export class CompanyController {
     return this.companyService.removeMember(companyId, targetUserId, req.user.userId);
   }
 
+  /** Transfer workspace admin to another Director — only current admin can call this */
+  @Post(':companyId/transfer-admin')
+  @UseGuards(CompanyGuard)
+  @RequireWorkspaceAdmin()
+  transferAdmin(
+    @Param('companyId') companyId: string,
+    @Body('userId') newAdminUserId: string,
+    @Req() req: any,
+  ) {
+    return this.companyService.transferWorkspaceAdmin(companyId, newAdminUserId, req.user.userId);
+  }
+
   // ── Invitations ──────────────────────────────────────────────────────────────
 
-  /** Send an invite email to a new director — ADMIN only */
+  /** Send an invite email — workspace admin only */
   @Post(':companyId/invitations')
   @UseGuards(CompanyGuard)
-  @RequireRole('ADMIN')
+  @RequireWorkspaceAdmin()
   invite(
     @Param('companyId') companyId: string,
     @Body() dto: InviteDirectorDto,
@@ -110,7 +122,7 @@ export class CompanyController {
   /** List all pending invitations for a company */
   @Get(':companyId/invitations')
   @UseGuards(CompanyGuard)
-  @RequireRole('ADMIN')
+  @RequireWorkspaceAdmin()
   listInvitations(@Param('companyId') companyId: string) {
     return this.inviteService.listPending(companyId);
   }
@@ -118,7 +130,7 @@ export class CompanyController {
   /** Cancel / revoke a pending invitation */
   @Delete(':companyId/invitations/:invitationId')
   @UseGuards(CompanyGuard)
-  @RequireRole('ADMIN')
+  @RequireWorkspaceAdmin()
   @HttpCode(204)
   revokeInvitation(
     @Param('companyId') companyId: string,
@@ -149,7 +161,7 @@ export class CompanyController {
   /** Full audit trail for a company */
   @Get(':companyId/audit')
   @UseGuards(CompanyGuard)
-  @RequireRole('ADMIN')
+  @RequireWorkspaceAdmin()
   getAuditLog(
     @Param('companyId') companyId: string,
     @Req() req: any,

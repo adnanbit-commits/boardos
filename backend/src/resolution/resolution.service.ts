@@ -105,7 +105,7 @@ export class ResolutionService {
 
     // Attach director count for the company so frontend can show X/Y voted
     const directorCount = await this.prisma.companyUser.count({
-      where: { companyId, role: { in: ['ADMIN', 'DIRECTOR'] } },
+      where: { companyId, role: { in: ['DIRECTOR', 'COMPANY_SECRETARY'] } },
     });
 
     return {
@@ -447,7 +447,7 @@ export class ResolutionService {
     resolutionId: string,
   ) {
     const directors = await this.prisma.companyUser.findMany({
-      where: { companyId, role: { in: ['ADMIN', 'DIRECTOR'] } },
+      where: { companyId, role: { in: ['DIRECTOR', 'COMPANY_SECRETARY'] } },
     });
 
     await Promise.all(
@@ -472,7 +472,7 @@ export class ResolutionService {
     count: number,
   ) {
     const directors = await this.prisma.companyUser.findMany({
-      where: { companyId, role: { in: ['ADMIN', 'DIRECTOR'] } },
+      where: { companyId, role: { in: ['DIRECTOR', 'COMPANY_SECRETARY'] } },
     });
 
     await Promise.all(

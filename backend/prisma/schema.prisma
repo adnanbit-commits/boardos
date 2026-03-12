@@ -16,10 +16,28 @@ datasource db {
 // ─────────────────────────────────────────────
 
 enum UserRole {
-  ADMIN
-  DIRECTOR
-  OBSERVER
-  PARTNER
+  DIRECTOR          // Board member — votes, signs resolutions
+  COMPANY_SECRETARY // Appointed CS — records minutes, compliance
+  AUDITOR           // Statutory CA — read + audit actions only
+  OBSERVER          // Read-only — investor, advisor, silent partner
+}
+
+enum DesignationEnum {
+  // Director designations
+  EXECUTIVE_DIRECTOR
+  NON_EXECUTIVE_DIRECTOR
+  INDEPENDENT_DIRECTOR
+  NOMINEE_DIRECTOR
+  MANAGING_DIRECTOR
+  DIRECTOR_SIMPLICITOR   // CA who is also a director (non-voting on audit matters)
+  // CS designations
+  WHOLE_TIME_CS
+  CS_IN_PRACTICE
+  CS_AS_KMP
+  // Auditor designations
+  STATUTORY_AUDITOR
+  INTERNAL_AUDITOR
+  COST_AUDITOR
 }
 
 enum MeetingStatus {
@@ -104,7 +122,8 @@ model User {
   passwordHash    String?
   googleId        String?  @unique
   onboardingDone  Boolean  @default(false)
-  userIntent      String?  // cs_ca | director | observer | other
+  platformRoles   String[] @default([]) // Multi-select at registration: Founder|Director|CA_PRACTICING etc.
+  userIntent      String?  // legacy — kept for migration safety
   phone         String?
   avatarUrl     String?
   isActive            Boolean  @default(true)
@@ -160,7 +179,14 @@ model CompanyUser {
   userId     String
   companyId  String
   role       UserRole @default(DIRECTOR)
-  isChairman Boolean  @default(false)
+
+  // Platform-level workspace management — invisible in legal docs/minutes
+  isWorkspaceAdmin     Boolean        @default(false)
+
+  // Additional designation — sub-category shown in minutes and documents
+  additionalDesignation DesignationEnum?
+  designationLabel      String?          // Custom override for minutes display
+
   invitedAt  DateTime @default(now())
   acceptedAt DateTime?
 
@@ -178,7 +204,6 @@ model Invitation {
   companyId   String
   email       String                      // Invitee email
   role        UserRole  @default(DIRECTOR)
-  isChairman  Boolean   @default(false)
   token       String    @unique           // Secure random token (32 bytes hex)
   invitedById String                      // Who sent the invite
   acceptedAt  DateTime?

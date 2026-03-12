@@ -48,7 +48,7 @@ export class NotificationService {
 
   async notifyDirectorsToVote(companyId: string, resolutionTitle: string, resolutionId: string) {
     const directors = await this.prisma.companyUser.findMany({
-      where: { companyId, role: { in: ['ADMIN', 'DIRECTOR'] } },
+      where: { companyId, role: { in: ['DIRECTOR', 'COMPANY_SECRETARY'] } },
       include: { user: true },
     });
 

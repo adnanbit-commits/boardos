@@ -12,7 +12,7 @@ import {
 } from '@nestjs/common';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { CompanyGuard } from '../company/guards/company.guard';
-import { RequireRole } from '../company/decorators/require-role.decorator';
+import { RequireRole, RequireWorkspaceAdmin } from '../company/decorators/require-role.decorator';
 import { ResolutionService } from './resolution.service';
 import { CreateResolutionDto } from './dto/create-resolution.dto';
 import { UpdateResolutionDto } from './dto/update-resolution.dto';
@@ -176,7 +176,7 @@ export class ResolutionController {
    * PROPOSED → DRAFT: pull a resolution back before voting starts
    */
   @Patch('resolutions/:id/withdraw')
-  @RequireRole('ADMIN')
+  @RequireWorkspaceAdmin()
   withdraw(
     @Param('companyId') companyId: string,
     @Param('id') id: string,

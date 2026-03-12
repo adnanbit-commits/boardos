@@ -87,10 +87,10 @@ export class MinutesService {
 
     // Authorised signatories: designated recorder, OR chairman if no recorder set
     const isDesignatedRecorder = (meeting as any).minutesRecorderId === userId;
-    const isChairman = membership?.isChairman ?? false;
+    
     const isPerMeetingChair = (meeting as any).chairpersonId === userId;
 
-    if (!isDesignatedRecorder && !isChairman && !isPerMeetingChair) {
+    if (!isDesignatedRecorder && !isPerMeetingChair) {
       throw new ForbiddenException(
         'Only the designated minutes recorder or the meeting chairperson can sign the minutes.',
       );

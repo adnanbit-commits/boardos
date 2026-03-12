@@ -22,7 +22,7 @@ export class VotingService {
 
     // Count director seats for the company
     const directorCount = await this.prisma.companyUser.count({
-      where: { companyId, role: { in: ['ADMIN', 'DIRECTOR'] } },
+      where: { companyId, role: { in: ['DIRECTOR'] } },
     });
 
     const tally = {
@@ -93,7 +93,7 @@ export class VotingService {
   // Automatically marks a resolution APPROVED or REJECTED when all votes are in
   private async checkAndFinalizeResolution(companyId: string, resolutionId: string) {
     const directorCount = await this.prisma.companyUser.count({
-      where: { companyId, role: { in: ['ADMIN', 'DIRECTOR'] } },
+      where: { companyId, role: { in: ['DIRECTOR'] } },
     });
 
     const voteCount = await this.prisma.vote.count({ where: { resolutionId } });

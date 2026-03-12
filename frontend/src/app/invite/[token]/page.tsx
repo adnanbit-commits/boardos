@@ -176,7 +176,7 @@ export default function InvitePage() {
                   <Row label="Invited as" value={
                     <span className="flex items-center gap-2">
                       <span className="text-white font-semibold">{invite.role}</span>
-                      {invite.isChairman && (
+                      {false && (
                         <span className="text-[10px] bg-amber-950 text-amber-400 border border-amber-800/50 px-2 py-0.5 rounded-full font-bold tracking-wide">
                           CHAIRMAN
                         </span>

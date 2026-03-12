@@ -15,13 +15,13 @@ interface CompanyContextValue {
   refresh:      () => Promise<void>;
   isLoading:    boolean;
   isAdmin:      boolean;
-  isChairman:   boolean;
+  isWorkspaceAdmin: boolean;
 }
 
 const CompanyContext = createContext<CompanyContextValue>({
   companies: [], company: null, membership: null,
   setCompanyId: () => {}, refresh: async () => {},
-  isLoading: true, isAdmin: false, isChairman: false,
+  isLoading: true, isAdmin: false, isWorkspaceAdmin: false,
 });
 
 export function CompanyProvider({ children }: { children: ReactNode }) {
@@ -52,14 +52,14 @@ export function CompanyProvider({ children }: { children: ReactNode }) {
   }, [companyId]);
 
   const company    = companies.find(c => c.id === companyId) ?? null;
-  const isAdmin    = company?.myRole === 'ADMIN';
-  const isChairman = company?.isChairman ?? false;
+  const isAdmin    = company?.isWorkspaceAdmin === true;
+  const isWorkspaceAdmin = company?.isWorkspaceAdmin ?? false;
 
   return (
     <CompanyContext.Provider value={{
       companies, company, membership,
       setCompanyId, refresh,
-      isLoading, isAdmin, isChairman,
+      isLoading, isAdmin, isWorkspaceAdmin,
     }}>
       {children}
     </CompanyContext.Provider>

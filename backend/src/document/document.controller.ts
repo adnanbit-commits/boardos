@@ -3,7 +3,7 @@ import {
 } from '@nestjs/common';
 import { JwtAuthGuard }    from '../auth/jwt-auth.guard';
 import { CompanyGuard }    from '../company/guards/company.guard';
-import { RequireRole }     from '../company/decorators/require-role.decorator';
+import { RequireRole, RequireWorkspaceAdmin }     from '../company/decorators/require-role.decorator';
 import { DocumentService } from './document.service';
 
 @Controller('companies/:companyId')
@@ -17,9 +17,9 @@ export class DocumentController {
     return this.documents.listByCompany(companyId);
   }
 
-  // PARTNER+ can export minutes PDF (CS role needs this)
+  // Any member can export minutes
   @Post('meetings/:meetingId/minutes/export')
-  @RequireRole('PARTNER')
+  // Any member can export minutes
   exportMinutesPdf(
     @Param('companyId') companyId: string,
     @Param('meetingId') meetingId: string,
@@ -30,7 +30,7 @@ export class DocumentController {
 
   // Certify resolution copy stays ADMIN only — legal document, higher stakes
   @Post('resolutions/:resolutionId/certify')
-  @RequireRole('ADMIN')
+  @RequireWorkspaceAdmin()
   certifyResolution(
     @Param('companyId')    companyId:    string,
     @Param('resolutionId') resolutionId: string,

@@ -1,7 +1,7 @@
 import { Controller, Get, Post, Patch, Param, Body, UseGuards, Req } from '@nestjs/common';
 import { JwtAuthGuard }   from '../auth/jwt-auth.guard';
 import { CompanyGuard }   from '../company/guards/company.guard';
-import { RequireRole }    from '../company/decorators/require-role.decorator';
+import { RequireRole, RequireWorkspaceAdmin }    from '../company/decorators/require-role.decorator';
 import { MeetingService } from './meeting.service';
 import { CreateMeetingDto } from './dto/create-meeting.dto';
 import { UpdateMeetingDto } from './dto/update-meeting.dto';

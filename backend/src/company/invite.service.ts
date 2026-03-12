@@ -62,14 +62,12 @@ export class InviteService {
         companyId,
         email: dto.email,
         role: dto.role as UserRole,
-        isChairman: dto.isChairman ?? false,
         token,
         invitedById,
         expiresAt,
       },
       update: {
         role: dto.role as UserRole,
-        isChairman: dto.isChairman ?? false,
         token,
         invitedById,
         expiresAt,
@@ -156,7 +154,6 @@ export class InviteService {
           userId,
           companyId: invitation.companyId,
           role: invitation.role,
-          isChairman: invitation.isChairman,
           acceptedAt: new Date(),
         },
       });
@@ -181,7 +178,6 @@ export class InviteService {
     return {
       company: invitation.company,
       role: result.role,
-      isChairman: result.isChairman,
     };
   }
 
@@ -204,7 +200,6 @@ export class InviteService {
       company:   invite.company,
       role:      invite.role,
       email:     invite.email,
-      isChairman: invite.isChairman,
       expiresAt: invite.expiresAt,
       invitedBy: invite.invitedBy,
     };

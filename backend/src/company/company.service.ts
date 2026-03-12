@@ -39,7 +39,7 @@ export class CompanyService {
     return memberships.map(m => ({
       ...m.company,
       myRole: m.role,
-      isChairman: m.isChairman,
+      isWorkspaceAdmin: m.isWorkspaceAdmin,
       joinedAt: m.acceptedAt ?? m.invitedAt,
     }));
   }
@@ -63,7 +63,8 @@ export class CompanyService {
 
   /**
    * Create a new company workspace.
-   * Creator is automatically added as ADMIN + Chairman.
+   * Creator becomes DIRECTOR + isWorkspaceAdmin:true.
+   * Chairperson is NOT auto-assigned — elected per meeting (SS-1) or per AOA.
    */
   async create(dto: CreateCompanyDto, userId: string) {
     // Check CIN uniqueness if provided
@@ -72,17 +73,16 @@ export class CompanyService {
       if (existing) throw new ConflictException('A company with this CIN already exists');
     }
 
-    // Use a transaction so company + membership are always created together
     const result = await this.prisma.$transaction(async (tx) => {
       const company = await tx.company.create({ data: dto });
 
       await tx.companyUser.create({
         data: {
-          companyId: company.id,
+          companyId:        company.id,
           userId,
-          role: UserRole.ADMIN,
-          isChairman: true,       // Founder is Chairman by default
-          acceptedAt: new Date(), // No invite needed — they own it
+          role:             UserRole.DIRECTOR,
+          isWorkspaceAdmin: true,   // Workspace creator — platform privilege only
+          acceptedAt:       new Date(),
         },
       });
 
@@ -133,10 +133,8 @@ export class CompanyService {
   }
 
   /**
-   * Change a member's role or chairman flag.
-   * Rules:
-   *  - Can't demote yourself if you're the only ADMIN
-   *  - Only one chairman is allowed at a time (swap atomically)
+   * Change a member's role or designation.
+   * Workspace admin transfer is handled separately via transferWorkspaceAdmin().
    */
   async updateMemberRole(
     companyId: string,
@@ -149,39 +147,15 @@ export class CompanyService {
     });
     if (!target) throw new NotFoundException('Member not found in this company');
 
-    // Guard: cannot demote the last admin
-    if (dto.role && dto.role !== UserRole.ADMIN && target.role === UserRole.ADMIN) {
-      const adminCount = await this.prisma.companyUser.count({
-        where: { companyId, role: UserRole.ADMIN },
-      });
-      if (adminCount <= 1) {
-        throw new BadRequestException('Cannot demote the only admin. Promote another member first.');
-      }
-    }
+    const updateData: Record<string, any> = {};
+    if (dto.role !== undefined)                  updateData.role                  = dto.role as UserRole;
+    if (dto.additionalDesignation !== undefined) updateData.additionalDesignation = dto.additionalDesignation || null;
+    if (dto.designationLabel !== undefined)      updateData.designationLabel      = dto.designationLabel || null;
 
-    // Build explicit typed update payload to satisfy Prisma's strict enum types
-    const updateData: { role?: UserRole; isChairman?: boolean } = {};
-    if (dto.role !== undefined)       updateData.role       = dto.role as UserRole;
-    if (dto.isChairman !== undefined) updateData.isChairman = dto.isChairman;
-
-    // If making someone chairman, unset the existing chairman atomically
-    if (dto.isChairman === true && !target.isChairman) {
-      await this.prisma.$transaction([
-        this.prisma.companyUser.updateMany({
-          where: { companyId, isChairman: true },
-          data: { isChairman: false },
-        }),
-        this.prisma.companyUser.update({
-          where: { userId_companyId: { userId: targetUserId, companyId } },
-          data: updateData,
-        }),
-      ]);
-    } else {
-      await this.prisma.companyUser.update({
-        where: { userId_companyId: { userId: targetUserId, companyId } },
-        data: updateData,
-      });
-    }
+    await this.prisma.companyUser.update({
+      where: { userId_companyId: { userId: targetUserId, companyId } },
+      data: updateData,
+    });
 
     await this.audit.log({
       companyId,
@@ -195,7 +169,47 @@ export class CompanyService {
     return this.listMembers(companyId);
   }
 
-  /** Remove a member. Cannot remove yourself or the last admin. */
+  /**
+   * Transfer workspace admin to another DIRECTOR — atomic, one holder at a time.
+   * Only the current workspace admin can invoke this.
+   */
+  async transferWorkspaceAdmin(
+    companyId: string,
+    newAdminUserId: string,
+    requestingUserId: string,
+  ) {
+    const target = await this.prisma.companyUser.findUnique({
+      where: { userId_companyId: { userId: newAdminUserId, companyId } },
+    });
+    if (!target) throw new NotFoundException('Member not found');
+    if (target.role !== UserRole.DIRECTOR) {
+      throw new BadRequestException('Workspace admin can only be transferred to a Director.');
+    }
+
+    await this.prisma.$transaction([
+      this.prisma.companyUser.updateMany({
+        where: { companyId, isWorkspaceAdmin: true },
+        data: { isWorkspaceAdmin: false },
+      }),
+      this.prisma.companyUser.update({
+        where: { userId_companyId: { userId: newAdminUserId, companyId } },
+        data: { isWorkspaceAdmin: true },
+      }),
+    ]);
+
+    await this.audit.log({
+      companyId,
+      userId: requestingUserId,
+      action: 'WORKSPACE_ADMIN_TRANSFERRED',
+      entity: 'CompanyUser',
+      entityId: newAdminUserId,
+      metadata: { from: requestingUserId, to: newAdminUserId },
+    });
+
+    return this.listMembers(companyId);
+  }
+
+  /** Remove a member. Cannot remove yourself or the last workspace admin. */
   async removeMember(companyId: string, targetUserId: string, requestingUserId: string) {
     if (targetUserId === requestingUserId) {
       throw new ForbiddenException('You cannot remove yourself from the company');
@@ -206,13 +220,10 @@ export class CompanyService {
     });
     if (!target) throw new NotFoundException('Member not found');
 
-    if (target.role === UserRole.ADMIN) {
-      const adminCount = await this.prisma.companyUser.count({
-        where: { companyId, role: UserRole.ADMIN },
-      });
-      if (adminCount <= 1) {
-        throw new BadRequestException('Cannot remove the only admin');
-      }
+    if (target.isWorkspaceAdmin) {
+      throw new BadRequestException(
+        'Cannot remove the workspace admin. Transfer workspace admin to another Director first.',
+      );
     }
 
     await this.prisma.companyUser.delete({

@@ -76,7 +76,7 @@ export class MeetingService {
       throw new BadRequestException('Cannot change chairperson on a signed meeting');
 
     const membership = await this.prisma.companyUser.findFirst({
-      where: { companyId, userId: chairpersonId, role: { in: ['ADMIN', 'DIRECTOR'] } },
+      where: { companyId, userId: chairpersonId, role: { in: ['DIRECTOR', 'COMPANY_SECRETARY'] } },
     });
     if (!membership) throw new BadRequestException('Nominated chairperson must be a Director or Admin');
 
@@ -92,7 +92,7 @@ export class MeetingService {
       throw new BadRequestException('Cannot change recorder on a signed meeting');
 
     const membership = await this.prisma.companyUser.findFirst({
-      where: { companyId, userId: recorderId, role: { in: ['ADMIN', 'DIRECTOR'] } },
+      where: { companyId, userId: recorderId, role: { in: ['DIRECTOR', 'COMPANY_SECRETARY'] } },
     });
     if (!membership) throw new BadRequestException('Recorder must be a Director or Admin');
 
@@ -106,7 +106,7 @@ export class MeetingService {
   async getDeclarations(companyId: string, meetingId: string) {
     await this.findOne(companyId, meetingId);
     const members = await this.prisma.companyUser.findMany({
-      where: { companyId, role: { in: ['ADMIN', 'DIRECTOR'] }, acceptedAt: { not: null } },
+      where: { companyId, role: { in: ['DIRECTOR', 'COMPANY_SECRETARY'] }, acceptedAt: { not: null } },
       include: { user: { select: { id: true, name: true, email: true } } },
     });
     const declarations = await this.prisma.directorDeclaration.findMany({ where: { meetingId } });
@@ -115,7 +115,6 @@ export class MeetingService {
 
     return members.map(m => ({
       userId: m.user.id, name: m.user.name, email: m.user.email,
-      role: m.role, isChairman: m.isChairman,
       forms: FORMS.map(form => {
         const rec = declMap.get(`${m.user.id}:${form}`);
         return { formType: form, received: rec?.received ?? false, notes: rec?.notes ?? null, recordedAt: rec?.recordedAt ?? null };
@@ -162,7 +161,7 @@ export class MeetingService {
         include: { votes: true },
       });
       for (const res of votingResolutions) {
-        const directorCount = await this.prisma.companyUser.count({ where: { companyId, role: { in: ['ADMIN', 'DIRECTOR'] } } });
+        const directorCount = await this.prisma.companyUser.count({ where: { companyId, role: { in: ['DIRECTOR', 'COMPANY_SECRETARY'] } } });
         const approveCount = res.votes.filter(v => v.value === 'APPROVE').length;
         const finalStatus = approveCount > directorCount / 2 ? 'APPROVED' : 'REJECTED';
         await this.prisma.resolution.update({ where: { id: res.id }, data: { status: finalStatus as any } });
@@ -187,14 +186,13 @@ export class MeetingService {
   async getAttendance(companyId: string, meetingId: string) {
     await this.findOne(companyId, meetingId);
     const members = await this.prisma.companyUser.findMany({
-      where: { companyId, role: { in: ['ADMIN', 'DIRECTOR'] }, acceptedAt: { not: null } },
+      where: { companyId, role: { in: ['DIRECTOR', 'COMPANY_SECRETARY'] }, acceptedAt: { not: null } },
       include: { user: { select: { id: true, name: true, email: true } } },
     });
     const records = await this.prisma.meetingAttendance.findMany({ where: { meetingId } });
     const recordMap = new Map(records.map(r => [r.userId, r]));
     return members.map(m => ({
       userId: m.user.id, name: m.user.name, email: m.user.email,
-      role: m.role, isChairman: m.isChairman,
       attendance: recordMap.get(m.user.id) ?? null,
     }));
   }

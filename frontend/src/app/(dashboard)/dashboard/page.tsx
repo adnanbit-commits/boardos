@@ -12,9 +12,11 @@ function greeting() {
 }
 
 const ROLE_STYLE: Record<string, { color: string; bg: string }> = {
-  ADMIN:    { color: '#F59E0B', bg: '#261A05' },
+  DIRECTOR:          { color: '#3B82F6', bg: '#0F1E3D' },
   DIRECTOR: { color: '#4F7FFF', bg: '#1A2540' },
-  PARTNER:  { color: '#A78BFA', bg: '#1A1030' },
+  COMPANY_SECRETARY: { color: '#A78BFA', bg: '#1A1030' },
+  AUDITOR:           { color: '#34D399', bg: '#0A2018' },
+  OBSERVER:          { color: '#94A3B8', bg: '#1A1F2E' },
   OBSERVER: { color: '#6B7280', bg: '#1A1D23' },
 };
 
@@ -71,7 +73,7 @@ function CompanyCard({ company, delay }: { company: CompanyWithMeta; delay: numb
             letterSpacing: '0.06em' }}>
             {company.myRole}
           </span>
-          {company.isChairman && (
+          {company.isWorkspaceAdmin && (
             <span style={{ background: '#261A05', color: '#F59E0B', fontSize: 10,
               fontWeight: 700, padding: '3px 10px', borderRadius: 20,
               textTransform: 'uppercase', letterSpacing: '0.06em' }}>
@@ -120,7 +122,7 @@ export default function DashboardPage() {
 
   const totalPending  = companies.reduce((s, c) => s + (c.pendingVotes ?? 0), 0);
   const totalUnsigned = companies.reduce((s, c) => s + (c.unsignedDocs  ?? 0), 0);
-  const directorCount = companies.filter(c => ['DIRECTOR','ADMIN'].includes(c.myRole)).length;
+  const directorCount = companies.filter(c => c.myRole === 'DIRECTOR').length;
 
   if (loading) return (
     <div style={{ display:'flex', alignItems:'center', justifyContent:'center', height:'100%' }}>

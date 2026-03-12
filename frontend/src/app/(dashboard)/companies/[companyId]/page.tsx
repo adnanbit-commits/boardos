@@ -20,19 +20,22 @@ import { getToken, getUser } from '@/lib/auth';
 // ── Shared atoms ──────────────────────────────────────────────────────────────
 
 const ROLE_CLS: Record<string, string> = {
-  ADMIN:    'text-amber-400 bg-amber-950/60 border-amber-800/40',
+  DIRECTOR:           'text-blue-400 bg-blue-950/60 border-blue-800/40',
+  COMPANY_SECRETARY:  'text-purple-400 bg-purple-950/60 border-purple-800/40',
+  AUDITOR:            'text-green-400 bg-green-950/60 border-green-800/40',
+  OBSERVER:           'text-slate-400 bg-slate-900/60 border-slate-700/40',
   DIRECTOR: 'text-blue-400  bg-blue-950/60  border-blue-800/40',
   OBSERVER: 'text-zinc-400  bg-zinc-800/60  border-zinc-700/40',
-  PARTNER:  'text-purple-400 bg-purple-950/60 border-purple-800/40',
+  COMPANY_SECRETARY:  'text-purple-400 bg-purple-950/60 border-purple-800/40',
 };
 
-function RoleBadge({ role, isChairman }: { role: string; isChairman: boolean }) {
+function RoleBadge({ role, isWorkspaceAdmin, designationLabel }: { role: string; isWorkspaceAdmin?: boolean; designationLabel?: string }) {
   return (
     <div className="flex items-center gap-1.5 flex-wrap">
       <span className={`text-[10px] font-bold px-2.5 py-0.5 rounded-full border uppercase tracking-wide ${ROLE_CLS[role] ?? ROLE_CLS.OBSERVER}`}>
         {role}
       </span>
-      {isChairman && (
+      {isWorkspaceAdmin && (
         <span className="text-[10px] font-bold px-2.5 py-0.5 rounded-full border uppercase tracking-wide text-amber-400 bg-amber-950/60 border-amber-800/40">
           Chairman
         </span>
@@ -92,7 +95,7 @@ export default function CompanyWorkspacePage() {
   const [inviteMsg,   setInviteMsg]   = useState({ ok: '', err: '' });
 
   const myMem  = members.find(m => m.userId === me?.id);
-  const isAdmin = myMem?.role === 'ADMIN';
+  const isAdmin = myMem?.isWorkspaceAdmin === true;
 
   const load = useCallback(async () => {
     const [co, mems, mtgs] = await Promise.all([
@@ -235,7 +238,7 @@ export default function CompanyWorkspacePage() {
                           </div>
                         </td>
                         <td className="px-5 py-4 text-zinc-400 text-sm">{m.user.email}</td>
-                        <td className="px-5 py-4"><RoleBadge role={m.role} isChairman={m.isChairman} /></td>
+                        <td className="px-5 py-4"><RoleBadge role={m.role} isWorkspaceAdmin={m.isWorkspaceAdmin} designationLabel={m.designationLabel} /></td>
                         <td className="px-5 py-4 text-zinc-500 text-xs">
                           {m.acceptedAt ? new Date(m.acceptedAt).toLocaleDateString('en-IN',{day:'numeric',month:'short',year:'numeric'}) : 'Pending'}
                         </td>
@@ -245,7 +248,7 @@ export default function CompanyWorkspacePage() {
                               <select defaultValue={m.role}
                                 onChange={e => companiesApi.updateMemberRole(companyId, m.userId, { role: (e as any).target.value }, jwt).then(load)}
                                 className="bg-[#13161B] border border-[#232830] text-zinc-300 text-xs rounded-lg px-2.5 py-1.5 focus:outline-none focus:border-blue-600 cursor-pointer">
-                                {['DIRECTOR','OBSERVER','ADMIN','PARTNER'].map(r => <option key={r}>{r}</option>)}
+                                {['DIRECTOR','COMPANY_SECRETARY','AUDITOR','OBSERVER'].map(r => <option key={r}>{r}</option>)}
                               </select>
                               <button
                                 onClick={() => { if(confirm('Remove this member?')) companiesApi.removeMember(companyId, m.userId, jwt).then(load); }}
@@ -281,7 +284,7 @@ export default function CompanyWorkspacePage() {
                   <label className="block text-zinc-500 text-[10px] font-semibold uppercase tracking-widest mb-1.5">Role</label>
                   <select value={inviteRole} onChange={e=>setInviteRole((e as any).target.value)}
                     className="bg-[#13161B] border border-[#232830] rounded-xl px-4 py-2.5 text-sm text-zinc-300 focus:outline-none cursor-pointer">
-                    {['DIRECTOR','OBSERVER','ADMIN','PARTNER'].map(r=><option key={r}>{r}</option>)}
+                    {['DIRECTOR','COMPANY_SECRETARY','AUDITOR','OBSERVER'].map(r=><option key={r}>{r}</option>)}
                   </select>
                 </div>
                 <button type="submit" disabled={inviting}

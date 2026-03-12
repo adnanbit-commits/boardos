@@ -1,10 +1,9 @@
-import { IsEmail, IsEnum, IsOptional, IsBoolean } from 'class-validator';
+import { IsEmail, IsEnum, IsOptional } from 'class-validator';
+
 export class InviteDirectorDto {
   @IsEmail()
   email: string;
-  @IsEnum(['ADMIN', 'DIRECTOR', 'OBSERVER', 'PARTNER'])
+
+  @IsEnum(['DIRECTOR', 'COMPANY_SECRETARY', 'AUDITOR', 'OBSERVER'])
   role: string;
-  @IsOptional()
-  @IsBoolean()
-  isChairman?: boolean;
 }

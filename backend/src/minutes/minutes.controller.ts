@@ -22,9 +22,9 @@ export class MinutesController {
     return this.minutes.findByMeeting(companyId, meetingId);
   }
 
-  // POST — generate minutes from meeting data (CS/PARTNER and above)
+  // POST — generate minutes (PARTICIPANT: Director or CS)
   @Post()
-  @RequireRole('PARTNER')
+  @RequireRole('PARTICIPANT')
   generate(
     @Param('companyId') companyId: string,
     @Param('meetingId') meetingId: string,
@@ -33,11 +33,11 @@ export class MinutesController {
     return this.minutes.generate(companyId, meetingId, req.user.userId);
   }
 
-  // POST /sign — role gate is PARTNER+; real gate is isChairman check in service
-  // This allows a chairman who is a DIRECTOR role to be promoted to PARTNER
-  // and still sign — or a PARTNER CS to sign on chairman's behalf if isChairman=true
+  
+  
+  
   @Post('sign')
-  @RequireRole('PARTNER')
+  @RequireRole('PARTICIPANT')
   sign(
     @Param('companyId') companyId: string,
     @Param('meetingId') meetingId: string,

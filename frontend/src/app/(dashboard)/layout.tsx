@@ -135,7 +135,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                   <p className="text-[#6B7280] text-xs truncate mt-0.5">{user?.email}</p>
                   {company && (
                     <p className="text-[#4F7FFF] text-[10px] font-semibold uppercase tracking-wide mt-1.5">
-                      {company.myRole}{company.isChairman ? ' · Chairman' : ''}
+                      {company.myRole}{company.isWorkspaceAdmin ? ' · Admin' : ''}
                     </p>
                   )}
                 </div>
@@ -262,7 +262,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             <div className="text-[13px] text-[#F0F2F5] font-semibold truncate">{user?.name}</div>
             <div className="text-[11px] text-[#4F7FFF] mt-0.5">
               {company
-                ? (company.myRole === 'ADMIN' && company.isChairman ? 'Admin · Chairman' : company.myRole)
+                ? (company.isWorkspaceAdmin ? company.myRole + ' · Admin' : company.myRole)
                 : '—'}
             </div>
           </div>
