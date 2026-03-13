@@ -512,7 +512,7 @@ export interface DocNotesResult {
   meetingId: string; chairpersonId: string | null;
   allNoted: boolean; totalRequired: number; totalNoted: number;
   rows: {
-    userId: string; name: string; email: string;
+    userId: string; name: string; email: string; role: string;
     forms: {
       formType: string;
       note: DocNote | null;

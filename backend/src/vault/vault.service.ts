@@ -376,6 +376,7 @@ export class VaultService {
       userId: m.user.id,
       name: m.user.name,
       email: m.user.email,
+      role: m.role,
       forms: MANDATORY_FORMS.map((formType) => {
         const note = noteMap.get(`${m.user.id}:${formType}`);
         const compDoc = compMap.get(`${m.user.id}:${formType}`);
