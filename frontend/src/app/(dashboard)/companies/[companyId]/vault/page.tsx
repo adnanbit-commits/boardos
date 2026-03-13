@@ -286,7 +286,7 @@ function ComplianceTab({ companyId, token }: { companyId: string; token: string 
   const load = useCallback(async (fyOverride?: string) => {
     setLoading(true);
     try {
-      const result = await vaultApi.compliance(companyId, token, fyOverride ?? fy || undefined);
+      const result = await vaultApi.compliance(companyId, token, (fyOverride ?? fy) || undefined);
       setData(result);
       if (!fy) setFy(result.financialYear);
     } finally { setLoading(false); }
