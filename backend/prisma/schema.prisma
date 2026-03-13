@@ -485,7 +485,7 @@ model MeetingTemplate {
   @@map("meeting_templates")
 }
 
-
+model CircularSignature {
   id           String                 @id @default(uuid())
   resolutionId String
   userId       String

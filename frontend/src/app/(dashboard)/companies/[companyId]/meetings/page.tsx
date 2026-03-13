@@ -10,7 +10,7 @@ import {
   type Meeting,
   type MeetingTemplate,
 } from '@/lib/api';
-import { SYSTEM_TEMPLATES } from '../templates/page';
+import { SYSTEM_TEMPLATES } from '@/lib/meeting-templates';
 import { getToken } from '@/lib/auth';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
