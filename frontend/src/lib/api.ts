@@ -251,6 +251,33 @@ export const meetings = {
     post<DirectorDeclarationRecord>(`/companies/${companyId}/meetings/${meetingId}/declarations`, body, token),
 };
 
+// ── Meeting Templates ─────────────────────────────────────────────────────────
+
+export interface MeetingTemplate {
+  id: string;
+  companyId: string;
+  name: string;
+  description?: string;
+  category: string;
+  agendaItems: { title: string; description?: string; order: number }[];
+  usageCount: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export const meetingTemplates = {
+  list: (companyId: string, token: string) =>
+    get<MeetingTemplate[]>(`/companies/${companyId}/meeting-templates`, token),
+  create: (companyId: string, body: { name: string; description?: string; category?: string; agendaItems: { title: string; description?: string; order: number }[] }, token: string) =>
+    post<MeetingTemplate>(`/companies/${companyId}/meeting-templates`, body, token),
+  update: (companyId: string, id: string, body: Partial<{ name: string; description: string; category: string; agendaItems: { title: string; description?: string; order: number }[] }>, token: string) =>
+    patch<MeetingTemplate>(`/companies/${companyId}/meeting-templates/${id}`, body, token),
+  remove: (companyId: string, id: string, token: string) =>
+    del<void>(`/companies/${companyId}/meeting-templates/${id}`, token),
+  recordUsage: (companyId: string, id: string, token: string) =>
+    post<{ message: string }>(`/companies/${companyId}/meeting-templates/${id}/use`, {}, token),
+};
+
 // ── Resolutions ───────────────────────────────────────────────────────────────
 
 export const resolutions = {

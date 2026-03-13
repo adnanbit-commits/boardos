@@ -299,8 +299,9 @@ export default function CompanyWorkspacePage() {
           </div>
         </div>
         <div className="flex gap-3">
-          <Link href={`/companies/${companyId}/meetings`} className="text-sm font-semibold text-zinc-300 bg-[#191D24] border border-[#232830] px-4 py-2 rounded-lg hover:border-blue-800/40 transition-colors">◈ Meetings</Link>
-          <Link href={`/companies/${companyId}/archive`}  className="text-sm font-semibold text-zinc-300 bg-[#191D24] border border-[#232830] px-4 py-2 rounded-lg hover:border-blue-800/40 transition-colors">▤ Archive</Link>
+          <Link href={`/companies/${companyId}/meetings`}  className="text-sm font-semibold text-zinc-300 bg-[#191D24] border border-[#232830] px-4 py-2 rounded-lg hover:border-blue-800/40 transition-colors">◈ Meetings</Link>
+          <Link href={`/companies/${companyId}/templates`} className="text-sm font-semibold text-zinc-300 bg-[#191D24] border border-[#232830] px-4 py-2 rounded-lg hover:border-blue-800/40 transition-colors">▦ Templates</Link>
+          <Link href={`/companies/${companyId}/archive`}   className="text-sm font-semibold text-zinc-300 bg-[#191D24] border border-[#232830] px-4 py-2 rounded-lg hover:border-blue-800/40 transition-colors">▤ Archive</Link>
         </div>
       </div>
 

@@ -163,14 +163,15 @@ model Company {
   updatedAt     DateTime @updatedAt
 
   // Relations
-  companyUsers  CompanyUser[]
-  meetings      Meeting[]
-  resolutions   Resolution[]
-  documents     Document[]
-  auditLogs     AuditLog[]
-  notifications Notification[]
-  archivedDocs  ArchivedDocument[]
-  invitations   Invitation[]
+  companyUsers      CompanyUser[]
+  meetings          Meeting[]
+  meetingTemplates  MeetingTemplate[]
+  resolutions       Resolution[]
+  documents         Document[]
+  auditLogs         AuditLog[]
+  notifications     Notification[]
+  archivedDocs      ArchivedDocument[]
+  invitations       Invitation[]
 
   @@map("companies")
 }
@@ -468,7 +469,23 @@ model Notification {
   @@map("notifications")
 }
 
-model CircularSignature {
+model MeetingTemplate {
+  id          String   @id @default(uuid())
+  companyId   String
+  name        String
+  description String?
+  category    String   @default("BOARD")
+  agendaItems Json     // [{title: string, description: string, order: number}]
+  usageCount  Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  @@map("meeting_templates")
+}
+
+
   id           String                 @id @default(uuid())
   resolutionId String
   userId       String
