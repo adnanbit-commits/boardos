@@ -8,12 +8,13 @@ import { AuthGuard }                        from '@nestjs/passport';
 import { AuthService, RegisterDto, LoginDto } from './auth.service';
 import { JwtAuthGuard }                     from './jwt-auth.guard';
 import { Public }                           from './public.decorator';
-import { IsEmail, IsString, MinLength }     from 'class-validator';
+import { IsEmail, IsString, IsArray, IsOptional, MinLength } from 'class-validator';
 
 class RegisterBody implements RegisterDto {
   @IsString()  name: string;
   @IsEmail()   email: string;
   @IsString() @MinLength(8) password: string;
+  @IsOptional() @IsArray() platformRoles?: string[];
 }
 class LoginBody implements LoginDto {
   @IsEmail()  email: string;

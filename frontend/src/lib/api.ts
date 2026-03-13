@@ -174,7 +174,7 @@ export interface AuditLog {
 // ── Auth ──────────────────────────────────────────────────────────────────────
 
 export const auth = {
-  register: (body: { name: string; email: string; password: string }) =>
+  register: (body: { name: string; email: string; password: string; platformRoles?: string[] }) =>
     post<{ token: string; user: User }>('/auth/register', body),
   login: (body: { email: string; password: string }) =>
     post<{ token: string; user: User }>('/auth/login', body),
@@ -193,8 +193,10 @@ export const companies = {
     patch<CompanyWithMeta>(`/companies/${id}`, body, token),
   listMembers: (companyId: string, token: string) =>
     get<CompanyMember[]>(`/companies/${companyId}/members`, token),
-  updateMemberRole: (companyId: string, userId: string, body: { role: string }, token: string) =>
+  updateMemberRole: (companyId: string, userId: string, body: { role?: string; additionalDesignation?: string | null; designationLabel?: string | null }, token: string) =>
     patch<CompanyMember>(`/companies/${companyId}/members/${userId}`, body, token),
+  transferAdmin: (companyId: string, newAdminUserId: string, token: string) =>
+    post<{ message: string }>(`/companies/${companyId}/transfer-admin`, { newAdminUserId }, token),
   removeMember: (companyId: string, userId: string, token: string) =>
     del<void>(`/companies/${companyId}/members/${userId}`, token),
   getAuditLog: (companyId: string, token: string) =>

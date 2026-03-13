@@ -10,7 +10,7 @@ import * as bcrypt       from 'bcryptjs';
 
 const BCRYPT_ROUNDS = 12;
 
-export interface RegisterDto { name: string; email: string; password: string; }
+export interface RegisterDto { name: string; email: string; password: string; platformRoles?: string[]; }
 export interface LoginDto    { email: string; password: string; }
 
 @Injectable()
@@ -26,7 +26,7 @@ export class AuthService {
     if (existing) throw new ConflictException('Email already registered');
     const hash = await bcrypt.hash(dto.password, BCRYPT_ROUNDS);
     const user = await this.prisma.user.create({
-      data: { name: dto.name, email: dto.email, passwordHash: hash },
+      data: { name: dto.name, email: dto.email, passwordHash: hash, ...(dto.platformRoles?.length ? { platformRoles: dto.platformRoles } : {}) },
       select: { id: true, name: true, email: true, createdAt: true, onboardingDone: true },
     });
     return { token: this.sign(user.id, user.email), user };
@@ -60,7 +60,7 @@ export class AuthService {
   async me(userId: string) {
     const user = await this.prisma.user.findUnique({
       where: { id: userId },
-      select: { id: true, name: true, email: true, avatarUrl: true, onboardingDone: true, userIntent: true, createdAt: true },
+      select: { id: true, name: true, email: true, avatarUrl: true, onboardingDone: true, userIntent: true, createdAt: true, platformRoles: true },
     });
     if (!user) throw new UnauthorizedException('User not found');
     return user;

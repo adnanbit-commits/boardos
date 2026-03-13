@@ -3,18 +3,32 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { getToken } from '@/lib/auth';
 
+const PLATFORM_ROLE_OPTIONS = [
+  { value: 'DIRECTOR',         label: 'Director',               desc: 'Board member / promoter' },
+  { value: 'CS',               label: 'Company Secretary',       desc: 'Compliance officer / KMP' },
+  { value: 'CA',               label: 'Chartered Accountant',    desc: 'Auditor / financial advisor' },
+  { value: 'COST_ACCOUNTANT',  label: 'Cost Accountant',         desc: 'Cost & management accountant' },
+];
+
 export default function LandingPage() {
   const router = useRouter();
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [isLogin, setIsLogin] = useState(true);
-  const [name, setName] = useState('');
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState('');
+  const [email,         setEmail]         = useState('');
+  const [password,      setPassword]      = useState('');
+  const [isLogin,       setIsLogin]       = useState(true);
+  const [name,          setName]          = useState('');
+  const [platformRoles, setPlatformRoles] = useState<string[]>([]);
+  const [loading,       setLoading]       = useState(false);
+  const [error,         setError]         = useState('');
 
   useEffect(() => {
     if (getToken()) router.replace('/dashboard');
   }, [router]);
+
+  function toggleRole(value: string) {
+    setPlatformRoles(prev =>
+      prev.includes(value) ? prev.filter(r => r !== value) : [...prev, value]
+    );
+  }
 
   const handleAuth = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -23,7 +37,9 @@ export default function LandingPage() {
     const API = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
     try {
       const endpoint = isLogin ? '/auth/login' : '/auth/register';
-      const body = isLogin ? { email, password } : { name, email, password };
+      const body = isLogin
+        ? { email, password }
+        : { name, email, password, ...(platformRoles.length ? { platformRoles } : {}) };
       const res = await fetch(`${API}${endpoint}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -242,10 +258,47 @@ export default function LandingPage() {
 
         <form onSubmit={handleAuth}>
           {!isLogin && (
-            <div style={s.formGroup}>
-              <label style={s.label}>Full Name</label>
-              <input style={s.input} type="text" placeholder="Rajesh Sharma" value={name} onChange={e => setName(e.target.value)} required />
-            </div>
+            <>
+              <div style={s.formGroup}>
+                <label style={s.label}>Full Name</label>
+                <input style={s.input} type="text" placeholder="Rajesh Sharma" value={name} onChange={e => setName(e.target.value)} required />
+              </div>
+              <div style={s.formGroup}>
+                <label style={s.label}>I am a <span style={{ color: '#6B7280', fontWeight: 400 }}>(select all that apply)</span></label>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginTop: 4 }}>
+                  {PLATFORM_ROLE_OPTIONS.map(opt => {
+                    const active = platformRoles.includes(opt.value);
+                    return (
+                      <button
+                        key={opt.value}
+                        type="button"
+                        onClick={() => toggleRole(opt.value)}
+                        style={{
+                          display: 'flex', alignItems: 'center', gap: 12,
+                          background: active ? 'rgba(79,127,255,0.10)' : '#13161B',
+                          border: `1px solid ${active ? '#4F7FFF' : '#232830'}`,
+                          borderRadius: 10, padding: '10px 14px', cursor: 'pointer',
+                          textAlign: 'left', transition: 'all 0.15s',
+                        }}
+                      >
+                        <div style={{
+                          width: 16, height: 16, borderRadius: 4, flexShrink: 0,
+                          background: active ? '#4F7FFF' : 'transparent',
+                          border: `2px solid ${active ? '#4F7FFF' : '#374151'}`,
+                          display: 'flex', alignItems: 'center', justifyContent: 'center',
+                        }}>
+                          {active && <svg width="10" height="8" viewBox="0 0 10 8" fill="none"><path d="M1 4L4 7L9 1" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>}
+                        </div>
+                        <div>
+                          <p style={{ fontSize: 13, fontWeight: 600, color: active ? '#F0F2F5' : '#9CA3AF', margin: 0 }}>{opt.label}</p>
+                          <p style={{ fontSize: 11, color: '#4B5563', margin: 0 }}>{opt.desc}</p>
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            </>
           )}
           <div style={s.formGroup}>
             <label style={s.label}>Email</label>
