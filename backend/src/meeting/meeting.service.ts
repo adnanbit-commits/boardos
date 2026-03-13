@@ -59,6 +59,21 @@ export class MeetingService {
     return this.prisma.meeting.update({ where: { id }, data: dto });
   }
 
+  async remove(companyId: string, id: string, userId: string) {
+    const meeting = await this.prisma.meeting.findFirst({ where: { id, companyId } });
+    if (!meeting) throw new NotFoundException('Meeting not found');
+    if (!['DRAFT', 'SCHEDULED'].includes(meeting.status)) {
+      throw new BadRequestException('Only DRAFT or SCHEDULED meetings can be deleted');
+    }
+    await this.prisma.agendaItem.deleteMany({ where: { meetingId: id } });
+    await this.prisma.resolution.deleteMany({ where: { meetingId: id } });
+    await this.prisma.meetingAttendance.deleteMany({ where: { meetingId: id } });
+    await this.prisma.directorDeclaration.deleteMany({ where: { meetingId: id } });
+    await this.prisma.meeting.delete({ where: { id } });
+    await this.audit.log({ companyId, userId, action: 'MEETING_DELETED', entity: 'Meeting', entityId: id });
+    return { message: 'Meeting deleted' };
+  }
+
   async addAgendaItem(companyId: string, meetingId: string, dto: AddAgendaItemDto) {
     const meeting = await this.prisma.meeting.findFirst({ where: { id: meetingId, companyId } });
     if (!meeting) throw new NotFoundException('Meeting not found');

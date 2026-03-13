@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Patch, Param, Body, UseGuards, Req } from '@nestjs/common';
+import { Controller, Get, Post, Patch, Delete, Param, Body, UseGuards, Req } from '@nestjs/common';
 import { JwtAuthGuard }   from '../auth/jwt-auth.guard';
 import { CompanyGuard }   from '../company/guards/company.guard';
 import { RequireRole, RequireWorkspaceAdmin }    from '../company/decorators/require-role.decorator';
@@ -32,6 +32,12 @@ export class MeetingController {
   @RequireRole('DIRECTOR')
   update(@Param('companyId') companyId: string, @Param('id') id: string, @Body() dto: UpdateMeetingDto, @Req() req: any) {
     return this.meetingService.update(companyId, id, dto, req.user.userId);
+  }
+
+  @Delete(':id')
+  @RequireWorkspaceAdmin()
+  remove(@Param('companyId') companyId: string, @Param('id') id: string, @Req() req: any) {
+    return this.meetingService.remove(companyId, id, req.user.userId);
   }
 
   @Post(':id/agenda')

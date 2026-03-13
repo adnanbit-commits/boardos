@@ -225,6 +225,8 @@ export const meetings = {
     get<MeetingDetail>(`/companies/${companyId}/meetings/${meetingId}`, token),
   create: (companyId: string, body: { title: string; scheduledAt: string }, token: string) =>
     post<Meeting>(`/companies/${companyId}/meetings`, body, token),
+  remove: (companyId: string, meetingId: string, token: string) =>
+    del<{ message: string }>(`/companies/${companyId}/meetings/${meetingId}`, token),
   update: (companyId: string, meetingId: string, body: Partial<{ title: string; scheduledAt: string }>, token: string) =>
     patch<Meeting>(`/companies/${companyId}/meetings/${meetingId}`, body, token),
   advance: (companyId: string, meetingId: string, status: string, token: string) =>
