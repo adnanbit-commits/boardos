@@ -1,7 +1,7 @@
 import { Controller, Get, Post, Patch, Delete, Param, Body, Req, UseGuards, HttpCode } from '@nestjs/common';
 import { MeetingTemplateService, CreateTemplateDto } from './meeting-template.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
-import { RequireRole } from '../auth/role.guard';
+import { RequireRole } from '../company/decorators/require-role.decorator';
 
 @Controller('companies/:companyId/meeting-templates')
 @UseGuards(JwtAuthGuard)
