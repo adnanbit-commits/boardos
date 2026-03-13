@@ -107,6 +107,41 @@ enum NotificationType {
 }
 
 
+// ── Document Vault enums ──────────────────────────────────────────────────────
+
+enum VaultDocType {
+  INCORPORATION_CERT
+  MOA
+  AOA
+  PAN
+  GST_CERT
+  COMMON_SEAL
+  CUSTOM
+}
+
+enum ComplianceForm {
+  DIR_2       // Consent to act as director — on appointment
+  MBP_1       // Disclosure of interest — annually + on change
+  DIR_8       // Non-disqualification declaration — annually
+  DIR_3_KYC   // Annual KYC — by Sep 30 each year
+  CUSTOM
+}
+
+enum MeetingDocType {
+  DRAFT_NOTICE
+  DRAFT_AGENDA
+  SUPPORTING_PAPER
+  DRAFT_RESOLUTION
+  CUSTOM
+}
+
+enum DocNoteStatus {
+  NOTED                // Chair confirmed receipt with no issues
+  NOTED_WITH_EXCEPTION // Chair noted but flagged an issue
+}
+
+// ── DeclarationFormType (existing, keep here) ─────────────────────────────────
+
 enum DeclarationFormType {
   DIR_2   // Consent to act as director — Sec. 152(5)
   DIR_8   // Non-disqualification declaration — Sec. 164(2)
@@ -133,15 +168,21 @@ model User {
   updatedAt     DateTime @updatedAt
 
   // Relations
-  companyUsers  CompanyUser[]
-  votes         Vote[]
-  auditLogs     AuditLog[]
-  notifications Notification[]
-  signedMinutes Minutes[]   @relation("SignedBy")
-  sentInvites         Invitation[] @relation("SentInvites")
-  attendance    MeetingAttendance[]
+  companyUsers        CompanyUser[]
+  votes               Vote[]
+  auditLogs           AuditLog[]
+  notifications       Notification[]
+  signedMinutes       Minutes[]              @relation("SignedBy")
+  sentInvites         Invitation[]           @relation("SentInvites")
+  attendance          MeetingAttendance[]
   circularSignatures  CircularSignature[]
-  declarations  DirectorDeclaration[]
+  declarations        DirectorDeclaration[]
+  vaultUploads        VaultDocument[]        @relation("VaultUploads")
+  complianceDocs      DirectorComplianceDoc[] @relation("DirectorComplianceDocs")
+  meetingDocUploads   MeetingDocument[]      @relation("MeetingDocUploads")
+  shareLinkCreated    MeetingShareLink[]     @relation("ShareLinkCreators")
+  directorNotes       MeetingDocNote[]       @relation("DirectorNotes")
+  chairNotes          MeetingDocNote[]       @relation("ChairNotes")
 
   @@map("users")
 }
@@ -168,6 +209,10 @@ model Company {
   meetingTemplates  MeetingTemplate[]
   resolutions       Resolution[]
   documents         Document[]
+  vaultDocuments    VaultDocument[]
+  complianceDocs    DirectorComplianceDoc[]
+  meetingDocuments  MeetingDocument[]
+  docNotes          MeetingDocNote[]
   auditLogs         AuditLog[]
   notifications     Notification[]
   archivedDocs      ArchivedDocument[]
@@ -250,6 +295,9 @@ model Meeting {
   minutes       Minutes?
   attendance    MeetingAttendance[]
   declarations  DirectorDeclaration[]
+  documents     MeetingDocument[]
+  shareLink     MeetingShareLink?
+  docNotes      MeetingDocNote[]
 
   @@map("meetings")
 }
@@ -498,4 +546,109 @@ model CircularSignature {
 
   @@unique([resolutionId, userId]) // one signature per director per resolution
   @@map("circular_signatures")
+}
+
+// ─────────────────────────────────────────────
+// DOCUMENT VAULT
+// ─────────────────────────────────────────────
+
+// Company-level statutory documents — one designated slot per type
+model VaultDocument {
+  id          String       @id @default(uuid())
+  companyId   String
+  docType     VaultDocType
+  label       String       // human label — for CUSTOM, user-supplied
+  fileUrl     String       // GCS object path
+  fileName    String
+  fileSize    Int?
+  uploadedAt  DateTime     @default(now())
+  uploadedBy  String
+
+  company    Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  uploader   User    @relation("VaultUploads", fields: [uploadedBy], references: [id])
+
+  // Only one document per slot per company (CUSTOM can have multiples)
+  @@unique([companyId, docType, label])
+  @@map("vault_documents")
+}
+
+// Director compliance forms — per director, per form type, per financial year
+model DirectorComplianceDoc {
+  id             String         @id @default(uuid())
+  companyId      String
+  userId         String         // the director this form belongs to
+  formType       ComplianceForm
+  label          String?        // for CUSTOM type
+  financialYear  String         // "2024-25"
+  fileUrl        String?        // GCS path — null if not yet uploaded
+  fileName       String?
+  fileSize       Int?
+  submittedAt    DateTime?      // when director uploaded / submitted
+  receivedAt     DateTime?      // when CS physically received the paper copy
+  notes          String?
+  recordedBy     String?        // userId of CS or admin who last updated
+
+  company    Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  director   User    @relation("DirectorComplianceDocs", fields: [userId], references: [id])
+
+  @@unique([companyId, userId, formType, financialYear])
+  @@map("director_compliance_docs")
+}
+
+// Documents attached to a specific meeting — pre-meeting papers
+model MeetingDocument {
+  id         String         @id @default(uuid())
+  meetingId  String
+  companyId  String
+  title      String
+  docType    MeetingDocType
+  fileUrl    String         // GCS path
+  fileName   String
+  fileSize   Int?
+  isShared   Boolean        @default(false) // included in public share link
+  uploadedAt DateTime       @default(now())
+  uploadedBy String
+
+  meeting   Meeting @relation(fields: [meetingId], references: [id], onDelete: Cascade)
+  company   Company @relation(fields: [companyId], references: [id])
+  uploader  User    @relation("MeetingDocUploads", fields: [uploadedBy], references: [id])
+
+  @@map("meeting_documents")
+}
+
+// Public share link for meeting papers
+model MeetingShareLink {
+  id          String   @id @default(uuid())
+  meetingId   String   @unique
+  shareToken  String   @unique @default(uuid())
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  createdBy   String
+
+  meeting    Meeting @relation(fields: [meetingId], references: [id], onDelete: Cascade)
+  creator    User    @relation("ShareLinkCreators", fields: [createdBy], references: [id])
+
+  @@map("meeting_share_links")
+}
+
+// Chairperson's formal noting of compliance documents at meeting
+// One record per director per form type per meeting
+model MeetingDocNote {
+  id             String        @id @default(uuid())
+  meetingId      String
+  companyId      String
+  directorUserId String        // whose document is being noted
+  formType       ComplianceForm
+  status         DocNoteStatus
+  exception      String?       // free text when NOTED_WITH_EXCEPTION
+  notedBy        String        // chairperson userId
+  notedAt        DateTime      @default(now())
+
+  meeting    Meeting @relation(fields: [meetingId], references: [id], onDelete: Cascade)
+  company    Company @relation(fields: [companyId], references: [id])
+  director   User    @relation("DirectorNotes", fields: [directorUserId], references: [id])
+  chair      User    @relation("ChairNotes", fields: [notedBy], references: [id])
+
+  @@unique([meetingId, directorUserId, formType])
+  @@map("meeting_doc_notes")
 }

@@ -171,6 +171,25 @@ export class MeetingService {
       );
     }
 
+    // All mandatory compliance documents must be noted by chairperson before opening
+    if (targetStatus === 'IN_PROGRESS') {
+      const directors = await this.prisma.companyUser.findMany({
+        where: { companyId, role: { in: ['DIRECTOR', 'COMPANY_SECRETARY'] }, acceptedAt: { not: null } },
+      });
+      const MANDATORY_FORMS = ['DIR_8', 'MBP_1'];
+      const totalRequired = directors.length * MANDATORY_FORMS.length;
+      const totalNoted = await this.prisma.meetingDocNote.count({
+        where: { meetingId: id, formType: { in: MANDATORY_FORMS as any[] } },
+      });
+      if (totalNoted < totalRequired) {
+        const missing = totalRequired - totalNoted;
+        throw new BadRequestException(
+          `${missing} compliance document(s) have not been noted by the Chairperson. ` +
+          `Please open the Documents panel and note all DIR-8 and MBP-1 declarations before opening the meeting.`,
+        );
+      }
+    }
+
     // Auto-finalize VOTING resolutions when closing voting
     if (targetStatus === 'MINUTES_DRAFT') {
       const votingResolutions = await this.prisma.resolution.findMany({

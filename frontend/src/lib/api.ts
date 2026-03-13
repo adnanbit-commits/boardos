@@ -459,3 +459,119 @@ export const notifications = {
   markAllRead:(token: string) =>
     patch<unknown>('/notifications/read-all', undefined, token),
 };
+
+// ── Document Vault ─────────────────────────────────────────────────────────────
+
+export interface VaultDocument {
+  id: string; companyId: string; docType: string; label: string;
+  fileUrl: string; fileName: string; fileSize: number | null;
+  uploadedAt: string; uploadedBy: string;
+  uploader: { id: string; name: string };
+  downloadUrl?: string;
+}
+
+export interface ComplianceDoc {
+  id: string; companyId: string; userId: string; formType: string;
+  financialYear: string; fileUrl: string | null; fileName: string | null;
+  submittedAt: string | null; receivedAt: string | null; notes: string | null;
+}
+
+export interface ComplianceMatrix {
+  financialYear: string;
+  matrix: {
+    userId: string; name: string; email: string; role: string;
+    forms: {
+      formType: string; deadline: string; isOverdue: boolean;
+      doc: ComplianceDoc | null;
+    }[];
+  }[];
+}
+
+export interface MeetingDocument {
+  id: string; meetingId: string; companyId: string; title: string;
+  docType: string; fileUrl: string; fileName: string;
+  fileSize: number | null; isShared: boolean;
+  uploadedAt: string; uploadedBy: string;
+  uploader: { id: string; name: string };
+  downloadUrl?: string;
+}
+
+export interface MeetingShareLink {
+  id: string; meetingId: string; shareToken: string;
+  isActive: boolean; createdAt: string;
+}
+
+export interface DocNote {
+  id: string; meetingId: string; directorUserId: string;
+  formType: string; status: 'NOTED' | 'NOTED_WITH_EXCEPTION';
+  exception: string | null; notedBy: string; notedAt: string;
+  chair: { name: string };
+}
+
+export interface DocNotesResult {
+  meetingId: string; chairpersonId: string | null;
+  allNoted: boolean; totalRequired: number; totalNoted: number;
+  rows: {
+    userId: string; name: string; email: string;
+    forms: {
+      formType: string;
+      note: DocNote | null;
+      complianceDoc: { id: string; fileName: string | null; submittedAt: string | null } | null;
+    }[];
+  }[];
+}
+
+export const vault = {
+  // Statutory vault
+  list:        (companyId: string, token: string) =>
+    get<VaultDocument[]>(`/companies/${companyId}/vault`, token),
+  uploadUrl:   (companyId: string, body: { fileName: string; contentType: string }, token: string) =>
+    post<{ uploadUrl: string; objectPath: string }>(`/companies/${companyId}/vault/upload-url`, body, token),
+  register:    (companyId: string, body: { docType: string; label: string; objectPath: string; fileName: string; fileSize?: number }, token: string) =>
+    post<VaultDocument>(`/companies/${companyId}/vault`, body, token),
+  remove:      (companyId: string, docId: string, token: string) =>
+    del<void>(`/companies/${companyId}/vault/${docId}`, token),
+
+  // Compliance register
+  compliance:         (companyId: string, token: string, fy?: string) =>
+    get<ComplianceMatrix>(`/companies/${companyId}/compliance${fy ? `?fy=${fy}` : ''}`, token),
+  complianceUploadUrl:(companyId: string, body: { fileName: string; contentType: string }, token: string) =>
+    post<{ uploadUrl: string; objectPath: string }>(`/companies/${companyId}/compliance/upload-url`, body, token),
+  registerCompliance: (companyId: string, body: { userId: string; formType: string; financialYear?: string; objectPath?: string; fileName?: string; fileSize?: number; notes?: string }, token: string) =>
+    post<ComplianceDoc>(`/companies/${companyId}/compliance`, body, token),
+  markReceived:       (companyId: string, docId: string, body: { received: boolean; notes?: string }, token: string) =>
+    patch<ComplianceDoc>(`/companies/${companyId}/compliance/${docId}/received`, body, token),
+
+  // Meeting documents
+  meetingDocs:         (companyId: string, meetingId: string, token: string) =>
+    get<MeetingDocument[]>(`/companies/${companyId}/meetings/${meetingId}/documents`, token),
+  meetingDocUploadUrl: (companyId: string, meetingId: string, body: { fileName: string; contentType: string }, token: string) =>
+    post<{ uploadUrl: string; objectPath: string }>(`/companies/${companyId}/meetings/${meetingId}/documents/upload-url`, body, token),
+  registerMeetingDoc:  (companyId: string, meetingId: string, body: { title: string; docType: string; objectPath: string; fileName: string; fileSize?: number; isShared?: boolean }, token: string) =>
+    post<MeetingDocument>(`/companies/${companyId}/meetings/${meetingId}/documents`, body, token),
+  toggleShared:        (companyId: string, meetingId: string, docId: string, isShared: boolean, token: string) =>
+    patch<MeetingDocument>(`/companies/${companyId}/meetings/${meetingId}/documents/${docId}/shared`, { isShared }, token),
+  removeMeetingDoc:    (companyId: string, meetingId: string, docId: string, token: string) =>
+    del<void>(`/companies/${companyId}/meetings/${meetingId}/documents/${docId}`, token),
+
+  // Share link
+  createShareLink:     (companyId: string, meetingId: string, token: string) =>
+    post<MeetingShareLink>(`/companies/${companyId}/meetings/${meetingId}/share`, {}, token),
+  deactivateShareLink: (companyId: string, meetingId: string, token: string) =>
+    del<void>(`/companies/${companyId}/meetings/${meetingId}/share`, token),
+
+  // Doc notes
+  docNotes:    (companyId: string, meetingId: string, token: string) =>
+    get<DocNotesResult>(`/companies/${companyId}/meetings/${meetingId}/doc-notes`, token),
+  noteDoc:     (companyId: string, meetingId: string, body: { directorUserId: string; formType: string; status: 'NOTED' | 'NOTED_WITH_EXCEPTION'; exception?: string }, token: string) =>
+    post<DocNote>(`/companies/${companyId}/meetings/${meetingId}/doc-notes`, body, token),
+};
+
+// ── Public (no auth) ──────────────────────────────────────────────────────────
+
+export const publicApi = {
+  meetingPapers: (shareToken: string) => {
+    const API = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
+    return fetch(`${API}/public/meeting/${shareToken}`).then(r => r.json());
+  },
+};

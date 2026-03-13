@@ -1,14 +1,16 @@
 'use client';
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
 import { useParams } from 'next/navigation';
-import { meetings, resolutions as resApi, voting, minutesApi } from '@/lib/api';
+import { meetings, resolutions as resApi, voting, minutesApi, vault as vaultApi } from '@/lib/api';
 import { getToken, getUser } from '@/lib/auth';
 import type {
   MeetingDetail, Resolution, AgendaItem, MeetingStatus,
   AttendanceRecord, AttendanceMode,
   DirectorDeclarationRecord, DeclarationFormType,
+  MeetingDocument, MeetingShareLink,
 } from '@/lib/api';
 import { StatusBadge, VoteBar, Spinner, Button, Textarea } from '@/components/ui';
+import DocNotesPanel from '@/components/DocNotesPanel';
 
 const STATUS_ORDER: MeetingStatus[] = [
   'DRAFT','SCHEDULED','IN_PROGRESS','VOTING','MINUTES_DRAFT','MINUTES_CIRCULATED','SIGNED','LOCKED',
@@ -39,7 +41,7 @@ export default function MeetingWorkspacePage() {
   const [myRole,      setMyRole]      = useState('OBSERVER');
   const [loading,     setLoading]     = useState(true);
   const [activeAgenda,setActiveAgenda]= useState<string | null>(null);
-  const [panel,       setPanel]       = useState<'resolutions'|'declarations'|'attendance'|'minutes'>('resolutions');
+  const [panel,       setPanel]       = useState<'resolutions'|'declarations'|'attendance'|'minutes'|'documents'|'docnotes'>('resolutions');
   const [advancing,   setAdvancing]   = useState(false);
   const [error,       setError]       = useState('');
 
@@ -282,6 +284,10 @@ export default function MeetingWorkspacePage() {
                 badge: declWarning ? 'Pending' : undefined, badgeColor: 'amber' },
               { key: 'attendance', label: '◎ Attendance', show: !['DRAFT'].includes(meeting.status),
                 badge: meeting.status === 'IN_PROGRESS' ? 'Required' : undefined, badgeColor: 'amber' },
+              { key: 'docnotes', label: '⊟ Compliance Docs',
+                show: ['SCHEDULED','IN_PROGRESS'].includes(meeting.status),
+                badge: meeting.status === 'SCHEDULED' ? 'Required' : undefined, badgeColor: 'amber' },
+              { key: 'documents', label: '📎 Meeting Papers', always: true },
               { key: 'minutes', label: '▣ Minutes', show: !!meeting.minutes },
             ].map((p: any) => p.always || p.show ? (
               <button key={p.key} onClick={() => setPanel(p.key as any)}
@@ -327,6 +333,25 @@ export default function MeetingWorkspacePage() {
           )}
           {panel === 'minutes' && meeting.minutes && (
             <MinutesPanel minutes={meeting.minutes} />
+          )}
+          {panel === 'docnotes' && (
+            <div>
+              <h2 className="text-lg font-bold text-zinc-200 mb-1">Compliance Documents</h2>
+              <p className="text-sm text-zinc-500 mb-6">
+                The Chairperson must formally note receipt of DIR-8 and MBP-1 from all directors before the meeting can open.
+              </p>
+              <DocNotesPanel
+                companyId={companyId} meetingId={meetingId} token={jwt}
+                isChairperson={meeting.chairpersonId === me?.id}
+                onAllNoted={reload}
+              />
+            </div>
+          )}
+          {panel === 'documents' && (
+            <MeetingDocumentsPanel
+              companyId={companyId} meetingId={meetingId} token={jwt}
+              canManage={isAdmin}
+            />
           )}
         </main>
       </div>
@@ -1156,6 +1181,246 @@ function ErrorState({ message }: { message: string }) {
         <p className="text-red-400 text-sm mb-4">{message}</p>
         <button onClick={() => window.location.reload()} className="text-blue-400 text-xs hover:underline">Retry</button>
       </div>
+    </div>
+  );
+}
+
+// ── Meeting Documents Panel ───────────────────────────────────────────────────
+
+const DOC_TYPES = [
+  { value: 'DRAFT_NOTICE',     label: 'Draft Notice' },
+  { value: 'DRAFT_AGENDA',     label: 'Draft Agenda' },
+  { value: 'SUPPORTING_PAPER', label: 'Supporting Paper' },
+  { value: 'DRAFT_RESOLUTION', label: 'Draft Resolution' },
+  { value: 'CUSTOM',           label: 'Other Document' },
+];
+
+function MeetingDocumentsPanel({
+  companyId, meetingId, token, canManage,
+}: { companyId: string; meetingId: string; token: string; canManage: boolean }) {
+  const [docs,       setDocs]       = useState<MeetingDocument[]>([]);
+  const [shareLink,  setShareLink]  = useState<MeetingShareLink | null>(null);
+  const [loading,    setLoading]    = useState(true);
+  const [uploading,  setUploading]  = useState(false);
+  const [uploadPct,  setUploadPct]  = useState(0);
+  const [showForm,   setShowForm]   = useState(false);
+  const [title,      setTitle]      = useState('');
+  const [docType,    setDocType]    = useState('DRAFT_AGENDA');
+  const [isShared,   setIsShared]   = useState(false);
+  const [copied,     setCopied]     = useState(false);
+  const fileRef = useRef<HTMLInputElement>(null);
+  const [pendingFile, setPendingFile] = useState<File | null>(null);
+
+  const API = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    try {
+      const [d, s] = await Promise.all([
+        vaultApi.meetingDocs(companyId, meetingId, token),
+        fetch(`${API}/companies/${companyId}/meetings/${meetingId}/share`, {
+          headers: { Authorization: `Bearer ${token}` },
+        }).then(r => r.ok ? r.json() : null).catch(() => null),
+      ]);
+      setDocs(d);
+      setShareLink(s);
+    } finally { setLoading(false); }
+  }, [companyId, meetingId, token]);
+
+  useEffect(() => { load(); }, [load]);
+
+  function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const f = e.target.files?.[0];
+    if (!f) return;
+    setPendingFile(f);
+    if (!title.trim()) setTitle(f.name.replace(/\.[^.]+$/, ''));
+    e.target.value = '';
+    setShowForm(true);
+  }
+
+  async function handleUpload() {
+    if (!pendingFile || !title.trim()) return;
+    setUploading(true); setUploadPct(0);
+    try {
+      const { uploadUrl, objectPath } = await vaultApi.meetingDocUploadUrl(
+        companyId, meetingId, { fileName: pendingFile.name, contentType: pendingFile.type }, token,
+      );
+      // Direct to GCS
+      await new Promise<void>((res, rej) => {
+        const xhr = new XMLHttpRequest();
+        xhr.open('PUT', uploadUrl);
+        xhr.setRequestHeader('Content-Type', pendingFile.type);
+        xhr.upload.onprogress = e => setUploadPct(Math.round((e.loaded / e.total) * 100));
+        xhr.onload = () => xhr.status < 300 ? res() : rej();
+        xhr.onerror = rej;
+        xhr.send(pendingFile);
+      });
+      await vaultApi.registerMeetingDoc(companyId, meetingId, {
+        title: title.trim(), docType, objectPath,
+        fileName: pendingFile.name, fileSize: pendingFile.size, isShared,
+      }, token);
+      setShowForm(false); setTitle(''); setDocType('DRAFT_AGENDA'); setIsShared(false); setPendingFile(null);
+      await load();
+    } catch { alert('Upload failed. Please try again.'); }
+    finally { setUploading(false); }
+  }
+
+  async function toggleShared(doc: MeetingDocument) {
+    await vaultApi.toggleShared(companyId, meetingId, doc.id, !doc.isShared, token);
+    await load();
+  }
+
+  async function removeDoc(docId: string) {
+    if (!confirm('Delete this document?')) return;
+    await vaultApi.removeMeetingDoc(companyId, meetingId, docId, token);
+    await load();
+  }
+
+  async function handleShareToggle() {
+    if (shareLink?.isActive) {
+      await vaultApi.deactivateShareLink(companyId, meetingId, token);
+    } else {
+      await vaultApi.createShareLink(companyId, meetingId, token);
+    }
+    await load();
+  }
+
+  const shareUrl = shareLink?.isActive
+    ? `${window.location.origin}/shared/meeting/${shareLink.shareToken}`
+    : null;
+
+  function copyShareUrl() {
+    if (!shareUrl) return;
+    navigator.clipboard.writeText(shareUrl);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  }
+
+  if (loading) return <div className="flex items-center justify-center py-16"><Spinner className="w-6 h-6" /></div>;
+
+  return (
+    <div>
+      <input ref={fileRef} type="file" accept=".pdf,.doc,.docx,.xlsx,.png,.jpg,.jpeg" style={{ display: 'none' }} onChange={handleFileChange} />
+
+      <div className="flex items-center justify-between mb-6">
+        <div>
+          <h2 className="text-lg font-bold text-zinc-200">Meeting Papers</h2>
+          <p className="text-sm text-zinc-500 mt-1">Upload draft notices, agenda, and supporting papers. Share via a secure link in your invitation.</p>
+        </div>
+        {canManage && (
+          <button onClick={() => fileRef.current?.click()} disabled={uploading}
+            className="bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold px-4 py-2 rounded-lg transition-colors">
+            + Upload
+          </button>
+        )}
+      </div>
+
+      {/* Share link banner */}
+      <div className={`rounded-xl border p-4 mb-6 ${shareLink?.isActive ? 'bg-[#0D1A0D] border-green-900/50' : 'bg-[#13161B] border-[#232830]'}`}>
+        <div className="flex items-center justify-between mb-2">
+          <p className={`text-sm font-bold ${shareLink?.isActive ? 'text-green-400' : 'text-zinc-400'}`}>
+            {shareLink?.isActive ? '🔗 Share link is active' : '🔗 Share link'}
+          </p>
+          {canManage && (
+            <button onClick={handleShareToggle}
+              className={`text-xs font-semibold px-3 py-1.5 rounded-lg border transition-colors ${shareLink?.isActive ? 'bg-red-950 border-red-800 text-red-400 hover:bg-red-900' : 'bg-[#1E2530] border-[#374151] text-zinc-400 hover:text-zinc-200'}`}>
+              {shareLink?.isActive ? 'Deactivate' : 'Activate'}
+            </button>
+          )}
+        </div>
+        {shareUrl ? (
+          <div className="flex items-center gap-2">
+            <code className="flex-1 text-xs text-blue-300 bg-[#0D0F12] border border-[#232830] rounded-lg px-3 py-2 truncate">{shareUrl}</code>
+            <button onClick={copyShareUrl} className="text-xs font-semibold text-zinc-400 hover:text-zinc-200 bg-[#1E2530] border border-[#374151] rounded-lg px-3 py-2">
+              {copied ? '✓ Copied' : 'Copy'}
+            </button>
+          </div>
+        ) : (
+          <p className="text-xs text-zinc-600">Activate to generate a public link for sharing documents with meeting attendees.</p>
+        )}
+        {docs.filter(d => d.isShared).length === 0 && shareLink?.isActive && (
+          <p className="text-xs text-amber-500 mt-2">⚠ No documents marked as shared yet — toggle documents below to include them in the link.</p>
+        )}
+      </div>
+
+      {/* Upload form */}
+      {showForm && pendingFile && (
+        <div className="bg-[#13161B] border border-[#4F7FFF]/30 rounded-xl p-5 mb-6">
+          <p className="text-sm font-bold text-zinc-300 mb-4">📎 {pendingFile.name}</p>
+          <div className="space-y-3">
+            <div>
+              <label className="text-xs font-semibold text-zinc-400 block mb-1">Document Title *</label>
+              <input value={title} onChange={e => setTitle(e.target.value)}
+                className="w-full bg-[#0D0F12] border border-[#232830] rounded-lg px-3 py-2 text-sm text-zinc-200 outline-none focus:border-blue-600"
+                placeholder="e.g. Draft Agenda — Q1 2026 Board Meeting" />
+            </div>
+            <div>
+              <label className="text-xs font-semibold text-zinc-400 block mb-1">Document Type</label>
+              <select value={docType} onChange={e => setDocType(e.target.value)}
+                className="w-full bg-[#0D0F12] border border-[#232830] rounded-lg px-3 py-2 text-sm text-zinc-200 outline-none">
+                {DOC_TYPES.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
+              </select>
+            </div>
+            <label className="flex items-center gap-3 cursor-pointer">
+              <div onClick={() => setIsShared(s => !s)}
+                className={`w-10 h-5 rounded-full transition-colors relative ${isShared ? 'bg-blue-600' : 'bg-[#232830]'}`}>
+                <div className={`w-4 h-4 bg-white rounded-full absolute top-0.5 transition-transform ${isShared ? 'translate-x-5' : 'translate-x-0.5'}`} />
+              </div>
+              <span className="text-xs font-medium text-zinc-400">Include in share link</span>
+            </label>
+          </div>
+          <div className="flex gap-3 mt-4">
+            <button onClick={() => { setShowForm(false); setPendingFile(null); }}
+              className="flex-1 bg-[#232830] text-zinc-400 text-sm font-semibold py-2 rounded-lg">Cancel</button>
+            <button onClick={handleUpload} disabled={!title.trim() || uploading}
+              className="flex-2 bg-blue-600 text-white text-sm font-semibold px-6 py-2 rounded-lg disabled:opacity-50">
+              {uploading ? `Uploading… ${uploadPct}%` : 'Save Document'}
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Document list */}
+      {docs.length === 0 ? (
+        <div className="text-center py-16 text-zinc-600">
+          <p className="text-sm">No documents uploaded yet.</p>
+          {canManage && <p className="text-xs mt-2">Upload a draft agenda or notice to get started.</p>}
+        </div>
+      ) : (
+        <div className="space-y-3">
+          {docs.map(doc => (
+            <div key={doc.id} className="bg-[#13161B] border border-[#232830] rounded-xl px-5 py-4 flex items-center gap-4 hover:border-[#374151] transition-colors">
+              <span className="text-2xl flex-shrink-0">📄</span>
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2 mb-0.5">
+                  <p className="text-sm font-bold text-zinc-200 truncate">{doc.title}</p>
+                  <span className="text-[9px] font-bold text-zinc-500 uppercase tracking-wide border border-[#232830] px-1.5 py-0.5 rounded flex-shrink-0">
+                    {DOC_TYPES.find(t => t.value === doc.docType)?.label ?? doc.docType}
+                  </span>
+                </div>
+                <p className="text-xs text-zinc-600">{doc.fileName} · {doc.uploader.name} · {new Date(doc.uploadedAt).toLocaleDateString('en-IN')}</p>
+              </div>
+              <div className="flex items-center gap-2 flex-shrink-0">
+                {/* Shared toggle */}
+                {canManage && (
+                  <button onClick={() => toggleShared(doc)}
+                    className={`text-xs font-semibold px-2.5 py-1 rounded-lg border transition-colors ${doc.isShared ? 'bg-blue-950 border-blue-800 text-blue-400' : 'bg-transparent border-[#232830] text-zinc-600 hover:text-zinc-400'}`}>
+                    {doc.isShared ? '🔗 Shared' : 'Share'}
+                  </button>
+                )}
+                {doc.downloadUrl && (
+                  <a href={doc.downloadUrl} target="_blank" rel="noopener noreferrer"
+                    className="text-xs font-semibold text-blue-400 hover:text-blue-300">View ↗</a>
+                )}
+                {canManage && (
+                  <button onClick={() => removeDoc(doc.id)}
+                    className="text-xs text-zinc-700 hover:text-red-400 transition-colors px-1">✕</button>
+                )}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }

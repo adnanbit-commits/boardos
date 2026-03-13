@@ -8,6 +8,7 @@ import { AuthModule } from './auth/auth.module';
 import { CompanyModule } from './company/company.module';
 import { MeetingModule } from './meeting/meeting.module';
 import { MeetingTemplateModule } from './meeting-template/meeting-template.module';
+import { VaultModule } from './vault/vault.module';
 import { ResolutionModule } from './resolution/resolution.module';
 import { VotingModule } from './voting/voting.module';
 import { MinutesModule } from './minutes/minutes.module';
@@ -37,6 +38,7 @@ import { PrismaModule } from './prisma/prisma.module';
     CompanyModule,
     MeetingModule,
     MeetingTemplateModule,
+    VaultModule,
     ResolutionModule,
     VotingModule,
     MinutesModule,
