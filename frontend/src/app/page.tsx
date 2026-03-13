@@ -1,7 +1,7 @@
 'use client';
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { getToken } from '@/lib/auth';
+import { getToken, getUser } from '@/lib/auth';
 
 const PLATFORM_ROLE_OPTIONS = [
   { value: 'DIRECTOR',         label: 'Director',               desc: 'Board member / promoter' },
@@ -19,10 +19,17 @@ export default function LandingPage() {
   const [platformRoles, setPlatformRoles] = useState<string[]>([]);
   const [loading,       setLoading]       = useState(false);
   const [error,         setError]         = useState('');
+  const [isLoggedIn,    setIsLoggedIn]    = useState(false);
+  const [userName,      setUserName]      = useState('');
 
   useEffect(() => {
-    if (getToken()) router.replace('/dashboard');
-  }, [router]);
+    const token = getToken();
+    const user  = getUser();
+    if (token) {
+      setIsLoggedIn(true);
+      setUserName(user?.name ?? '');
+    }
+  }, []);
 
   function toggleRole(value: string) {
     setPlatformRoles(prev =>
@@ -244,95 +251,132 @@ export default function LandingPage() {
         </footer>
       </div>
 
-      {/* ── RIGHT — LOGIN ── */}
+      {/* ── RIGHT — LOGIN / WORKSPACE ── */}
       <div style={s.right}>
-        <h2 style={s.loginH}>{isLogin ? 'Welcome back.' : 'Create account.'}</h2>
-        <p style={s.loginSub}>
-          {isLogin ? 'Sign in to your board workspace.' : 'Set up your first board workspace in minutes.'}
-        </p>
+        {isLoggedIn ? (
+          <div style={{ display: 'flex', flexDirection: 'column', height: '100%', justifyContent: 'center' }}>
+            <div style={{ marginBottom: 32 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 20 }}>
+                <div style={{ width: 36, height: 36, borderRadius: 10, background: 'rgba(79,127,255,0.10)', border: '1px solid rgba(79,127,255,0.22)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 16, color: '#4F7FFF' }}>◈</div>
+                <div style={{ width: 7, height: 7, borderRadius: '50%', background: '#34D399' }} />
+                <span style={{ fontSize: 12, color: '#34D399', fontFamily: "'DM Sans', sans-serif", fontWeight: 600 }}>Session active</span>
+              </div>
+              <h2 style={{ fontSize: 22, fontWeight: 400, color: '#D8D4CC', margin: '0 0 8px', fontStyle: 'italic' }}>
+                {userName ? `Welcome back, ${userName.split(' ')[0]}.` : 'Welcome back.'}
+              </h2>
+              <p style={{ fontSize: 13, color: '#5A6478', lineHeight: 1.65, fontFamily: "'DM Sans', sans-serif", margin: 0 }}>
+                Your board workspaces, meetings, and compliance records are waiting.
+              </p>
+            </div>
 
-        <div style={s.tabRow}>
-          <button style={isLogin ? s.tabBtnActive : s.tabBtn} onClick={() => { setIsLogin(true); setError(''); }}>Sign In</button>
-          <button style={!isLogin ? s.tabBtnActive : s.tabBtn} onClick={() => { setIsLogin(false); setError(''); }}>Register</button>
-        </div>
+            <button
+              onClick={() => router.push('/dashboard')}
+              style={{ width: '100%', padding: '13px', background: '#4F7FFF', color: '#fff', fontSize: 14, fontWeight: 700, fontFamily: "'DM Sans', sans-serif", border: 'none', borderRadius: 8, cursor: 'pointer', marginBottom: 10, letterSpacing: '0.01em' }}>
+              Open my workspaces →
+            </button>
+            <button
+              onClick={() => router.push('/dashboard')}
+              style={{ width: '100%', padding: '10px', background: 'transparent', border: '1px solid #1E2535', borderRadius: 7, color: '#6B7A94', fontSize: 13, fontFamily: "'DM Sans', sans-serif", cursor: 'pointer', marginBottom: 36 }}>
+              Go to dashboard
+            </button>
 
-        <form onSubmit={handleAuth}>
-          {!isLogin && (
-            <>
+            <div style={{ borderTop: '1px solid #1A2030', paddingTop: 22 }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 11, marginBottom: 20 }}>
+                {[
+                  { icon: '◈', label: 'Board meetings & agendas' },
+                  { icon: '⊟', label: 'Document vault' },
+                  { icon: '▦', label: 'Director compliance register' },
+                  { icon: '▤', label: 'Resolution archive' },
+                ].map(item => (
+                  <div key={item.label} style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                    <span style={{ fontSize: 13, color: '#4F7FFF', width: 18, textAlign: 'center', flexShrink: 0 }}>{item.icon}</span>
+                    <span style={{ fontSize: 12, color: '#3A4455', fontFamily: "'DM Sans', sans-serif" }}>{item.label}</span>
+                  </div>
+                ))}
+              </div>
+              <button
+                onClick={() => { localStorage.removeItem('token'); localStorage.removeItem('user'); setIsLoggedIn(false); }}
+                style={{ background: 'none', border: 'none', color: '#3A4455', fontSize: 11, cursor: 'pointer', padding: 0, fontFamily: "'DM Sans', sans-serif", textDecoration: 'underline' }}>
+                Sign out and switch account
+              </button>
+            </div>
+          </div>
+        ) : (
+          <>
+            <h2 style={s.loginH}>{isLogin ? 'Welcome back.' : 'Create account.'}</h2>
+            <p style={s.loginSub}>
+              {isLogin ? 'Sign in to your board workspace.' : 'Set up your first board workspace in minutes.'}
+            </p>
+
+            <div style={s.tabRow}>
+              <button style={isLogin ? s.tabBtnActive : s.tabBtn} onClick={() => { setIsLogin(true); setError(''); }}>Sign In</button>
+              <button style={!isLogin ? s.tabBtnActive : s.tabBtn} onClick={() => { setIsLogin(false); setError(''); }}>Register</button>
+            </div>
+
+            <form onSubmit={handleAuth}>
+              {!isLogin && (
+                <>
+                  <div style={s.formGroup}>
+                    <label style={s.label}>Full Name</label>
+                    <input style={s.input} type="text" placeholder="Rajesh Sharma" value={name} onChange={e => setName(e.target.value)} required />
+                  </div>
+                  <div style={s.formGroup}>
+                    <label style={s.label}>I am a <span style={{ color: '#6B7280', fontWeight: 400 }}>(select all that apply)</span></label>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginTop: 4 }}>
+                      {PLATFORM_ROLE_OPTIONS.map(opt => {
+                        const active = platformRoles.includes(opt.value);
+                        return (
+                          <button key={opt.value} type="button" onClick={() => toggleRole(opt.value)}
+                            style={{ display: 'flex', alignItems: 'center', gap: 12, background: active ? 'rgba(79,127,255,0.10)' : '#13161B', border: `1px solid ${active ? '#4F7FFF' : '#232830'}`, borderRadius: 10, padding: '10px 14px', cursor: 'pointer', textAlign: 'left', transition: 'all 0.15s' }}>
+                            <div style={{ width: 16, height: 16, borderRadius: 4, flexShrink: 0, background: active ? '#4F7FFF' : 'transparent', border: `2px solid ${active ? '#4F7FFF' : '#374151'}`, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                              {active && <svg width="10" height="8" viewBox="0 0 10 8" fill="none"><path d="M1 4L4 7L9 1" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>}
+                            </div>
+                            <div>
+                              <p style={{ fontSize: 13, fontWeight: 600, color: active ? '#F0F2F5' : '#9CA3AF', margin: 0 }}>{opt.label}</p>
+                              <p style={{ fontSize: 11, color: '#4B5563', margin: 0 }}>{opt.desc}</p>
+                            </div>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                </>
+              )}
               <div style={s.formGroup}>
-                <label style={s.label}>Full Name</label>
-                <input style={s.input} type="text" placeholder="Rajesh Sharma" value={name} onChange={e => setName(e.target.value)} required />
+                <label style={s.label}>Email</label>
+                <input style={s.input} type="email" placeholder="director@company.in" value={email} onChange={e => setEmail(e.target.value)} required />
               </div>
               <div style={s.formGroup}>
-                <label style={s.label}>I am a <span style={{ color: '#6B7280', fontWeight: 400 }}>(select all that apply)</span></label>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginTop: 4 }}>
-                  {PLATFORM_ROLE_OPTIONS.map(opt => {
-                    const active = platformRoles.includes(opt.value);
-                    return (
-                      <button
-                        key={opt.value}
-                        type="button"
-                        onClick={() => toggleRole(opt.value)}
-                        style={{
-                          display: 'flex', alignItems: 'center', gap: 12,
-                          background: active ? 'rgba(79,127,255,0.10)' : '#13161B',
-                          border: `1px solid ${active ? '#4F7FFF' : '#232830'}`,
-                          borderRadius: 10, padding: '10px 14px', cursor: 'pointer',
-                          textAlign: 'left', transition: 'all 0.15s',
-                        }}
-                      >
-                        <div style={{
-                          width: 16, height: 16, borderRadius: 4, flexShrink: 0,
-                          background: active ? '#4F7FFF' : 'transparent',
-                          border: `2px solid ${active ? '#4F7FFF' : '#374151'}`,
-                          display: 'flex', alignItems: 'center', justifyContent: 'center',
-                        }}>
-                          {active && <svg width="10" height="8" viewBox="0 0 10 8" fill="none"><path d="M1 4L4 7L9 1" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>}
-                        </div>
-                        <div>
-                          <p style={{ fontSize: 13, fontWeight: 600, color: active ? '#F0F2F5' : '#9CA3AF', margin: 0 }}>{opt.label}</p>
-                          <p style={{ fontSize: 11, color: '#4B5563', margin: 0 }}>{opt.desc}</p>
-                        </div>
-                      </button>
-                    );
-                  })}
-                </div>
+                <label style={s.label}>Password</label>
+                <input style={s.input} type="password" placeholder="••••••••" value={password} onChange={e => setPassword(e.target.value)} required />
               </div>
-            </>
-          )}
-          <div style={s.formGroup}>
-            <label style={s.label}>Email</label>
-            <input style={s.input} type="email" placeholder="director@company.in" value={email} onChange={e => setEmail(e.target.value)} required />
-          </div>
-          <div style={s.formGroup}>
-            <label style={s.label}>Password</label>
-            <input style={s.input} type="password" placeholder="••••••••" value={password} onChange={e => setPassword(e.target.value)} required />
-          </div>
-          {error && <div style={s.errorBox}>{error}</div>}
-          <button type="submit" style={loading ? s.btnDisabled : s.btnPrimary} disabled={loading}>
-            {loading ? 'Please wait...' : isLogin ? 'Sign In' : 'Create Account'}
-          </button>
-        </form>
+              {error && <div style={s.errorBox}>{error}</div>}
+              <button type="submit" style={loading ? s.btnDisabled : s.btnPrimary} disabled={loading}>
+                {loading ? 'Please wait...' : isLogin ? 'Sign In' : 'Create Account'}
+              </button>
+            </form>
 
-        <div style={s.divider}>
-          <div style={s.divLine} />
-          <span style={s.divText}>or</span>
-          <div style={s.divLine} />
-        </div>
+            <div style={s.divider}>
+              <div style={s.divLine} />
+              <span style={s.divText}>or</span>
+              <div style={s.divLine} />
+            </div>
 
-        <button style={s.btnGoogle} onClick={handleGoogle}>
-          <svg width="16" height="16" viewBox="0 0 24 24">
-            <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
-            <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
-            <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/>
-            <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
-          </svg>
-          Continue with Google
-        </button>
+            <button style={s.btnGoogle} onClick={handleGoogle}>
+              <svg width="16" height="16" viewBox="0 0 24 24">
+                <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
+                <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
+                <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/>
+                <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
+              </svg>
+              Continue with Google
+            </button>
 
-        <div style={s.loginNote}>
-          BoardOS uses encrypted storage and identity-linked access. Your board data is private and protected.
-        </div>
+            <div style={s.loginNote}>
+              BoardOS uses encrypted storage and identity-linked access. Your board data is private and protected.
+            </div>
+          </>
+        )}
       </div>
     </div>
   );
