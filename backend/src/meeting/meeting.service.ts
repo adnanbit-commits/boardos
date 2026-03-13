@@ -1,7 +1,8 @@
-import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
+import { Injectable, NotFoundException, BadRequestException, ForbiddenException } from '@nestjs/common';
 import { MeetingStatus } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { AuditService } from '../audit/audit.service';
+import { NotificationService } from '../notification/notification.service';
 import { CreateMeetingDto } from './dto/create-meeting.dto';
 import { UpdateMeetingDto } from './dto/update-meeting.dto';
 import { AddAgendaItemDto } from './dto/add-agenda-item.dto';
@@ -22,6 +23,7 @@ export class MeetingService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly audit: AuditService,
+    private readonly notificationService: NotificationService,
   ) {}
 
   findAll(companyId: string) {
@@ -212,14 +214,135 @@ export class MeetingService {
     }));
   }
 
-  async recordAttendance(companyId: string, meetingId: string, userId: string, targetUserId: string, mode: string) {
-    await this.findOne(companyId, meetingId);
+  // ── SS-1 compliant attendance recording ──────────────────────────────────────
+  //
+  //  IN_PERSON  → director marks themselves only (equivalent to signing register)
+  //  VIDEO/PHONE → authenticated by meeting chairperson or Company Secretary only
+  //  ABSENT      → chairperson or CS only
+  //  REQUESTED_* → use requestAttendance() below
+
+  async recordAttendance(
+    companyId: string,
+    meetingId: string,
+    requestingUserId: string,
+    targetUserId: string,
+    mode: string,
+  ) {
+    const meeting = await this.prisma.meeting.findFirst({
+      where: { id: meetingId, companyId },
+    });
+    if (!meeting) throw new NotFoundException('Meeting not found');
+
+    if (!['SCHEDULED', 'IN_PROGRESS'].includes(meeting.status)) {
+      throw new BadRequestException('Attendance can only be recorded for scheduled or in-progress meetings');
+    }
+    if (!meeting.chairpersonId) {
+      throw new BadRequestException('A chairperson must be elected before attendance can be recorded');
+    }
+
+    const requester = await this.prisma.companyUser.findUnique({
+      where: { userId_companyId: { userId: requestingUserId, companyId } },
+    });
+    if (!requester) throw new ForbiddenException('Not a member of this company');
+
+    const isChairperson = meeting.chairpersonId === requestingUserId;
+    const isCS = requester.role === 'COMPANY_SECRETARY';
+    const canAuthElectronic = isChairperson || isCS;
+    const isSelf = requestingUserId === targetUserId;
+
+    if (mode === 'IN_PERSON') {
+      // In-person: director must self-mark only
+      if (!isSelf) {
+        throw new ForbiddenException(
+          'In-person attendance must be self-recorded. Each director signs their own attendance.',
+        );
+      }
+    } else if (['VIDEO', 'PHONE', 'ABSENT'].includes(mode)) {
+      // Electronic / absent: must be chairperson or CS (SS-1 Rule 3)
+      if (!canAuthElectronic) {
+        throw new ForbiddenException(
+          'Electronic and absent attendance must be authenticated by the meeting chairperson or Company Secretary (SS-1).',
+        );
+      }
+    } else {
+      throw new BadRequestException(`Invalid attendance mode: ${mode}`);
+    }
+
     const record = await this.prisma.meetingAttendance.upsert({
       where:  { meetingId_userId: { meetingId, userId: targetUserId } },
       create: { meetingId, userId: targetUserId, mode: mode as any },
       update: { mode: mode as any, recordedAt: new Date() },
     });
-    await this.audit.log({ companyId, userId, action: 'ATTENDANCE_RECORDED', entity: 'Meeting', entityId: meetingId, metadata: { targetUserId, mode } });
+
+    await this.audit.log({
+      companyId, userId: requestingUserId,
+      action: 'ATTENDANCE_RECORDED', entity: 'Meeting', entityId: meetingId,
+      metadata: { targetUserId, mode, authenticatedBy: isChairperson ? 'CHAIRPERSON' : isCS ? 'CS' : 'SELF' },
+    });
     return record;
+  }
+
+  // Director requests electronic attendance — saves pending state, notifies chairperson + CS
+  async requestAttendance(
+    companyId: string,
+    meetingId: string,
+    requestingUserId: string,
+    requestedMode: 'VIDEO' | 'PHONE',
+  ) {
+    const meeting = await this.prisma.meeting.findFirst({
+      where: { id: meetingId, companyId },
+      include: { company: { select: { name: true } } },
+    });
+    if (!meeting) throw new NotFoundException('Meeting not found');
+    if (!['SCHEDULED', 'IN_PROGRESS'].includes(meeting.status)) {
+      throw new BadRequestException('Cannot request attendance for this meeting status');
+    }
+    if (!meeting.chairpersonId) {
+      throw new BadRequestException('No chairperson elected yet — cannot route request');
+    }
+
+    const requester = await this.prisma.companyUser.findUnique({
+      where: { userId_companyId: { userId: requestingUserId, companyId } },
+      include: { user: { select: { name: true } } },
+    });
+    if (!requester) throw new ForbiddenException('Not a member of this company');
+
+    // Save pending mode
+    const pendingMode = requestedMode === 'VIDEO' ? 'REQUESTED_VIDEO' : 'REQUESTED_PHONE';
+    await this.prisma.meetingAttendance.upsert({
+      where:  { meetingId_userId: { meetingId, userId: requestingUserId } },
+      create: { meetingId, userId: requestingUserId, mode: pendingMode as any },
+      update: { mode: pendingMode as any, recordedAt: new Date() },
+    });
+
+    // Notify chairperson + all CS members
+    const toNotify = await this.prisma.companyUser.findMany({
+      where: {
+        companyId,
+        OR: [
+          { userId: meeting.chairpersonId },
+          { role: 'COMPANY_SECRETARY' },
+        ],
+      },
+      include: { user: { select: { id: true } } },
+    });
+
+    await Promise.all(toNotify.map(m =>
+      this.notificationService.send({
+        userId: m.user.id,
+        companyId,
+        type: 'GENERAL',
+        subject: `Attendance request: ${requester.user.name}`,
+        body: `${requester.user.name} has requested ${requestedMode.toLowerCase()} attendance for the meeting "${meeting.title}". Please confirm or reject their attendance in the meeting panel.`,
+      }),
+    ));
+
+    await this.audit.log({
+      companyId, userId: requestingUserId,
+      action: 'ATTENDANCE_REQUESTED', entity: 'Meeting', entityId: meetingId,
+      metadata: { requestedMode },
+    });
+
+    return { message: 'Attendance request sent to chairperson and Company Secretary' };
   }
 }

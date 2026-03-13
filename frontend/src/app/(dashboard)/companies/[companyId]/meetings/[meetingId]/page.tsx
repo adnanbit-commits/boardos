@@ -319,7 +319,10 @@ export default function MeetingWorkspacePage() {
             <AttendancePanel
               companyId={companyId} meetingId={meetingId} jwt={jwt}
               meeting={meeting} attendance={attendance}
-              isAdmin={isAdmin} onRefresh={reload}
+              currentUserId={me?.id ?? ''}
+              isChairperson={meeting.chairpersonId === me?.id}
+              isCS={myRole === 'COMPANY_SECRETARY'}
+              onRefresh={reload}
             />
           )}
           {panel === 'minutes' && meeting.minutes && (
@@ -614,18 +617,15 @@ function DeclarationsPanel({ companyId, meetingId, jwt, meeting, declarations, i
 
 // ── Attendance Panel ──────────────────────────────────────────────────────────
 
-const MODE_OPTIONS = [
-  {value:'IN_PERSON' as AttendanceMode, label:'In Person', icon:'◉'},
-  {value:'VIDEO'     as AttendanceMode, label:'Video',     icon:'▶'},
-  {value:'PHONE'     as AttendanceMode, label:'Phone',     icon:'◌'},
-  {value:'ABSENT'    as AttendanceMode, label:'Absent',    icon:'✕'},
-];
+function AttendancePanel({ companyId, meetingId, jwt, meeting, attendance, currentUserId, isChairperson, isCS, onRefresh }: any) {
+  const [saving,    setSaving]    = useState<string | null>(null);
+  const [requesting,setRequesting]= useState<string | null>(null); // 'VIDEO' | 'PHONE'
+  const [err,       setErr]       = useState('');
 
-function AttendancePanel({ companyId, meetingId, jwt, meeting, attendance, isAdmin, onRefresh }: any) {
-  const [saving, setSaving] = useState<string | null>(null);
-  const [err,    setErr]    = useState('');
-  const canEdit = isAdmin && ['SCHEDULED','IN_PROGRESS'].includes(meeting.status);
-  const present = attendance.filter((a: any) => a.attendance && a.attendance.mode !== 'ABSENT');
+  const canAuthenticate = isChairperson || isCS; // can record VIDEO/PHONE/ABSENT for others
+  const canEdit = ['SCHEDULED', 'IN_PROGRESS'].includes(meeting.status) && !!meeting.chairpersonId;
+
+  const present = attendance.filter((a: any) => a.attendance && !['ABSENT', null].includes(a.attendance?.mode) && !a.attendance?.mode?.startsWith('REQUESTED'));
   const total   = attendance.length;
   const quorumRequired = Math.max(2, Math.ceil(total / 3));
   const quorumMet = present.length >= quorumRequired;
@@ -635,15 +635,27 @@ function AttendancePanel({ companyId, meetingId, jwt, meeting, attendance, isAdm
     try {
       await meetings.recordAttendance(companyId, meetingId, { userId, mode }, jwt);
       await onRefresh();
-    } catch (e: any) { setErr((e as any).body?.message ?? 'Could not save'); }
+    } catch (e: any) { setErr((e as any).body?.message ?? 'Could not save attendance'); }
     finally { setSaving(null); }
   }
 
+  async function requestMode(mode: 'VIDEO' | 'PHONE') {
+    setRequesting(mode); setErr('');
+    try {
+      await meetings.requestAttendance(companyId, meetingId, mode, jwt);
+      await onRefresh();
+    } catch (e: any) { setErr((e as any).body?.message ?? 'Could not send request'); }
+    finally { setRequesting(null); }
+  }
+
+  const noChairperson = !meeting.chairpersonId;
+
   return (
     <div className="max-w-2xl fade-up">
+      {/* Header */}
       <div className="flex items-start justify-between mb-6">
         <div>
-          <p className="text-zinc-600 text-xs uppercase tracking-widest font-semibold mb-1">Section 174 · Companies Act 2013</p>
+          <p className="text-zinc-600 text-xs uppercase tracking-widest font-semibold mb-1">SS-1 · Section 174 · Companies Act 2013</p>
           <h2 className="text-white text-xl font-bold" style={{fontFamily:"'Playfair Display',serif"}}>Attendance</h2>
         </div>
         {total > 0 && (
@@ -657,46 +669,172 @@ function AttendancePanel({ companyId, meetingId, jwt, meeting, attendance, isAdm
           </div>
         )}
       </div>
-      {err && <p className="text-red-400 text-xs mb-4">{err}</p>}
+
+      {/* No chairperson warning */}
+      {noChairperson && (
+        <div className="mb-5 flex items-start gap-3 bg-amber-950/20 border border-amber-800/30 rounded-xl px-4 py-3">
+          <span className="text-amber-400 mt-0.5">⚠</span>
+          <p className="text-amber-300 text-xs leading-relaxed">
+            No chairperson elected yet. A chairperson must be elected before attendance can be recorded (SS-1).
+          </p>
+        </div>
+      )}
+
+      {/* Role context banner */}
+      {!noChairperson && canEdit && (
+        <div className="mb-5 flex items-start gap-3 bg-[#191D24] border border-[#232830] rounded-xl px-4 py-3">
+          <span className="text-blue-400 mt-0.5 text-sm">ℹ</span>
+          <p className="text-zinc-400 text-xs leading-relaxed">
+            {canAuthenticate
+              ? `You are the ${isChairperson ? 'Chairperson' : 'Company Secretary'}. You can authenticate electronic attendance (Video/Phone) and mark directors absent per SS-1.`
+              : 'You can mark yourself as In Person. To join by video or phone, use the request button — the Chairperson or CS will confirm.'}
+          </p>
+        </div>
+      )}
+
+      {err && <p className="text-red-400 text-xs mb-4 bg-red-950/30 border border-red-800/30 rounded-lg px-3 py-2">{err}</p>}
+
       <div className="space-y-3">
         {attendance.map((dir: any) => {
-          const currentMode = dir.attendance?.mode ?? null;
+          const currentMode: string | null = dir.attendance?.mode ?? null;
+          const isSelf = dir.userId === currentUserId;
           const isSaving = saving === dir.userId;
+          const isPending = currentMode === 'REQUESTED_VIDEO' || currentMode === 'REQUESTED_PHONE';
+
           return (
-            <div key={dir.userId} className="bg-[#191D24] border border-[#232830] rounded-xl p-4 flex items-center gap-4">
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-2">
-                  <p className="text-sm font-semibold text-zinc-200 truncate">{dir.name}</p>
-                  {dir.isWorkspaceAdmin && <span className="text-[9px] font-bold bg-amber-900/40 text-amber-400 border border-amber-700/30 px-1.5 py-0.5 rounded-full">WS Admin</span>}
-                  <span className="text-[9px] text-zinc-600">{dir.role}</span>
+            <div key={dir.userId} className={`bg-[#191D24] border rounded-xl p-4 ${isPending ? 'border-amber-800/40' : 'border-[#232830]'}`}>
+              <div className="flex items-start gap-4">
+                {/* Member info */}
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <p className="text-sm font-semibold text-zinc-200">{dir.name}</p>
+                    {isSelf && <span className="text-[9px] font-bold bg-blue-900/40 text-blue-400 border border-blue-700/30 px-1.5 py-0.5 rounded-full">you</span>}
+                    {meeting.chairpersonId === dir.userId && <span className="text-[9px] font-bold bg-purple-900/40 text-purple-400 border border-purple-700/30 px-1.5 py-0.5 rounded-full">Chairperson</span>}
+                    {dir.role === 'COMPANY_SECRETARY' && <span className="text-[9px] font-bold bg-indigo-900/40 text-indigo-400 border border-indigo-700/30 px-1.5 py-0.5 rounded-full">CS</span>}
+                  </div>
+                  <p className="text-zinc-600 text-[11px] mt-0.5">{dir.email}</p>
                 </div>
-                <p className="text-zinc-600 text-[11px] mt-0.5">{dir.email}</p>
+
+                {/* Current status badge */}
+                <div className="flex-shrink-0">
+                  {currentMode && (
+                    <span className={`text-[10px] font-bold px-2.5 py-1 rounded-full border ${
+                      isPending              ? 'bg-amber-950/40 border-amber-700/40 text-amber-400'
+                      : currentMode==='ABSENT'    ? 'bg-red-950/40 border-red-700/40 text-red-400'
+                      : currentMode==='IN_PERSON' ? 'bg-green-950/40 border-green-700/40 text-green-400'
+                      : 'bg-blue-950/40 border-blue-700/40 text-blue-400'
+                    }`}>
+                      {isPending
+                        ? `⏳ ${currentMode === 'REQUESTED_VIDEO' ? 'Requested Video' : 'Requested Phone'}`
+                        : currentMode.replace('_', ' ')}
+                    </span>
+                  )}
+                </div>
               </div>
-              {canEdit ? (
-                <div className="flex gap-1.5">
-                  {MODE_OPTIONS.map(opt => (
-                    <button key={opt.value} disabled={isSaving} onClick={() => record(dir.userId, opt.value)}
-                      className={`px-2.5 py-1.5 rounded-lg text-[11px] font-semibold border transition-all
-                        ${currentMode === opt.value
-                          ? opt.value === 'ABSENT' ? 'bg-red-950/60 border-red-700/60 text-red-400' : 'bg-blue-950/60 border-blue-700/60 text-blue-300'
-                          : 'bg-transparent border-zinc-700/50 text-zinc-600 hover:border-zinc-500 hover:text-zinc-400'}
-                        ${isSaving ? 'opacity-50 cursor-not-allowed' : ''}`}>
-                      {isSaving && currentMode === opt.value ? '…' : `${opt.icon} ${opt.label}`}
-                    </button>
-                  ))}
+
+              {/* Action buttons */}
+              {canEdit && (
+                <div className="mt-3 flex flex-wrap gap-2">
+
+                  {/* ── Own row: self-mark IN_PERSON + request VIDEO/PHONE ── */}
+                  {isSelf && !canAuthenticate && (
+                    <>
+                      <button disabled={isSaving || currentMode === 'IN_PERSON'}
+                        onClick={() => record(dir.userId, 'IN_PERSON')}
+                        className={`px-3 py-1.5 rounded-lg text-[11px] font-semibold border transition-all
+                          ${currentMode === 'IN_PERSON'
+                            ? 'bg-green-950/60 border-green-700/60 text-green-400'
+                            : 'bg-transparent border-zinc-700/50 text-zinc-400 hover:border-green-700/50 hover:text-green-400'}
+                          ${isSaving ? 'opacity-50 cursor-not-allowed' : ''}`}>
+                        {isSaving ? '…' : '◉ Mark In Person'}
+                      </button>
+                      <button disabled={!!requesting || currentMode === 'REQUESTED_VIDEO' || currentMode === 'VIDEO'}
+                        onClick={() => requestMode('VIDEO')}
+                        className={`px-3 py-1.5 rounded-lg text-[11px] font-semibold border transition-all
+                          ${currentMode === 'VIDEO' || currentMode === 'REQUESTED_VIDEO'
+                            ? 'bg-blue-950/60 border-blue-700/60 text-blue-400'
+                            : 'bg-transparent border-zinc-700/50 text-zinc-400 hover:border-blue-700/50 hover:text-blue-400'}
+                          ${requesting ? 'opacity-50 cursor-not-allowed' : ''}`}>
+                        {requesting === 'VIDEO' ? '…' : '▶ Request Video'}
+                      </button>
+                      <button disabled={!!requesting || currentMode === 'REQUESTED_PHONE' || currentMode === 'PHONE'}
+                        onClick={() => requestMode('PHONE')}
+                        className={`px-3 py-1.5 rounded-lg text-[11px] font-semibold border transition-all
+                          ${currentMode === 'PHONE' || currentMode === 'REQUESTED_PHONE'
+                            ? 'bg-blue-950/60 border-blue-700/60 text-blue-400'
+                            : 'bg-transparent border-zinc-700/50 text-zinc-400 hover:border-blue-700/50 hover:text-blue-400'}
+                          ${requesting ? 'opacity-50 cursor-not-allowed' : ''}`}>
+                        {requesting === 'PHONE' ? '…' : '◌ Request Phone'}
+                      </button>
+                    </>
+                  )}
+
+                  {/* ── Chairperson / CS row: full control for others + self ── */}
+                  {canAuthenticate && (
+                    <>
+                      {/* IN_PERSON — anyone can appear in person */}
+                      <button disabled={isSaving} onClick={() => record(dir.userId, 'IN_PERSON')}
+                        className={`px-3 py-1.5 rounded-lg text-[11px] font-semibold border transition-all
+                          ${currentMode === 'IN_PERSON' ? 'bg-green-950/60 border-green-700/60 text-green-400' : 'bg-transparent border-zinc-700/50 text-zinc-400 hover:border-green-700/50 hover:text-green-400'}
+                          ${isSaving ? 'opacity-50' : ''}`}>
+                        {isSaving && currentMode==='IN_PERSON' ? '…' : '◉ In Person'}
+                      </button>
+
+                      {/* VIDEO — authenticate or confirm request */}
+                      <button disabled={isSaving} onClick={() => record(dir.userId, 'VIDEO')}
+                        className={`px-3 py-1.5 rounded-lg text-[11px] font-semibold border transition-all
+                          ${currentMode === 'VIDEO' ? 'bg-blue-950/60 border-blue-700/60 text-blue-400'
+                          : isPending && currentMode === 'REQUESTED_VIDEO' ? 'bg-amber-950/60 border-amber-700/60 text-amber-300 animate-pulse'
+                          : 'bg-transparent border-zinc-700/50 text-zinc-400 hover:border-blue-700/50 hover:text-blue-400'}
+                          ${isSaving ? 'opacity-50' : ''}`}>
+                        {isSaving && currentMode==='VIDEO' ? '…'
+                          : currentMode === 'REQUESTED_VIDEO' ? '✓ Confirm Video'
+                          : '▶ Video'}
+                      </button>
+
+                      {/* PHONE */}
+                      <button disabled={isSaving} onClick={() => record(dir.userId, 'PHONE')}
+                        className={`px-3 py-1.5 rounded-lg text-[11px] font-semibold border transition-all
+                          ${currentMode === 'PHONE' ? 'bg-blue-950/60 border-blue-700/60 text-blue-400'
+                          : isPending && currentMode === 'REQUESTED_PHONE' ? 'bg-amber-950/60 border-amber-700/60 text-amber-300 animate-pulse'
+                          : 'bg-transparent border-zinc-700/50 text-zinc-400 hover:border-blue-700/50 hover:text-blue-400'}
+                          ${isSaving ? 'opacity-50' : ''}`}>
+                        {isSaving && currentMode==='PHONE' ? '…'
+                          : currentMode === 'REQUESTED_PHONE' ? '✓ Confirm Phone'
+                          : '◌ Phone'}
+                      </button>
+
+                      {/* ABSENT */}
+                      <button disabled={isSaving} onClick={() => record(dir.userId, 'ABSENT')}
+                        className={`px-3 py-1.5 rounded-lg text-[11px] font-semibold border transition-all
+                          ${currentMode === 'ABSENT' ? 'bg-red-950/60 border-red-700/60 text-red-400' : 'bg-transparent border-zinc-700/50 text-zinc-400 hover:border-red-700/50 hover:text-red-400'}
+                          ${isSaving ? 'opacity-50' : ''}`}>
+                        {isSaving && currentMode==='ABSENT' ? '…' : '✕ Absent'}
+                      </button>
+                    </>
+                  )}
                 </div>
-              ) : (
-                <span className={`text-xs font-semibold px-3 py-1 rounded-full border ${
-                  !currentMode ? 'bg-zinc-900 border-zinc-700 text-zinc-500'
-                  : currentMode === 'ABSENT' ? 'bg-red-950/40 border-red-800/40 text-red-400'
-                  : 'bg-green-950/40 border-green-800/40 text-green-400'}`}>
-                  {currentMode ? MODE_OPTIONS.find(m => m.value === currentMode)?.label ?? currentMode : 'Not recorded'}
-                </span>
+              )}
+
+              {/* Read-only — not editable */}
+              {!canEdit && currentMode && (
+                <div className="mt-2">
+                  <span className={`text-xs font-semibold px-3 py-1 rounded-full border ${
+                    !currentMode ? 'bg-zinc-900 border-zinc-700 text-zinc-500'
+                    : currentMode === 'ABSENT' ? 'bg-red-950/40 border-red-800/40 text-red-400'
+                    : 'bg-green-950/40 border-green-800/40 text-green-400'}`}>
+                    {currentMode.replace('_', ' ')}
+                  </span>
+                </div>
               )}
             </div>
           );
         })}
       </div>
+
+      {attendance.length === 0 && (
+        <p className="text-zinc-600 text-sm text-center py-10">No members to record attendance for.</p>
+      )}
     </div>
   );
 }

@@ -239,6 +239,8 @@ export const meetings = {
     get<AttendanceRecord[]>(`/companies/${companyId}/meetings/${meetingId}/attendance`, token),
   recordAttendance: (companyId: string, meetingId: string, body: { userId: string; mode: AttendanceMode }, token: string) =>
     post<AttendanceRecord>(`/companies/${companyId}/meetings/${meetingId}/attendance`, body, token),
+  requestAttendance: (companyId: string, meetingId: string, mode: 'VIDEO' | 'PHONE', token: string) =>
+    post<{ message: string }>(`/companies/${companyId}/meetings/${meetingId}/attendance/request`, { mode }, token),
   electChairperson: (companyId: string, meetingId: string, chairpersonId: string, token: string) =>
     post<Meeting>(`/companies/${companyId}/meetings/${meetingId}/chairperson`, { chairpersonId }, token),
   setRecorder: (companyId: string, meetingId: string, recorderId: string, token: string) =>

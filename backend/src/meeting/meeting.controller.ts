@@ -111,4 +111,15 @@ export class MeetingController {
   ) {
     return this.meetingService.recordAttendance(companyId, id, req.user.userId, body.userId, body.mode);
   }
+
+  @Post(':id/attendance/request')
+  @RequireRole('DIRECTOR')
+  requestAttendance(
+    @Param('companyId') companyId: string,
+    @Param('id') id: string,
+    @Req() req: any,
+    @Body() body: { mode: 'VIDEO' | 'PHONE' },
+  ) {
+    return this.meetingService.requestAttendance(companyId, id, req.user.userId, body.mode);
+  }
 }

@@ -88,6 +88,8 @@ enum AttendanceMode {
   VIDEO
   PHONE
   ABSENT
+  REQUESTED_VIDEO   // pending — awaiting chairperson/CS confirmation
+  REQUESTED_PHONE   // pending — awaiting chairperson/CS confirmation
 }
 
 enum NotificationStatus {
@@ -122,7 +124,7 @@ model User {
   passwordHash    String?
   googleId        String?  @unique
   onboardingDone  Boolean  @default(false)
-  platformRoles   String[] @default([]) // Multi-select at registration: Founder|Director|CA_PRACTICING etc.
+  platformRoles   String[] @default([]) @map("platform_roles")
   userIntent      String?  // legacy — kept for migration safety
   phone         String?
   avatarUrl     String?
@@ -181,11 +183,11 @@ model CompanyUser {
   role       UserRole @default(DIRECTOR)
 
   // Platform-level workspace management — invisible in legal docs/minutes
-  isWorkspaceAdmin     Boolean        @default(false)
+  isWorkspaceAdmin     Boolean        @default(false) @map("is_workspace_admin")
 
   // Additional designation — sub-category shown in minutes and documents
-  additionalDesignation DesignationEnum?
-  designationLabel      String?          // Custom override for minutes display
+  additionalDesignation DesignationEnum? @map("additional_designation")
+  designationLabel      String?          @map("designation_label")
 
   invitedAt  DateTime @default(now())
   acceptedAt DateTime?
