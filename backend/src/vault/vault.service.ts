@@ -51,61 +51,33 @@ export class VaultService {
     );
   }
 
-  async getVaultUploadUrl(
-    companyId: string,
-    fileName: string,
-    contentType: string,
-  ) {
-    return this.storage.getUploadUrl(companyId, 'vault', fileName, contentType);
-  }
-
-  async registerVaultDocument(
+  async uploadVaultDocument(
     companyId: string,
     userId: string,
-    body: {
-      docType: string;
-      label: string;
-      objectPath: string;
-      fileName: string;
-      fileSize?: number;
-    },
+    file: Express.Multer.File,
+    docType: string,
+    label: string,
   ) {
-    // For non-CUSTOM types, upsert — one canonical slot per company
-    const upsertWhere =
-      body.docType !== 'CUSTOM'
-        ? { companyId_docType_label: { companyId, docType: body.docType as any, label: body.label } }
-        : undefined;
+    const objectPath = this.storage.buildObjectPath(companyId, 'vault', file.originalname);
+    await this.storage.uploadFile(objectPath, file.buffer, file.mimetype);
+
+    const upsertWhere = docType !== 'CUSTOM'
+      ? { companyId_docType_label: { companyId, docType: docType as any, label } }
+      : undefined;
 
     let doc: any;
     if (upsertWhere) {
       doc = await this.prisma.vaultDocument.upsert({
         where: upsertWhere,
-        create: {
-          companyId, docType: body.docType as any, label: body.label,
-          fileUrl: body.objectPath, fileName: body.fileName,
-          fileSize: body.fileSize, uploadedBy: userId,
-        },
-        update: {
-          fileUrl: body.objectPath, fileName: body.fileName,
-          fileSize: body.fileSize, uploadedBy: userId,
-          uploadedAt: new Date(),
-        },
+        create: { companyId, docType: docType as any, label, fileUrl: objectPath, fileName: file.originalname, fileSize: file.size, uploadedBy: userId },
+        update: { fileUrl: objectPath, fileName: file.originalname, fileSize: file.size, uploadedBy: userId, uploadedAt: new Date() },
       });
     } else {
       doc = await this.prisma.vaultDocument.create({
-        data: {
-          companyId, docType: body.docType as any, label: body.label,
-          fileUrl: body.objectPath, fileName: body.fileName,
-          fileSize: body.fileSize, uploadedBy: userId,
-        },
+        data: { companyId, docType: docType as any, label, fileUrl: objectPath, fileName: file.originalname, fileSize: file.size, uploadedBy: userId },
       });
     }
-
-    await this.audit.log({
-      companyId, userId, action: 'VAULT_DOC_UPLOADED',
-      entity: 'VaultDocument', entityId: doc.id,
-      metadata: { docType: body.docType, fileName: body.fileName },
-    });
+    await this.audit.log({ companyId, userId, action: 'VAULT_DOC_UPLOADED', entity: 'VaultDocument', entityId: doc.id, metadata: { docType, fileName: file.originalname } });
     return doc;
   }
 
@@ -158,12 +130,20 @@ export class VaultService {
     return { financialYear: fy, matrix };
   }
 
-  async getComplianceUploadUrl(
+  async uploadComplianceDoc(
     companyId: string,
-    fileName: string,
-    contentType: string,
+    actingUserId: string,
+    file: Express.Multer.File,
+    body: { userId: string; formType: string; financialYear?: string; notes?: string },
   ) {
-    return this.storage.getUploadUrl(companyId, 'compliance', fileName, contentType);
+    const objectPath = this.storage.buildObjectPath(companyId, 'compliance', file.originalname);
+    await this.storage.uploadFile(objectPath, file.buffer, file.mimetype);
+    return this.registerComplianceDoc(companyId, actingUserId, {
+      ...body,
+      objectPath,
+      fileName: file.originalname,
+      fileSize: file.size,
+    });
   }
 
   async registerComplianceDoc(
@@ -243,33 +223,24 @@ export class VaultService {
     );
   }
 
-  async getMeetingDocUploadUrl(
-    companyId: string,
-    fileName: string,
-    contentType: string,
-  ) {
-    return this.storage.getUploadUrl(companyId, 'meeting-docs', fileName, contentType);
-  }
-
-  async registerMeetingDocument(
+  async uploadMeetingDocument(
     companyId: string,
     meetingId: string,
     userId: string,
-    body: {
-      title: string;
-      docType: string;
-      objectPath: string;
-      fileName: string;
-      fileSize?: number;
-      isShared?: boolean;
-    },
+    file: Express.Multer.File,
+    title: string,
+    docType: string,
+    isShared: boolean,
   ) {
+    const objectPath = this.storage.buildObjectPath(companyId, 'meeting-docs', file.originalname);
+    await this.storage.uploadFile(objectPath, file.buffer, file.mimetype);
     return this.prisma.meetingDocument.create({
       data: {
         meetingId, companyId, uploadedBy: userId,
-        title: body.title, docType: body.docType as any,
-        fileUrl: body.objectPath, fileName: body.fileName,
-        fileSize: body.fileSize, isShared: body.isShared ?? false,
+        title: title || file.originalname,
+        docType: docType as any,
+        fileUrl: objectPath, fileName: file.originalname,
+        fileSize: file.size, isShared,
       },
     });
   }

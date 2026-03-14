@@ -27,24 +27,6 @@ const COMPLIANCE_FORM_META: Record<string, { label: string; description: string;
 
 type Tab = 'statutory' | 'compliance' | 'meetings';
 
-// ── Upload helper — presigned PUT direct to GCS ───────────────────────────────
-
-async function uploadToGCS(
-  presignedUrl: string,
-  file: File,
-  onProgress?: (pct: number) => void,
-): Promise<void> {
-  return new Promise((resolve, reject) => {
-    const xhr = new XMLHttpRequest();
-    xhr.open('PUT', presignedUrl);
-    xhr.setRequestHeader('Content-Type', file.type);
-    if (onProgress) xhr.upload.onprogress = (e) => onProgress(Math.round((e.loaded / e.total) * 100));
-    xhr.onload  = () => (xhr.status < 300 ? resolve() : reject(new Error(`GCS upload failed: ${xhr.status}`)));
-    xhr.onerror = () => reject(new Error('Network error during upload'));
-    xhr.send(file);
-  });
-}
-
 // ── Page ──────────────────────────────────────────────────────────────────────
 
 export default function VaultPage() {
@@ -135,17 +117,15 @@ function StatutoryTab({ companyId, token }: { companyId: string; token: string }
     setUploading(pendingSlot.docType);
     setProgress(0);
     try {
-      const { uploadUrl, objectPath } = await vaultApi.uploadUrl(companyId, { fileName: file.name, contentType: file.type }, token);
-      await uploadToGCS(uploadUrl, file, setProgress);
-      await vaultApi.register(companyId, {
-        docType: pendingSlot.docType, label: pendingSlot.label,
-        objectPath, fileName: file.name, fileSize: file.size,
-      }, token);
+      // Single FormData POST — backend uploads to GCS and registers in one step
+      setProgress(30);
+      await vaultApi.upload(companyId, file, pendingSlot.docType, pendingSlot.label, token);
+      setProgress(100);
       await load();
-    } catch (err) {
+    } catch (err: any) {
       console.error(err);
-      alert('Upload failed. Please try again.');
-    } finally { setUploading(null); setPendingSlot(null); }
+      alert(err?.message ?? 'Upload failed. Please try again.');
+    } finally { setUploading(null); setPendingSlot(null); setProgress(0); }
   }
 
   return (
@@ -310,18 +290,19 @@ function ComplianceTab({ companyId, token }: { companyId: string; token: string 
     const file = e.target.files?.[0];
     if (!file || !pendingUpload) return;
     e.target.value = '';
-    setUploading(true); setUploadPct(0);
+    setUploading(true); setUploadPct(30);
     try {
-      const { uploadUrl, objectPath } = await vaultApi.complianceUploadUrl(companyId, { fileName: file.name, contentType: file.type }, token);
-      await uploadToGCS(uploadUrl, file, setUploadPct);
-      await vaultApi.registerCompliance(companyId, {
-        userId: pendingUpload.userId, formType: pendingUpload.formType,
-        objectPath, fileName: file.name, fileSize: file.size,
+      await vaultApi.uploadCompliance(companyId, file, {
+        userId: pendingUpload.userId,
+        formType: pendingUpload.formType,
         notes: notes.trim() || undefined,
       }, token);
+      setUploadPct(100);
       await load(fy);
       setDrawer(null);
-    } finally { setUploading(false); setPendingUpload(null); }
+    } catch (err: any) {
+      alert(err?.message ?? 'Upload failed. Please try again.');
+    } finally { setUploading(false); setUploadPct(0); setPendingUpload(null); }
   }
 
   async function handleMarkReceived(docId: string, received: boolean) {

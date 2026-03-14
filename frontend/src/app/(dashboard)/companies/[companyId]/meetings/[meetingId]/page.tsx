@@ -1240,29 +1240,17 @@ function MeetingDocumentsPanel({
 
   async function handleUpload() {
     if (!pendingFile || !title.trim()) return;
-    setUploading(true); setUploadPct(0);
+    setUploading(true); setUploadPct(30);
     try {
-      const { uploadUrl, objectPath } = await vaultApi.meetingDocUploadUrl(
-        companyId, meetingId, { fileName: pendingFile.name, contentType: pendingFile.type }, token,
-      );
-      // Direct to GCS
-      await new Promise<void>((res, rej) => {
-        const xhr = new XMLHttpRequest();
-        xhr.open('PUT', uploadUrl);
-        xhr.setRequestHeader('Content-Type', pendingFile.type);
-        xhr.upload.onprogress = e => setUploadPct(Math.round((e.loaded / e.total) * 100));
-        xhr.onload = () => xhr.status < 300 ? res() : rej();
-        xhr.onerror = rej;
-        xhr.send(pendingFile);
-      });
-      await vaultApi.registerMeetingDoc(companyId, meetingId, {
-        title: title.trim(), docType, objectPath,
-        fileName: pendingFile.name, fileSize: pendingFile.size, isShared,
+      await vaultApi.uploadMeetingDoc(companyId, meetingId, pendingFile, {
+        title: title.trim(), docType, isShared,
       }, token);
+      setUploadPct(100);
       setShowForm(false); setTitle(''); setDocType('DRAFT_AGENDA'); setIsShared(false); setPendingFile(null);
       await load();
-    } catch { alert('Upload failed. Please try again.'); }
-    finally { setUploading(false); }
+    } catch (err: any) {
+      alert(err?.message ?? 'Upload failed. Please try again.');
+    } finally { setUploading(false); setUploadPct(0); }
   }
 
   async function toggleShared(doc: MeetingDocument) {

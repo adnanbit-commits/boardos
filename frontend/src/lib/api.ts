@@ -522,48 +522,82 @@ export interface DocNotesResult {
 }
 
 export const vault = {
-  // Statutory vault
-  list:        (companyId: string, token: string) =>
+  // ── Statutory vault ──────────────────────────────────────────────────────────
+  list:   (companyId: string, token: string) =>
     get<VaultDocument[]>(`/companies/${companyId}/vault`, token),
-  uploadUrl:   (companyId: string, body: { fileName: string; contentType: string }, token: string) =>
-    post<{ uploadUrl: string; objectPath: string }>(`/companies/${companyId}/vault/upload-url`, body, token),
-  register:    (companyId: string, body: { docType: string; label: string; objectPath: string; fileName: string; fileSize?: number }, token: string) =>
-    post<VaultDocument>(`/companies/${companyId}/vault`, body, token),
-  remove:      (companyId: string, docId: string, token: string) =>
+
+  upload: async (companyId: string, file: File, docType: string, label: string, token: string): Promise<VaultDocument> => {
+    const fd = new FormData();
+    fd.append('file', file);
+    fd.append('docType', docType);
+    fd.append('label', label);
+    const res = await fetch(`/api/companies/${companyId}/vault/upload`, {
+      method: 'POST', headers: { Authorization: `Bearer ${token}` }, body: fd,
+    });
+    if (!res.ok) { const e = await res.json().catch(() => ({})); throw Object.assign(new Error(e.message ?? 'Upload failed'), { status: res.status, body: e }); }
+    return res.json();
+  },
+
+  remove: (companyId: string, docId: string, token: string) =>
     del<void>(`/companies/${companyId}/vault/${docId}`, token),
 
-  // Compliance register
-  compliance:         (companyId: string, token: string, fy?: string) =>
+  // ── Compliance register ───────────────────────────────────────────────────────
+  compliance:   (companyId: string, token: string, fy?: string) =>
     get<ComplianceMatrix>(`/companies/${companyId}/compliance${fy ? `?fy=${fy}` : ''}`, token),
-  complianceUploadUrl:(companyId: string, body: { fileName: string; contentType: string }, token: string) =>
-    post<{ uploadUrl: string; objectPath: string }>(`/companies/${companyId}/compliance/upload-url`, body, token),
-  registerCompliance: (companyId: string, body: { userId: string; formType: string; financialYear?: string; objectPath?: string; fileName?: string; fileSize?: number; notes?: string }, token: string) =>
-    post<ComplianceDoc>(`/companies/${companyId}/compliance`, body, token),
-  markReceived:       (companyId: string, docId: string, body: { received: boolean; notes?: string }, token: string) =>
+
+  uploadCompliance: async (companyId: string, file: File, body: { userId: string; formType: string; financialYear?: string; notes?: string }, token: string): Promise<ComplianceDoc> => {
+    const fd = new FormData();
+    fd.append('file', file);
+    fd.append('userId', body.userId);
+    fd.append('formType', body.formType);
+    if (body.financialYear) fd.append('financialYear', body.financialYear);
+    if (body.notes) fd.append('notes', body.notes);
+    const res = await fetch(`/api/companies/${companyId}/compliance/upload`, {
+      method: 'POST', headers: { Authorization: `Bearer ${token}` }, body: fd,
+    });
+    if (!res.ok) { const e = await res.json().catch(() => ({})); throw Object.assign(new Error(e.message ?? 'Upload failed'), { status: res.status, body: e }); }
+    return res.json();
+  },
+
+  recordCompliance: (companyId: string, body: { userId: string; formType: string; financialYear?: string; notes?: string }, token: string) =>
+    post<ComplianceDoc>(`/companies/${companyId}/compliance/record`, body, token),
+
+  markReceived: (companyId: string, docId: string, body: { received: boolean; notes?: string }, token: string) =>
     patch<ComplianceDoc>(`/companies/${companyId}/compliance/${docId}/received`, body, token),
 
-  // Meeting documents
-  meetingDocs:         (companyId: string, meetingId: string, token: string) =>
+  // ── Meeting documents ─────────────────────────────────────────────────────────
+  meetingDocs: (companyId: string, meetingId: string, token: string) =>
     get<MeetingDocument[]>(`/companies/${companyId}/meetings/${meetingId}/documents`, token),
-  meetingDocUploadUrl: (companyId: string, meetingId: string, body: { fileName: string; contentType: string }, token: string) =>
-    post<{ uploadUrl: string; objectPath: string }>(`/companies/${companyId}/meetings/${meetingId}/documents/upload-url`, body, token),
-  registerMeetingDoc:  (companyId: string, meetingId: string, body: { title: string; docType: string; objectPath: string; fileName: string; fileSize?: number; isShared?: boolean }, token: string) =>
-    post<MeetingDocument>(`/companies/${companyId}/meetings/${meetingId}/documents`, body, token),
-  toggleShared:        (companyId: string, meetingId: string, docId: string, isShared: boolean, token: string) =>
+
+  uploadMeetingDoc: async (companyId: string, meetingId: string, file: File, body: { title: string; docType: string; isShared?: boolean }, token: string): Promise<MeetingDocument> => {
+    const fd = new FormData();
+    fd.append('file', file);
+    fd.append('title', body.title);
+    fd.append('docType', body.docType);
+    fd.append('isShared', body.isShared ? 'true' : 'false');
+    const res = await fetch(`/api/companies/${companyId}/meetings/${meetingId}/documents/upload`, {
+      method: 'POST', headers: { Authorization: `Bearer ${token}` }, body: fd,
+    });
+    if (!res.ok) { const e = await res.json().catch(() => ({})); throw Object.assign(new Error(e.message ?? 'Upload failed'), { status: res.status, body: e }); }
+    return res.json();
+  },
+
+  toggleShared: (companyId: string, meetingId: string, docId: string, isShared: boolean, token: string) =>
     patch<MeetingDocument>(`/companies/${companyId}/meetings/${meetingId}/documents/${docId}/shared`, { isShared }, token),
-  removeMeetingDoc:    (companyId: string, meetingId: string, docId: string, token: string) =>
+
+  removeMeetingDoc: (companyId: string, meetingId: string, docId: string, token: string) =>
     del<void>(`/companies/${companyId}/meetings/${meetingId}/documents/${docId}`, token),
 
-  // Share link
+  // ── Share link ────────────────────────────────────────────────────────────────
   createShareLink:     (companyId: string, meetingId: string, token: string) =>
     post<MeetingShareLink>(`/companies/${companyId}/meetings/${meetingId}/share`, {}, token),
   deactivateShareLink: (companyId: string, meetingId: string, token: string) =>
     del<void>(`/companies/${companyId}/meetings/${meetingId}/share`, token),
 
-  // Doc notes
-  docNotes:    (companyId: string, meetingId: string, token: string) =>
+  // ── Doc notes ─────────────────────────────────────────────────────────────────
+  docNotes: (companyId: string, meetingId: string, token: string) =>
     get<DocNotesResult>(`/companies/${companyId}/meetings/${meetingId}/doc-notes`, token),
-  noteDoc:     (companyId: string, meetingId: string, body: { directorUserId: string; formType: string; status: 'NOTED' | 'NOTED_WITH_EXCEPTION'; exception?: string }, token: string) =>
+  noteDoc:  (companyId: string, meetingId: string, body: { directorUserId: string; formType: string; status: 'NOTED' | 'NOTED_WITH_EXCEPTION'; exception?: string }, token: string) =>
     post<DocNote>(`/companies/${companyId}/meetings/${meetingId}/doc-notes`, body, token),
 };
 
