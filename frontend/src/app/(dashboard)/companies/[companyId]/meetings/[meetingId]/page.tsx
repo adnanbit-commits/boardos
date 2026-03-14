@@ -1,7 +1,7 @@
 'use client';
 import { useEffect, useState, useCallback, useRef } from 'react';
 import { useParams } from 'next/navigation';
-import { meetings, resolutions as resApi, voting, minutesApi, vault as vaultApi } from '@/lib/api';
+import { meetings, resolutions as resApi, voting, minutesApi, vault as vaultApi, resolveDownloadUrl } from '@/lib/api';
 import { getToken, getUser } from '@/lib/auth';
 import type {
   MeetingDetail, Resolution, AgendaItem, MeetingStatus,
@@ -1397,7 +1397,7 @@ function MeetingDocumentsPanel({
                   </button>
                 )}
                 {doc.downloadUrl && (
-                  <a href={doc.downloadUrl} target="_blank" rel="noopener noreferrer"
+                  <a href={resolveDownloadUrl(doc.downloadUrl, token)} target="_blank" rel="noopener noreferrer"
                     className="text-xs font-semibold text-blue-400 hover:text-blue-300">View ↗</a>
                 )}
                 {canManage && (

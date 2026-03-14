@@ -609,3 +609,16 @@ export const publicApi = {
     return fetch(`${API}/public/meeting/${shareToken}`).then(r => r.json());
   },
 };
+
+// ── Download URL resolver ──────────────────────────────────────────────────────
+// Backend returns either a real GCS signed URL, or '__proxy__:objectPath'
+// when signed URLs aren't available. This converts the latter into an
+// authenticated proxy URL with the JWT appended as a query param.
+export function resolveDownloadUrl(raw: string | undefined, token: string): string {
+  if (!raw) return '#';
+  if (raw.startsWith('__proxy__:')) {
+    const path = raw.slice('__proxy__:'.length);
+    return `/api/storage/download?path=${encodeURIComponent(path)}&token=${encodeURIComponent(token)}`;
+  }
+  return raw; // real signed URL — use as-is
+}

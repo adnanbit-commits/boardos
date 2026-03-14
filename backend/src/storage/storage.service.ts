@@ -41,8 +41,8 @@ export class StorageService {
       });
       return url;
     } catch {
-      // ADC without a service account key can't sign — return proxy URL
-      return `/api/storage/download?path=${encodeURIComponent(objectPath)}`;
+      // Return proxy path — frontend will append ?token= for authenticated access
+      return `__proxy__:${objectPath}`;
     }
   }
 

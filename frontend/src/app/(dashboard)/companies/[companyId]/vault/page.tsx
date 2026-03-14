@@ -4,7 +4,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
-import { vault as vaultApi, type VaultDocument, type ComplianceMatrix, type MeetingDocument } from '@/lib/api';
+import { vault as vaultApi, type VaultDocument, type ComplianceMatrix, type MeetingDocument, resolveDownloadUrl } from '@/lib/api';
 import { getToken } from '@/lib/auth';
 
 // ── Constants ─────────────────────────────────────────────────────────────────
@@ -166,7 +166,7 @@ function StatutoryTab({ companyId, token }: { companyId: string; token: string }
                           </p>
                         </div>
                         {doc.downloadUrl && (
-                          <a href={doc.downloadUrl} target="_blank" rel="noopener noreferrer"
+                          <a href={resolveDownloadUrl(doc.downloadUrl, token)} target="_blank" rel="noopener noreferrer"
                             style={{ fontSize: 11, color: '#4F7FFF', fontWeight: 600, textDecoration: 'none', flexShrink: 0 }}>
                             View ↗
                           </a>
@@ -230,7 +230,7 @@ function StatutoryTab({ companyId, token }: { companyId: string; token: string }
                   </p>
                 </div>
                 {doc.downloadUrl && (
-                  <a href={doc.downloadUrl} target="_blank" rel="noopener noreferrer"
+                  <a href={resolveDownloadUrl(doc.downloadUrl, token)} target="_blank" rel="noopener noreferrer"
                     style={{ fontSize: 12, color: '#4F7FFF', fontWeight: 600, textDecoration: 'none' }}>
                     View ↗
                   </a>
