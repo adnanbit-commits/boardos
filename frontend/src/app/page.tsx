@@ -54,8 +54,11 @@ export default function LandingPage() {
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.message || 'Authentication failed');
-      localStorage.setItem('token', data.token);
-      router.push('/dashboard');
+      // Use saveSession so the correct keys are written
+      const { saveSession } = await import('@/lib/auth');
+      saveSession(data.token, data.user);
+      setUserName(data.user?.name ?? '');
+      setIsLoggedIn(true); // show workspace panel — don't redirect
     } catch (err: any) {
       setError(err.message);
     } finally {
@@ -295,7 +298,7 @@ export default function LandingPage() {
                 ))}
               </div>
               <button
-                onClick={() => { localStorage.removeItem('token'); localStorage.removeItem('user'); setIsLoggedIn(false); }}
+                onClick={async () => { const { clearSession } = await import('@/lib/auth'); clearSession(); setIsLoggedIn(false); setUserName(''); }}
                 style={{ background: 'none', border: 'none', color: '#3A4455', fontSize: 11, cursor: 'pointer', padding: 0, fontFamily: "'DM Sans', sans-serif", textDecoration: 'underline' }}>
                 Sign out and switch account
               </button>
