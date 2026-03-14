@@ -37,10 +37,19 @@ export default function InvitePage() {
     invitations.preview(token)
       .then(data => {
         setInvite(data);
-        const jwt = getToken();
-        if (jwt) {
-          handleAccept(jwt, data.company.id); // pass companyId directly — state not yet flushed
+        const jwt      = getToken();
+        const me       = getUser();
+        const myEmail  = me?.email?.toLowerCase();
+        const invEmail = data.email?.toLowerCase();
+
+        if (jwt && myEmail && invEmail && myEmail === invEmail) {
+          // Logged in as the exact invited user — auto-accept
+          handleAccept(jwt, data.company.id);
+        } else if (jwt && myEmail && invEmail && myEmail !== invEmail) {
+          // Logged in but as a DIFFERENT user — show preview with a warning
+          setStage('preview');
         } else {
+          // Not logged in — show preview
           setStage('preview');
         }
       })
@@ -144,9 +153,28 @@ export default function InvitePage() {
         )}
 
         {/* PREVIEW — invite card before auth */}
-        {stage === 'preview' && invite && (
+        {stage === 'preview' && invite && (() => {
+          const me = getUser();
+          const wrongAccount = !!me && me.email?.toLowerCase() !== invite.email?.toLowerCase();
+          return (
           <div className="space-y-5 fade-up">
-            {/* Invite card */}
+            {/* Wrong account warning */}
+            {wrongAccount && (
+              <div className="bg-amber-950/50 border border-amber-700/50 rounded-xl p-4">
+                <p className="text-amber-400 text-sm font-semibold mb-1">⚠ Signed in as a different account</p>
+                <p className="text-amber-200/60 text-xs mb-3 leading-relaxed">
+                  You're signed in as <strong className="text-amber-200">{me!.email}</strong>, but this invite is for{' '}
+                  <strong className="text-amber-200">{invite.email}</strong>.
+                  Sign out and sign in with the invited email to accept.
+                </p>
+                <button
+                  onClick={() => { const { clearSession } = require('@/lib/auth'); clearSession(); window.location.reload(); }}
+                  className="text-xs font-semibold text-amber-400 border border-amber-700/50 rounded-lg px-3 py-1.5 hover:bg-amber-900/30 transition-colors"
+                >
+                  Sign out and switch account
+                </button>
+              </div>
+            )}
             <div className="bg-[#191D24] border border-[#232830] rounded-2xl overflow-hidden">
               {/* Accent bar */}
               <div className="h-1 bg-gradient-to-r from-blue-600 to-blue-400" />
@@ -203,7 +231,8 @@ export default function InvitePage() {
             {/* CTA */}
             <button
               onClick={() => setStage('auth')}
-              className="w-full bg-blue-600 hover:bg-blue-500 text-white font-semibold py-3 rounded-xl text-sm transition-colors"
+              disabled={wrongAccount}
+              className="w-full bg-blue-600 hover:bg-blue-500 disabled:opacity-40 disabled:cursor-not-allowed text-white font-semibold py-3 rounded-xl text-sm transition-colors"
             >
               Accept Invitation →
             </button>
@@ -211,10 +240,16 @@ export default function InvitePage() {
               This invite is only valid for {invite.email}
             </p>
           </div>
-        )}
+          );
+        })()}
 
         {/* AUTH — login or register to complete acceptance */}
-        {stage === 'auth' && invite && (
+        {stage === 'auth' && invite && (() => {
+          // Pre-fill email if not already set
+          if (!form.email && invite.email) {
+            setTimeout(() => setForm(f => ({ ...f, email: invite.email })), 0);
+          }
+          return (
           <div className="space-y-4 fade-up">
             <div className="bg-[#191D24] border border-[#232830] rounded-2xl p-7">
               {/* Back to preview */}
@@ -307,7 +342,8 @@ export default function InvitePage() {
               </div>
             </div>
           </div>
-        )}
+          );
+        })()}
 
         {/* ACCEPTING */}
         {stage === 'accepting' && (

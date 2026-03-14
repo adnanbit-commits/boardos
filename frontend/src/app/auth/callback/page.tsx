@@ -32,7 +32,7 @@ function CallbackInner() {
       .then(user => {
         saveSession(token, user);
         if (onboarding) setStep('onboarding');
-        else router.replace('/dashboard');
+        else router.replace('/');  // landing page shows workspace panel for logged-in users
       })
       .catch(() => router.replace('/login'));
   }, [params, router]);
@@ -48,7 +48,7 @@ function CallbackInner() {
         body: JSON.stringify({ intent }),
       });
     } catch {}
-    router.replace('/dashboard');
+    router.replace('/');
   }
 
   if (step === 'loading') return (
@@ -90,7 +90,7 @@ function CallbackInner() {
               className="w-full bg-[#4F7FFF] hover:bg-[#3D6FEF] disabled:opacity-40 text-white font-semibold py-3 rounded-xl text-sm transition-colors">
               {saving ? 'Saving…' : 'Continue →'}
             </button>
-            <button onClick={() => router.replace('/dashboard')}
+            <button onClick={() => router.replace('/')}
               className="w-full mt-3 text-[#6B7280] text-xs hover:text-[#9CA3AF] transition-colors">
               Skip for now
             </button>
