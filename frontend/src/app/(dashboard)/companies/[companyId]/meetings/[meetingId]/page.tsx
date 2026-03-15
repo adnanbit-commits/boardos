@@ -48,6 +48,11 @@ export default function MeetingWorkspacePage() {
   // Chairperson election modal
   const [showChairModal, setShowChairModal] = useState(false);
 
+  // Roll call + notice acknowledgement state
+  const [rollCall,     setRollCall]     = useState<RollCallStatus | null>(null);
+  const [showRollCall, setShowRollCall] = useState(false);
+  const [noticeAcked,  setNoticeAcked]  = useState(false);
+
   const reload = useCallback(async () => {
     try {
       const [m, r, memberList, rc] = await Promise.all([
