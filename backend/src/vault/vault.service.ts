@@ -33,10 +33,17 @@ export async function getMandatoryFormsForMeeting(
   companyId: string,
   meetingId: string,
 ): Promise<string[]> {
-  const [meeting, company] = await Promise.all([
-    prisma.meeting.findUnique({ where: { id: meetingId }, select: { isFirstMeeting: true } }),
-    prisma.company.findUnique({ where: { id: companyId }, select: { firstBoardMeetingLockedId: true } }),
-  ]);
+  let meeting: any = null;
+  let company: any = null;
+  try {
+    [meeting, company] = await Promise.all([
+      prisma.meeting.findUnique({ where: { id: meetingId }, select: { isFirstMeeting: true } }),
+      prisma.company.findUnique({ where: { id: companyId }, select: { firstBoardMeetingLockedId: true } }),
+    ]);
+  } catch {
+    // isFirstMeeting column may not exist on live DB yet — fall back to safe default
+    return ['DIR_8', 'MBP_1'];
+  }
 
   const isFirstMeeting = meeting?.isFirstMeeting || !company?.firstBoardMeetingLockedId;
 
@@ -437,7 +444,7 @@ export class VaultService {
     body: {
       directorUserId: string;
       formType: string;
-      status: 'NOTED' | 'NOTED_WITH_EXCEPTION';
+      status: 'NOTED' | 'NOTED_WITH_EXCEPTION' | 'PHYSICALLY_PRESENT';
       exception?: string;
     },
   ) {
@@ -456,6 +463,8 @@ export class VaultService {
     if (body.status === 'NOTED_WITH_EXCEPTION' && !body.exception?.trim()) {
       throw new BadRequestException('Exception text is required when noting with exception');
     }
+    // PHYSICALLY_PRESENT — chairperson confirms doc was present at deemed venue but not in vault
+    // The exception field carries the confirmation detail (e.g. "Original MOA presented at deemed venue")
 
     return this.prisma.meetingDocNote.upsert({
       where: {

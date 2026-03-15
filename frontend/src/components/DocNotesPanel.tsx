@@ -1,5 +1,14 @@
 'use client';
 // components/DocNotesPanel.tsx
+//
+// Chairperson compliance document noting panel.
+// Handles DIR-8, MBP-1 (every FY) and DIR-2 (first meeting / new directors).
+//
+// For each director × form:
+//   • Shows upload status from vault compliance register
+//   • If uploaded → opens doc link → unlocks "Note Receipt"
+//   • If not uploaded → warns + offers "Confirm physically present at deemed venue"
+//   • Always available: "Note with exception" for edge cases
 
 import { useState, useEffect, useCallback } from 'react';
 import { vault as vaultApi, resolveDownloadUrl, type DocNotesResult } from '@/lib/api';
@@ -9,23 +18,31 @@ interface Props {
   meetingId:     string;
   token:         string;
   isChairperson: boolean;
+  deemedVenue?:  string | null;
   onAllNoted?:   () => void;
 }
 
-const FORM_META: Record<string, { label: string; description: string }> = {
-  DIR_8: { label: 'DIR-8', description: 'Non-disqualification declaration (Sec. 164)' },
-  MBP_1: { label: 'MBP-1', description: 'Disclosure of interest (Sec. 184)' },
+const FORM_META: Record<string, { label: string; description: string; law: string }> = {
+  DIR_2: { label: 'DIR-2', description: 'Consent to act as Director',         law: 'Sec. 152(5)' },
+  DIR_8: { label: 'DIR-8', description: 'Non-disqualification declaration',   law: 'Sec. 164(2)' },
+  MBP_1: { label: 'MBP-1', description: 'Disclosure of interest',             law: 'Sec. 184(1)' },
 };
 
-export default function DocNotesPanel({ companyId, meetingId, token, isChairperson, onAllNoted }: Props) {
+type NoteStatus = 'NOTED' | 'NOTED_WITH_EXCEPTION' | 'PHYSICALLY_PRESENT';
+
+export default function DocNotesPanel({
+  companyId, meetingId, token, isChairperson, deemedVenue, onAllNoted,
+}: Props) {
   const [data,       setData]       = useState<DocNotesResult | null>(null);
   const [loading,    setLoading]    = useState(true);
   const [noting,     setNoting]     = useState<string | null>(null);
-  const [exception,  setException]  = useState('');
-  const [activeCell, setActiveCell] = useState<{ userId: string; formType: string; showException?: boolean } | null>(null);
+  const [activeCell, setActiveCell] = useState<{
+    userId: string; formType: string;
+    mode: 'options' | 'exception' | 'physical';
+  } | null>(null);
+  const [exceptionText, setExceptionText] = useState('');
 
-  // Track which docs the chairperson has opened this session.
-  // "Take Note" is locked until the doc is opened (or no doc was uploaded).
+  // Tracks which docs the chairperson has opened this session
   const [reviewed, setReviewed] = useState<Set<string>>(new Set());
 
   const load = useCallback(async () => {
@@ -34,7 +51,7 @@ export default function DocNotesPanel({ companyId, meetingId, token, isChairpers
       const result = await vaultApi.docNotes(companyId, meetingId, token);
       setData(result);
       if (result.allNoted) onAllNoted?.();
-    } catch { /* meeting might not have chairperson yet */ }
+    } catch { /* chairperson not yet elected — silent */ }
     finally { setLoading(false); }
   }, [companyId, meetingId, token]);
 
@@ -44,17 +61,22 @@ export default function DocNotesPanel({ companyId, meetingId, token, isChairpers
     setReviewed(prev => new Set(prev).add(`${userId}:${formType}`));
   }
 
-  async function handleNote(directorUserId: string, formType: string, status: 'NOTED' | 'NOTED_WITH_EXCEPTION') {
+  async function submitNote(
+    directorUserId: string,
+    formType: string,
+    status: NoteStatus,
+    exception?: string,
+  ) {
     if (!isChairperson) return;
     const key = `${directorUserId}:${formType}`;
     setNoting(key);
     try {
       await vaultApi.noteDoc(companyId, meetingId, {
         directorUserId, formType, status,
-        exception: status === 'NOTED_WITH_EXCEPTION' ? exception.trim() : undefined,
+        exception: exception?.trim() || undefined,
       }, token);
       setActiveCell(null);
-      setException('');
+      setExceptionText('');
       await load();
     } catch (err: any) {
       alert(err?.body?.message ?? 'Failed to note document.');
@@ -72,27 +94,34 @@ export default function DocNotesPanel({ companyId, meetingId, token, isChairpers
 
   if (!data) return null;
 
-  const progress = data.totalRequired > 0 ? Math.round((data.totalNoted / data.totalRequired) * 100) : 0;
+  const progress = data.totalRequired > 0
+    ? Math.round((data.totalNoted / data.totalRequired) * 100)
+    : 0;
+
+  // Count how many forms are missing from vault
+  const missingDocs = data.rows.flatMap(r =>
+    r.forms.filter(f => !f.complianceDoc?.submittedAt).map(f => `${r.name} — ${FORM_META[f.formType]?.label ?? f.formType}`)
+  );
 
   return (
     <div>
       <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
 
-      {/* Status banner */}
+      {/* Progress banner */}
       <div style={{
         background: data.allNoted ? '#022C22' : '#1A1F0D',
         border: `1px solid ${data.allNoted ? '#064E3B' : '#365314'}`,
-        borderRadius: 12, padding: '14px 18px', marginBottom: 20,
+        borderRadius: 12, padding: '14px 18px', marginBottom: 16,
         display: 'flex', alignItems: 'center', justifyContent: 'space-between',
       }}>
         <div>
           <p style={{ fontSize: 13, fontWeight: 700, color: data.allNoted ? '#34D399' : '#BEF264', margin: '0 0 2px' }}>
             {data.allNoted ? '✓ All compliance documents noted' : `${data.totalNoted} of ${data.totalRequired} documents noted`}
           </p>
-          <p style={{ fontSize: 11, color: data.allNoted ? '#6B7280' : '#84CC16', margin: 0 }}>
+          <p style={{ fontSize: 11, color: '#6B7280', margin: 0 }}>
             {data.allNoted
-              ? 'Meeting can now be opened to proceedings.'
-              : 'The Chairperson must open and note each DIR-8 and MBP-1 before the meeting can begin.'}
+              ? 'All declarations are on record.'
+              : 'Chairperson must note each form before proceedings can begin.'}
           </p>
         </div>
         <div style={{ textAlign: 'right', flexShrink: 0, marginLeft: 16 }}>
@@ -103,9 +132,29 @@ export default function DocNotesPanel({ companyId, meetingId, token, isChairpers
         </div>
       </div>
 
+      {/* Missing docs warning */}
+      {missingDocs.length > 0 && (
+        <div style={{ background: '#1c1204', border: '1px solid #92400E', borderRadius: 10, padding: '12px 16px', marginBottom: 16 }}>
+          <p style={{ fontSize: 12, fontWeight: 700, color: '#FDE68A', margin: '0 0 6px' }}>
+            ⚠ {missingDocs.length} document{missingDocs.length > 1 ? 's' : ''} not uploaded to vault
+          </p>
+          <p style={{ fontSize: 11, color: '#D97706', margin: '0 0 8px', lineHeight: 1.5 }}>
+            The following forms have not been uploaded to the compliance register.
+            If the chairperson has received them physically at the deemed venue
+            {deemedVenue ? ` (${deemedVenue})` : ''}, they can be noted as physically present.
+          </p>
+          <ul style={{ margin: 0, padding: '0 0 0 16px' }}>
+            {missingDocs.map(d => (
+              <li key={d} style={{ fontSize: 11, color: '#92400E', marginBottom: 2 }}>{d}</li>
+            ))}
+          </ul>
+        </div>
+      )}
+
+      {/* No chairperson warning */}
       {!data.chairpersonId && (
-        <div style={{ background: '#451A03', border: '1px solid #92400E', borderRadius: 10, padding: '12px 16px', marginBottom: 18, fontSize: 12, color: '#FDE68A' }}>
-          ⚠ No Chairperson elected yet. Elect a Chairperson above before noting compliance documents.
+        <div style={{ background: '#451A03', border: '1px solid #92400E', borderRadius: 10, padding: '12px 16px', marginBottom: 16, fontSize: 12, color: '#FDE68A' }}>
+          ⚑ No Chairperson elected yet. Elect a Chairperson before noting compliance documents.
         </div>
       )}
 
@@ -120,11 +169,11 @@ export default function DocNotesPanel({ companyId, meetingId, token, isChairpers
                 <span style={{ fontSize: 13, fontWeight: 700, color: '#F0F2F5' }}>{row.name}</span>
                 <span style={{ fontSize: 11, color: '#6B7280', marginLeft: 8 }}>{row.email}</span>
               </div>
-              <span style={{ fontSize: 10, fontWeight: 700, color: '#4B5563', textTransform: 'uppercase', letterSpacing: '0.06em' }}>{row.role ?? 'DIRECTOR'}</span>
+              <span style={{ fontSize: 10, fontWeight: 700, color: '#4B5563', textTransform: 'uppercase', letterSpacing: '0.06em' }}>{row.role}</span>
             </div>
 
             {/* Form cells */}
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 0 }}>
+            <div style={{ display: 'grid', gridTemplateColumns: row.forms.length === 1 ? '1fr' : row.forms.length === 2 ? '1fr 1fr' : '1fr 1fr 1fr', gap: 0 }}>
               {row.forms.map((cell, ci) => {
                 const cellKey     = `${row.userId}:${cell.formType}`;
                 const noted       = !!cell.note;
@@ -134,25 +183,38 @@ export default function DocNotesPanel({ companyId, meetingId, token, isChairpers
                 const hasReviewed = reviewed.has(cellKey);
                 const isActive    = activeCell?.userId === row.userId && activeCell?.formType === cell.formType;
                 const isNoting    = noting === cellKey;
-                // Chairperson must open the actual doc before the note action unlocks.
-                // If no doc was uploaded, the note is always available (will record as exception typically).
-                const canNote = isChairperson && !!data.chairpersonId && (hasReviewed || !hasDoc);
+                const meta        = FORM_META[cell.formType] ?? { label: cell.formType, description: '', law: '' };
+
+                // Chairperson can note if:
+                // - has opened the uploaded doc, OR
+                // - no doc uploaded (will use physical presence option)
+                const canNote = isChairperson && !!data.chairpersonId;
+
+                // Status colour for noted state
+                const noteStatusColor = cell.note?.status === 'NOTED'
+                  ? '#34D399'
+                  : cell.note?.status === 'PHYSICALLY_PRESENT'
+                  ? '#60A5FA'
+                  : '#FBBF24';
+
+                const noteStatusLabel = cell.note?.status === 'NOTED'
+                  ? '✓ Noted'
+                  : cell.note?.status === 'PHYSICALLY_PRESENT'
+                  ? '✓ Physically present'
+                  : '⚠ Noted with exception';
 
                 return (
-                  <div key={cell.formType} style={{ borderRight: ci === 0 ? '1px solid #232830' : 'none' }}>
+                  <div key={cell.formType} style={{ borderRight: ci < row.forms.length - 1 ? '1px solid #232830' : 'none' }}>
                     <div style={{ padding: '14px 16px' }}>
 
                       {/* Form label */}
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
-                        <span style={{ fontSize: 12, fontWeight: 700, color: '#9CA3AF' }}>
-                          {FORM_META[cell.formType].label}
-                        </span>
+                      <div style={{ marginBottom: 6 }}>
+                        <span style={{ fontSize: 12, fontWeight: 700, color: '#9CA3AF' }}>{meta.label}</span>
+                        <span style={{ fontSize: 10, color: '#4B5563', marginLeft: 6 }}>{meta.law}</span>
                       </div>
-                      <p style={{ fontSize: 11, color: '#4B5563', margin: '0 0 10px', lineHeight: 1.4 }}>
-                        {FORM_META[cell.formType].description}
-                      </p>
+                      <p style={{ fontSize: 11, color: '#4B5563', margin: '0 0 10px', lineHeight: 1.4 }}>{meta.description}</p>
 
-                      {/* Document row — the review link */}
+                      {/* Document status */}
                       <div style={{ marginBottom: 10 }}>
                         {hasDoc && downloadUrl ? (
                           <a
@@ -167,9 +229,8 @@ export default function DocNotesPanel({ companyId, meetingId, token, isChairpers
                               background: hasReviewed ? 'rgba(52,211,153,0.08)' : 'rgba(96,165,250,0.08)',
                               border:     `1px solid ${hasReviewed ? 'rgba(52,211,153,0.25)' : 'rgba(96,165,250,0.25)'}`,
                               borderRadius: 8, padding: '5px 10px',
-                              textDecoration: 'none',
-                              transition: 'all 0.15s ease',
-                              maxWidth: '100%', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+                              textDecoration: 'none', maxWidth: '100%',
+                              overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
                             }}
                           >
                             <span style={{ flexShrink: 0 }}>{hasReviewed ? '✓' : '↗'}</span>
@@ -177,89 +238,151 @@ export default function DocNotesPanel({ companyId, meetingId, token, isChairpers
                               {cell.complianceDoc!.fileName ?? 'Open document'}
                             </span>
                           </a>
-                        ) : hasDoc ? (
-                          // Doc exists but signed URL unavailable
-                          <span style={{ fontSize: 11, color: '#6B7280', background: '#1a1e26', border: '1px solid #232830', borderRadius: 8, padding: '5px 10px', display: 'inline-block' }}>
-                            {cell.complianceDoc!.fileName ?? 'Document on file'}
-                          </span>
                         ) : (
-                          <span style={{ fontSize: 10, fontWeight: 700, color: '#F87171', background: '#450A0A', border: '1px solid #7F1D1D', padding: '3px 8px', borderRadius: 10, textTransform: 'uppercase', letterSpacing: '0.06em', display: 'inline-block' }}>
-                            Not uploaded
+                          <span style={{
+                            fontSize: 10, fontWeight: 700,
+                            color: '#F87171', background: '#450A0A',
+                            border: '1px solid #7F1D1D', padding: '3px 8px',
+                            borderRadius: 10, textTransform: 'uppercase',
+                            letterSpacing: '0.06em', display: 'inline-block',
+                          }}>
+                            Not in vault
                           </span>
                         )}
                       </div>
 
-                      {/* Note status or chairperson action */}
+                      {/* Noted status OR action buttons */}
                       {noted ? (
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                          <span style={{ fontSize: 12, fontWeight: 700, color: cell.note!.status === 'NOTED' ? '#34D399' : '#FBBF24' }}>
-                            {cell.note!.status === 'NOTED' ? '✓ Noted' : '⚠ Noted with exception'}
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+                          <span style={{ fontSize: 12, fontWeight: 700, color: noteStatusColor }}>
+                            {noteStatusLabel}
                           </span>
                           <span style={{ fontSize: 10, color: '#374151' }}>
-                            by {cell.note!.chair.name} · {new Date(cell.note!.notedAt).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })}
+                            by {cell.note!.chair.name}
                           </span>
+                          {cell.note?.exception && (
+                            <p style={{ fontSize: 10, color: '#6B7280', fontStyle: 'italic', width: '100%', margin: '4px 0 0' }}>
+                              {cell.note.exception}
+                            </p>
+                          )}
                         </div>
 
                       ) : isChairperson ? (
                         <div>
-                          {/* Nudge when doc exists but not yet opened */}
-                          {hasDoc && !hasReviewed && (
-                            <p style={{ fontSize: 10, color: '#92400E', background: 'rgba(146,64,14,0.1)', border: '1px solid rgba(146,64,14,0.3)', borderRadius: 6, padding: '4px 8px', margin: '0 0 8px' }}>
-                              Open document above to unlock
+                          {/* Nudge to open doc before noting (if uploaded) */}
+                          {hasDoc && !hasReviewed && !isActive && (
+                            <p style={{ fontSize: 10, color: '#92400E', background: 'rgba(146,64,14,0.1)', border: '1px solid rgba(146,64,14,0.3)', borderRadius: 6, padding: '4px 8px', marginBottom: 8 }}>
+                              Open document above to unlock digital noting
                             </p>
                           )}
 
                           {!isActive ? (
-                            <button
-                              onClick={() => canNote && setActiveCell({ userId: row.userId, formType: cell.formType })}
-                              disabled={isNoting || !data.chairpersonId || !canNote}
-                              title={!canNote && hasDoc ? 'Open the document above to unlock noting' : undefined}
-                              style={{
-                                fontSize: 11, fontWeight: 700,
-                                color:      canNote ? '#4F7FFF' : '#4B5563',
-                                background: canNote ? 'rgba(79,127,255,0.08)' : 'rgba(75,85,99,0.08)',
-                                border:     `1px solid ${canNote ? 'rgba(79,127,255,0.3)' : 'rgba(75,85,99,0.2)'}`,
-                                borderRadius: 7, padding: '6px 12px',
-                                cursor:   canNote ? 'pointer' : 'not-allowed',
-                                opacity:  canNote ? 1 : 0.5,
-                                transition: 'all 0.15s ease',
-                              }}>
-                              {isNoting ? 'Noting…' : 'Take Note ›'}
-                            </button>
-                          ) : (
+                            <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                              {/* Digital note — only if doc opened */}
+                              {hasDoc && (
+                                <button
+                                  onClick={() => hasReviewed && canNote && setActiveCell({ userId: row.userId, formType: cell.formType, mode: 'options' })}
+                                  disabled={isNoting || !canNote || !hasReviewed}
+                                  title={!hasReviewed ? 'Open document above first' : undefined}
+                                  style={{
+                                    fontSize: 11, fontWeight: 700,
+                                    color:      (canNote && hasReviewed) ? '#4F7FFF' : '#4B5563',
+                                    background: (canNote && hasReviewed) ? 'rgba(79,127,255,0.08)' : 'rgba(75,85,99,0.08)',
+                                    border:     `1px solid ${(canNote && hasReviewed) ? 'rgba(79,127,255,0.3)' : 'rgba(75,85,99,0.2)'}`,
+                                    borderRadius: 7, padding: '6px 12px',
+                                    cursor: (canNote && hasReviewed) ? 'pointer' : 'not-allowed',
+                                    opacity: (canNote && hasReviewed) ? 1 : 0.5,
+                                  }}
+                                >
+                                  Note Receipt ›
+                                </button>
+                              )}
+                              {/* Physical presence — always available to chairperson */}
+                              <button
+                                onClick={() => canNote && setActiveCell({ userId: row.userId, formType: cell.formType, mode: 'physical' })}
+                                disabled={isNoting || !canNote}
+                                style={{
+                                  fontSize: 11, fontWeight: 600,
+                                  color:      canNote ? '#60A5FA' : '#4B5563',
+                                  background: canNote ? 'rgba(96,165,250,0.08)' : 'rgba(75,85,99,0.08)',
+                                  border:     `1px solid ${canNote ? 'rgba(96,165,250,0.3)' : 'rgba(75,85,99,0.2)'}`,
+                                  borderRadius: 7, padding: '6px 12px',
+                                  cursor: canNote ? 'pointer' : 'not-allowed',
+                                  opacity: canNote ? 1 : 0.5,
+                                }}
+                                title={deemedVenue ? `Confirm physically present at ${deemedVenue}` : 'Confirm physically present at deemed venue'}
+                              >
+                                {hasDoc ? 'Physical copy ›' : 'Mark present ›'}
+                              </button>
+                            </div>
+
+                          ) : activeCell?.mode === 'options' ? (
+                            /* Note options */
                             <div>
-                              <div style={{ display: 'flex', gap: 6, marginBottom: 8 }}>
-                                <button onClick={() => handleNote(row.userId, cell.formType, 'NOTED')}
-                                  style={{ fontSize: 11, fontWeight: 700, color: '#34D399', background: '#022C22', border: '1px solid #064E3B', borderRadius: 7, padding: '6px 12px', cursor: 'pointer' }}>
+                              <div style={{ display: 'flex', gap: 6, marginBottom: 6 }}>
+                                <button
+                                  onClick={() => submitNote(row.userId, cell.formType, 'NOTED')}
+                                  style={{ fontSize: 11, fontWeight: 700, color: '#34D399', background: '#022C22', border: '1px solid #064E3B', borderRadius: 7, padding: '6px 12px', cursor: 'pointer' }}
+                                >
                                   ✓ Note Receipt
                                 </button>
-                                <button onClick={() => setActiveCell({ userId: row.userId, formType: cell.formType, showException: true })}
-                                  style={{ fontSize: 11, fontWeight: 600, color: '#FBBF24', background: '#1A1000', border: '1px solid #78350F', borderRadius: 7, padding: '6px 10px', cursor: 'pointer' }}>
+                                <button
+                                  onClick={() => setActiveCell({ userId: row.userId, formType: cell.formType, mode: 'exception' })}
+                                  style={{ fontSize: 11, fontWeight: 600, color: '#FBBF24', background: '#1A1000', border: '1px solid #78350F', borderRadius: 7, padding: '6px 10px', cursor: 'pointer' }}
+                                >
                                   ⚠ Exception
                                 </button>
-                                <button onClick={() => setActiveCell(null)}
-                                  style={{ fontSize: 11, color: '#4B5563', background: 'none', border: 'none', cursor: 'pointer', padding: '6px 4px' }}>
+                                <button onClick={() => setActiveCell(null)} style={{ fontSize: 11, color: '#4B5563', background: 'none', border: 'none', cursor: 'pointer', padding: '6px 4px' }}>
                                   ✕
                                 </button>
                               </div>
-                              {activeCell?.showException && (
-                                <div>
-                                  <textarea
-                                    value={exception}
-                                    onChange={e => setException(e.target.value)}
-                                    placeholder="Describe the exception (e.g. Director to submit within 30 days per SS-1 Rule 17)"
-                                    rows={2}
-                                    style={{ width: '100%', boxSizing: 'border-box', background: '#0D0F12', border: '1px solid #78350F', borderRadius: 8, padding: '8px 10px', fontSize: 11, color: '#F0F2F5', resize: 'vertical', marginBottom: 6, fontFamily: "'DM Sans', system-ui, sans-serif" }} />
-                                  <button
-                                    onClick={() => handleNote(row.userId, cell.formType, 'NOTED_WITH_EXCEPTION')}
-                                    disabled={!exception.trim()}
-                                    style={{ fontSize: 11, fontWeight: 700, color: '#FBBF24', background: '#1A1000', border: '1px solid #78350F', borderRadius: 7, padding: '6px 14px', cursor: exception.trim() ? 'pointer' : 'default', opacity: exception.trim() ? 1 : 0.5 }}>
-                                    Record Exception
-                                  </button>
-                                </div>
-                              )}
                             </div>
-                          )}
+
+                          ) : activeCell?.mode === 'exception' ? (
+                            /* Exception flow */
+                            <div>
+                              <textarea
+                                value={exceptionText}
+                                onChange={e => setExceptionText(e.target.value)}
+                                placeholder="Describe the exception (e.g. Director to submit within 30 days per SS-1)"
+                                rows={2}
+                                style={{ width: '100%', boxSizing: 'border-box', background: '#0D0F12', border: '1px solid #78350F', borderRadius: 8, padding: '8px 10px', fontSize: 11, color: '#F0F2F5', resize: 'vertical', marginBottom: 6, fontFamily: "'DM Sans', system-ui, sans-serif" }}
+                              />
+                              <div style={{ display: 'flex', gap: 6 }}>
+                                <button
+                                  onClick={() => submitNote(row.userId, cell.formType, 'NOTED_WITH_EXCEPTION', exceptionText)}
+                                  disabled={!exceptionText.trim()}
+                                  style={{ fontSize: 11, fontWeight: 700, color: '#FBBF24', background: '#1A1000', border: '1px solid #78350F', borderRadius: 7, padding: '6px 14px', cursor: exceptionText.trim() ? 'pointer' : 'default', opacity: exceptionText.trim() ? 1 : 0.5 }}
+                                >
+                                  Record Exception
+                                </button>
+                                <button onClick={() => setActiveCell(null)} style={{ fontSize: 11, color: '#4B5563', background: 'none', border: 'none', cursor: 'pointer' }}>Cancel</button>
+                              </div>
+                            </div>
+
+                          ) : activeCell?.mode === 'physical' ? (
+                            /* Physical presence confirmation */
+                            <div style={{ background: '#0D1824', border: '1px solid rgba(96,165,250,0.2)', borderRadius: 10, padding: '12px' }}>
+                              <p style={{ fontSize: 11, color: '#93C5FD', margin: '0 0 8px', lineHeight: 1.5 }}>
+                                Confirm that <strong>{meta.label}</strong> for <strong>{row.name}</strong> was
+                                physically present at the deemed venue
+                                {deemedVenue ? <strong> ({deemedVenue})</strong> : ''} and
+                                available for inspection by the Board.
+                              </p>
+                              <p style={{ fontSize: 10, color: '#4B5563', margin: '0 0 10px' }}>
+                                This will be recorded in the minutes as: "The Chairperson confirmed that Form {meta.label} received from {row.name} was physically present at the deemed venue and placed before the Board."
+                              </p>
+                              <div style={{ display: 'flex', gap: 6 }}>
+                                <button
+                                  onClick={() => submitNote(row.userId, cell.formType, 'PHYSICALLY_PRESENT', `${meta.label} physically present at deemed venue${deemedVenue ? ` — ${deemedVenue}` : ''}`)}
+                                  style={{ fontSize: 11, fontWeight: 700, color: '#60A5FA', background: 'rgba(96,165,250,0.1)', border: '1px solid rgba(96,165,250,0.3)', borderRadius: 7, padding: '6px 14px', cursor: 'pointer' }}
+                                >
+                                  ✓ Confirm Physical Presence
+                                </button>
+                                <button onClick={() => setActiveCell(null)} style={{ fontSize: 11, color: '#4B5563', background: 'none', border: 'none', cursor: 'pointer' }}>Cancel</button>
+                              </div>
+                            </div>
+                          ) : null}
                         </div>
 
                       ) : (
@@ -271,7 +394,6 @@ export default function DocNotesPanel({ companyId, meetingId, token, isChairpers
                 );
               })}
             </div>
-
           </div>
         ))}
       </div>

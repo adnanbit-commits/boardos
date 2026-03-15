@@ -82,6 +82,7 @@ export default function MeetingsPage() {
   // Create form
   const [title,       setTitle]       = useState('');
   const [scheduledAt, setScheduledAt] = useState('');
+  const [deemedVenue, setDeemedVenue] = useState('');
   const [agendaItems, setAgendaItems] = useState<AgendaDraft[]>([{ id: uid(), title: '', goal: '' }]);
   const [creating,    setCreating]    = useState(false);
   const [createErr,   setCreateErr]   = useState('');
@@ -89,6 +90,7 @@ export default function MeetingsPage() {
   // Company context — needed to filter template items (first meeting done, FY state)
   const [companyData,  setCompanyData]  = useState<any>(null);
   const [memberList,   setMemberList]   = useState<any[]>([]);
+  const [vaultDocList, setVaultDocList] = useState<any[]>([]);
   // First-meeting checkbox shown in step 2
   const [isFirstMtg,   setIsFirstMtg]   = useState(false);
 
@@ -96,16 +98,20 @@ export default function MeetingsPage() {
     if (!token) return;
     setLoading(true);
     try {
-      const [mtgs, tpls, company, members] = await Promise.all([
+      const [mtgs, tpls, company, members, vDocs] = await Promise.all([
         meetingsApi.list(companyId, token),
         templatesApi.list(companyId, token).catch(() => [] as MeetingTemplate[]),
         companiesApi.findOne(companyId, token).catch(() => null),
         companiesApi.listMembers(companyId, token).catch(() => []),
+        import('@/lib/api').then(a => a.vault.list(companyId, token).catch(() => [])),
       ]);
       setMeetings(mtgs);
       setCustomTpls(tpls);
       setCompanyData(company);
       setMemberList(members);
+      setVaultDocList(vDocs ?? []);
+      // Pre-fill deemed venue from registered address
+      if (company?.registeredAt && !deemedVenue) setDeemedVenue(company.registeredAt);
       // Auto-detect first meeting: no locked first meeting on company record
       if (company && !(company as any).firstBoardMeetingLockedId) {
         setIsFirstMtg(true);
@@ -171,8 +177,9 @@ export default function MeetingsPage() {
     setCreating(true); setCreateErr('');
     try {
       const meeting = await meetingsApi.create(companyId, {
-        title: title.trim(),
-        scheduledAt: new Date(scheduledAt).toISOString(),
+        title:        title.trim(),
+        scheduledAt:  new Date(scheduledAt).toISOString(),
+        deemedVenue:  deemedVenue.trim() || undefined,
       }, token);
 
       // Mark as first meeting if flagged
@@ -235,11 +242,20 @@ export default function MeetingsPage() {
           } else {
             // Single resolution for this work item
             const resType = wi.type === 'RESOLUTION_VOTING' ? 'MEETING' : 'NOTING';
+            // For vault doc noting items — find the matching vault document by docType
+            let vaultDocId: string | undefined;
+            if (wi.type === 'NOTING_VAULT_DOC' && wi.vaultDocType) {
+              const match = vaultDocList.find((d: any) =>
+                d.docType === wi.vaultDocType && d.fileUrl
+              );
+              if (match) vaultDocId = match.id;
+            }
             await resApi.create(companyId, meeting.id, {
               title:       substituteTemplateVars(wi.title, templateVars),
               text:        substituteTemplateVars(wi.textTemplate, templateVars),
               type:        resType as 'MEETING' | 'NOTING',
               agendaItemId:agendaItem.id,
+              ...(vaultDocId ? { vaultDocId } : {}),
             }, token).catch(() => {});
           }
         }
@@ -261,7 +277,7 @@ export default function MeetingsPage() {
     setShowModal(false);
     setCreateStep('pick');
     setSelectedTplId(null);
-    setTitle(''); setScheduledAt('');
+    setTitle(''); setScheduledAt(''); setDeemedVenue(companyData?.registeredAt ?? '');
     setAgendaItems([{ id: uid(), title: '', goal: '' }]);
     setCreateErr('');
   }
@@ -475,6 +491,24 @@ export default function MeetingsPage() {
                   <label style={{ ...labelStyle, marginTop: 16 }}>Date & Time *</label>
                   <input type="datetime-local" value={scheduledAt}
                     onChange={e => setScheduledAt(e.target.value)} style={inputStyle} />
+
+                  <label style={{ ...labelStyle, marginTop: 16 }}>
+                    Deemed Venue <span style={{ color: '#F87171' }}>*</span>
+                    <span style={{ fontSize: 10, color: '#4B5563', fontWeight: 400, marginLeft: 6 }}>
+                      SS-1 — official meeting venue for the record
+                    </span>
+                  </label>
+                  <input
+                    value={deemedVenue}
+                    onChange={e => setDeemedVenue(e.target.value)}
+                    placeholder="e.g. Registered Office — 123 MG Road, Mumbai 400001"
+                    style={inputStyle}
+                  />
+                  {!deemedVenue.trim() && (
+                    <p style={{ fontSize: 11, color: '#92400E', margin: '4px 0 0' }}>
+                      Required by law (SS-1 Rule 3). Pre-filled from your registered address.
+                    </p>
+                  )}
 
                   {/* First meeting flag */}
                   {!companyData?.firstBoardMeetingLockedId && (

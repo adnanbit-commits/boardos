@@ -15,6 +15,12 @@ export class CreateMeetingDto {
   @IsString()
   location?: string;
 
+  // SS-1 Rule 3(1) — deemed venue is mandatory for virtual/hybrid meetings.
+  // Usually the registered office address. Recorded in notice and minutes.
+  @IsOptional()
+  @IsString()
+  deemedVenue?: string;
+
   @IsOptional()
   @IsUrl()
   videoUrl?: string;
@@ -23,4 +29,3 @@ export class CreateMeetingDto {
   @IsString()
   videoProvider?: string;
 }
-
