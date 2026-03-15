@@ -8,7 +8,6 @@ import type {
   AttendanceRecord, AttendanceMode,
   DirectorDeclarationRecord, DeclarationFormType,
   MeetingDocument, MeetingShareLink,
-  RollCallStatus,
 } from '@/lib/api';
 import { StatusBadge, VoteBar, Spinner, Button, Textarea } from '@/components/ui';
 import DocNotesPanel from '@/components/DocNotesPanel';
@@ -39,6 +38,7 @@ export default function MeetingWorkspacePage() {
   const [attendance,  setAttendance]  = useState<AttendanceRecord[]>([]);
   const [declarations,setDeclarations]= useState<DirectorDeclarationRecord[]>([]);
   const [members,     setMembers]     = useState<any[]>([]);
+  const [vaultDocs,   setVaultDocs]   = useState<any[]>([]);
   const [myRole,      setMyRole]      = useState('OBSERVER');
   const [loading,     setLoading]     = useState(true);
   const [activeAgenda,setActiveAgenda]= useState<string | null>(null);
@@ -49,23 +49,21 @@ export default function MeetingWorkspacePage() {
   // Chairperson election modal
   const [showChairModal, setShowChairModal] = useState(false);
 
-  // Roll call + notice acknowledgement state
-  const [rollCall,     setRollCall]     = useState<RollCallStatus | null>(null);
-  const [showRollCall, setShowRollCall] = useState(false);
+  // Notice acknowledgement state
   const [noticeAcked,  setNoticeAcked]  = useState(false);
 
   const reload = useCallback(async () => {
     try {
-      const [m, r, memberList, rc] = await Promise.all([
+      const [m, r, memberList, vaultDocList] = await Promise.all([
         meetings.findOne(companyId, meetingId, jwt),
         resApi.listForMeeting(companyId, meetingId, jwt),
         import('@/lib/api').then(a => a.companies.listMembers(companyId, jwt)),
-        meetings.getRollCall(companyId, meetingId, jwt).catch(() => null),
+        import('@/lib/api').then(a => a.vault.list(companyId, jwt).catch(() => [])),
       ]);
       setMeeting(m);
       setResolutions(r);
       setMembers(memberList);
-      if (rc) setRollCall(rc as RollCallStatus);
+      setVaultDocs(vaultDocList ?? []);
       // Set notice ack state for current user
       if (m.noticeAcknowledgedBy?.includes(me?.id ?? '')) setNoticeAcked(true);
       const me2 = memberList.find((mem: any) => mem.user.id === (me?.id ?? ''));
@@ -103,8 +101,11 @@ export default function MeetingWorkspacePage() {
     const target = nextStatus(meeting.status as MeetingStatus);
     if (!target) return;
 
-    // No pre-gate for IN_PROGRESS — chairperson election is agenda item 1
-    // after the meeting opens. The backend enforces attendance/quorum.
+    // Restore chairperson gate: must elect before opening to business
+    if (target === 'IN_PROGRESS' && !meeting.chairpersonId) {
+      setShowChairModal(true);
+      return;
+    }
 
     setAdvancing(true); setError('');
     try {
@@ -168,6 +169,7 @@ export default function MeetingWorkspacePage() {
         <ChairpersonModal
           directors={directors}
           companyId={companyId} meetingId={meetingId} jwt={jwt}
+          currentUserId={me?.id ?? ''}
           onElected={async () => { setShowChairModal(false); await reload(); await advanceMeeting(); }}
           onClose={() => setShowChairModal(false)}
         />
@@ -215,6 +217,11 @@ export default function MeetingWorkspacePage() {
             <span className="text-zinc-500 text-xs">
               {new Date(meeting.scheduledAt).toLocaleDateString('en-IN',{day:'numeric',month:'short',year:'numeric'})}
             </span>
+            {(meeting as any).deemedVenue && (
+              <span className="text-zinc-600 text-[10px] bg-[#13161B] border border-[#232830] px-2.5 py-1 rounded-lg hidden sm:block" title="Deemed Venue (SS-1)">
+                ◎ {(meeting as any).deemedVenue}
+              </span>
+            )}
             {isAdmin && next && (
               <Button onClick={advanceMeeting} loading={advancing} size="sm"
                 variant={next === 'SIGNED' ? 'outline' : 'primary'}>
@@ -293,8 +300,8 @@ export default function MeetingWorkspacePage() {
             <p className="text-zinc-600 text-[10px] uppercase tracking-widest font-semibold mb-2 px-1">View</p>
             {[
               { key: 'resolutions', label: '◇ Resolutions', always: true },
-              { key: 'declarations', label: '📋 Declarations', show: !['DRAFT'].includes(meeting.status),
-                badge: declWarning ? 'Pending' : undefined, badgeColor: 'amber' },
+              // Declarations panel removed — DocNotesPanel (Compliance Docs) is the single source
+
               { key: 'attendance', label: '◎ Attendance', show: !['DRAFT'].includes(meeting.status),
                 badge: meeting.status === 'IN_PROGRESS' ? 'Required' : undefined, badgeColor: 'amber' },
               { key: 'docnotes', label: '⊟ Compliance Docs',
@@ -350,23 +357,24 @@ export default function MeetingWorkspacePage() {
             </div>
           )}
 
-          {/* ── Roll call panel (shown when meeting is open) ─────────────────── */}
-          {['SCHEDULED','IN_PROGRESS'].includes(meeting.status) && showRollCall && (
-            <RollCallPanel
-              companyId={companyId} meetingId={meetingId} jwt={jwt}
-              currentUserId={me?.id ?? ''} rollCall={rollCall}
-              onComplete={() => { setShowRollCall(false); reload(); }}
-            />
-          )}
-
-          {/* ── Current task guidance block ──────────────────────────────────── */}
-          {!showRollCall && (
-            <CurrentTaskBlock
-              meeting={meeting} rollCall={rollCall} members={members}
-              noticeAckedCount={meeting.noticeAcknowledgedBy?.length ?? 0}
-              onShowRollCall={() => setShowRollCall(true)}
-              onSetPanel={setPanel as (p: string) => void}
-            />
+          {/* ── Chairperson prompt (IN_PROGRESS but no chairperson) ─────────── */}
+          {meeting.status === 'IN_PROGRESS' && !meeting.chairpersonId && (
+            <div className="mb-5 bg-amber-950/20 border border-amber-800/30 rounded-2xl p-5 flex items-start gap-4">
+              <span className="text-amber-400 text-xl flex-shrink-0 mt-0.5">⚑</span>
+              <div className="flex-1">
+                <p className="text-amber-400 text-sm font-semibold mb-1">Elect Chairperson — first act of every board meeting</p>
+                <p className="text-zinc-400 text-xs leading-relaxed mb-3">
+                  No business can proceed until a Chairperson is elected (SS-1 Annexure B).
+                </p>
+                {/* Any director can open the nomination modal */}
+                <button
+                  onClick={() => setShowChairModal(true)}
+                  className="bg-amber-600 hover:bg-amber-500 text-white text-xs font-semibold px-4 py-2 rounded-lg transition-colors"
+                >
+                  Elect Chairperson →
+                </button>
+              </div>
+            </div>
           )}
 
           {panel === 'resolutions' && (
@@ -375,15 +383,10 @@ export default function MeetingWorkspacePage() {
               meeting={meeting} resolutions={visibleResolutions}
               activeAgendaItem={meeting.agendaItems.find(a => a.id === activeAgenda)}
               currentUserId={me?.id ?? ''} onRefresh={reload} isAdmin={isAdmin}
+              vaultDocs={vaultDocs}
             />
           )}
-          {panel === 'declarations' && (
-            <DeclarationsPanel
-              companyId={companyId} meetingId={meetingId} jwt={jwt}
-              meeting={meeting} declarations={declarations}
-              isAdmin={isAdmin} onRefresh={reload}
-            />
-          )}
+          {/* Declarations panel removed — use Compliance Docs panel instead */}
           {panel === 'attendance' && (
             <AttendancePanel
               companyId={companyId} meetingId={meetingId} jwt={jwt}
@@ -411,6 +414,7 @@ export default function MeetingWorkspacePage() {
               <DocNotesPanel
                 companyId={companyId} meetingId={meetingId} token={jwt}
                 isChairperson={meeting.chairpersonId === me?.id}
+                deemedVenue={(meeting as any).deemedVenue ?? (meeting as any).location ?? null}
                 onAllNoted={reload}
               />
             </div>
@@ -460,68 +464,193 @@ function WorkflowProgress({ status }: { status: MeetingStatus }) {
 
 // ── Chairperson Modal ─────────────────────────────────────────────────────────
 
-function ChairpersonModal({ directors, companyId, meetingId, jwt, onElected, onClose }: any) {
-  const [selected, setSelected] = useState('');
-  const [saving,   setSaving]   = useState(false);
-  const [recId,    setRecId]    = useState('');
+// ── Chairperson Election Modal ────────────────────────────────────────────────
+// Nomination flow for small boards (2–3 directors):
+//   Step 1: Any director nominates someone (or themselves)
+//   Step 2: All other directors see the nomination and can confirm or propose an alternative
+//   Step 3: When a nominee has a majority of confirmations → election complete
+//
+// For single-director companies: director self-nominates and confirms immediately.
+// Backend requires DIRECTOR role — any director can nominate, not just admin.
 
-  async function save() {
-    if (!selected) return;
+function ChairpersonModal({ directors, companyId, meetingId, jwt, currentUserId, onElected, onClose }: any) {
+  const [nominee,    setNominee]    = useState('');
+  const [proposedBy, setProposedBy] = useState('');
+  const [confirmed,  setConfirmed]  = useState<string[]>([]); // userIds who confirmed
+  const [saving,     setSaving]     = useState(false);
+  const [step,       setStep]       = useState<'nominate' | 'confirm'>('nominate');
+  const [recId,      setRecId]      = useState('');
+
+  const totalDirectors = directors.length;
+  const majorityNeeded = Math.ceil(totalDirectors / 2);
+  const confirmCount   = confirmed.length;
+  const isMajority     = confirmCount >= majorityNeeded;
+  const myId           = currentUserId;
+  const iHaveConfirmed = confirmed.includes(myId);
+  const iAmNominee     = nominee === myId;
+  const iAmProposer    = proposedBy === myId;
+
+  function nominate(nomineeId: string) {
+    setNominee(nomineeId);
+    setProposedBy(myId);
+    // If sole director or nominee is self and they confirm themselves
+    const initialConfirm = totalDirectors === 1 ? [myId] : [];
+    setConfirmed(initialConfirm);
+    setStep('confirm');
+  }
+
+  function confirm() {
+    if (!iHaveConfirmed) {
+      setConfirmed(prev => [...prev, myId]);
+    }
+  }
+
+  function withdraw() {
+    setNominee('');
+    setProposedBy('');
+    setConfirmed([]);
+    setStep('nominate');
+  }
+
+  async function elect() {
+    if (!nominee || !isMajority) return;
     setSaving(true);
     try {
-      await meetings.electChairperson(companyId, meetingId, selected, jwt);
+      await meetings.electChairperson(companyId, meetingId, nominee, jwt);
       if (recId) await meetings.setRecorder(companyId, meetingId, recId, jwt);
       await onElected();
+    } catch (err: any) {
+      alert(err?.body?.message ?? 'Could not elect chairperson.');
     } finally { setSaving(false); }
   }
+
+  const nomineeName  = directors.find((d: any) => d.user.id === nominee)?.user?.name ?? '';
+  const proposerName = directors.find((d: any) => d.user.id === proposedBy)?.user?.name ?? '';
 
   return (
     <div className="fixed inset-0 bg-black/70 z-50 flex items-center justify-center p-4">
       <div className="bg-[#13161B] border border-[#232830] rounded-2xl p-7 max-w-md w-full fade-up">
-        <p className="text-zinc-500 text-[10px] uppercase tracking-widest mb-1">SS-1 — Before starting</p>
-        <h2 className="text-white font-bold text-lg mb-4" style={{fontFamily:"'Playfair Display',serif"}}>
-          Elect Meeting Chairperson
+        <p className="text-zinc-500 text-[10px] uppercase tracking-widest mb-1">SS-1 Annexure B — Item 1</p>
+        <h2 className="text-white font-bold text-lg mb-1" style={{fontFamily:"'Playfair Display',serif"}}>
+          Elect Chairperson
         </h2>
         <p className="text-zinc-500 text-xs mb-5">
-          Under SS-1 a Chairperson must be elected at the start of each meeting.
-          Optionally designate a Minutes Recorder (SS-1 — authorised person to record proceedings).
+          Any director may nominate themselves or a colleague. The nomination requires
+          confirmation by a majority of directors present before proceeding.
         </p>
 
-        <div className="space-y-4">
-          <div>
-            <label className="text-zinc-500 text-[10px] uppercase tracking-widest block mb-1.5">
-              Chairperson <span className="text-red-400">*</span>
-            </label>
-            <select value={selected} onChange={e => setSelected(e.target.value)}
-              className="w-full bg-[#0D0F12] border border-[#232830] rounded-lg px-3 py-2 text-sm text-zinc-200 focus:outline-none focus:border-blue-600">
-              <option value="">Select a director...</option>
+        {step === 'nominate' ? (
+          <div className="space-y-4">
+            <p className="text-zinc-400 text-xs font-semibold">Nominate a Chairperson for this Meeting</p>
+            <div className="space-y-2">
               {directors.map((d: any) => (
-                <option key={d.user.id} value={d.user.id}>
-                  {d.user.name}
-                </option>
+                <button
+                  key={d.user.id}
+                  onClick={() => nominate(d.user.id)}
+                  className="w-full flex items-center justify-between px-4 py-3 bg-[#0D0F12] border border-[#232830] rounded-xl hover:border-blue-700/50 hover:bg-[#0d1524] transition-all text-left"
+                >
+                  <div>
+                    <p className="text-sm font-semibold text-zinc-200">{d.user.name}</p>
+                    <p className="text-[10px] text-zinc-600 mt-0.5">
+                      {d.user.id === myId ? 'Nominate yourself' : 'Nominate this director'}
+                    </p>
+                  </div>
+                  <span className="text-zinc-600 text-xs">→</span>
+                </button>
               ))}
-            </select>
+            </div>
           </div>
-          <div>
-            <label className="text-zinc-500 text-[10px] uppercase tracking-widest block mb-1.5">
-              Minutes Recorder <span className="text-zinc-600">(optional)</span>
-            </label>
-            <select value={recId} onChange={e => setRecId(e.target.value)}
-              className="w-full bg-[#0D0F12] border border-[#232830] rounded-lg px-3 py-2 text-sm text-zinc-200 focus:outline-none focus:border-blue-600">
-              <option value="">Same as Chairperson (default)</option>
-              {directors.map((d: any) => (
-                <option key={d.user.id} value={d.user.id}>{d.user.name}</option>
-              ))}
-            </select>
-            <p className="text-zinc-600 text-[10px] mt-1">For 2-director boards: best practice is non-Chairperson director records the minutes</p>
-          </div>
-        </div>
+        ) : (
+          <div className="space-y-4">
+            {/* Nomination card */}
+            <div className="bg-blue-950/20 border border-blue-800/30 rounded-xl p-4">
+              <p className="text-xs text-zinc-500 mb-1">Nominated by {proposerName}</p>
+              <p className="text-base font-bold text-zinc-100">{nomineeName}</p>
+              <p className="text-[10px] text-zinc-600 mt-1">
+                {confirmCount} of {totalDirectors} director{totalDirectors > 1 ? 's' : ''} confirmed
+                {totalDirectors > 1 ? ` · ${majorityNeeded} needed` : ''}
+              </p>
+              {/* Confirmation progress */}
+              <div className="mt-2 flex gap-1.5">
+                {directors.map((d: any) => (
+                  <div
+                    key={d.user.id}
+                    title={d.user.name}
+                    className={`h-1.5 flex-1 rounded-full transition-colors ${
+                      confirmed.includes(d.user.id) ? 'bg-green-500' : 'bg-zinc-700'
+                    }`}
+                  />
+                ))}
+              </div>
+            </div>
 
-        <div className="flex gap-3 mt-6">
-          <Button size="sm" loading={saving} onClick={save} disabled={!selected}>
-            Elect & Start Meeting
-          </Button>
-          <button onClick={onClose} className="text-zinc-500 text-xs hover:text-zinc-300">Cancel</button>
+            {/* Actions for current user */}
+            {!iHaveConfirmed && !iAmProposer && (
+              <div className="bg-[#0D0F12] border border-[#232830] rounded-xl p-4">
+                <p className="text-xs text-zinc-400 mb-3">
+                  {proposerName} has proposed {nomineeName} as Chairperson.
+                  Do you confirm this nomination?
+                </p>
+                <div className="flex gap-2">
+                  <button
+                    onClick={confirm}
+                    className="px-4 py-2 bg-green-900/50 border border-green-700/50 text-green-400 text-xs font-semibold rounded-lg hover:bg-green-900/70 transition-colors"
+                  >
+                    ✓ Confirm Nomination
+                  </button>
+                  <button
+                    onClick={withdraw}
+                    className="px-4 py-2 bg-transparent border border-zinc-700/50 text-zinc-500 text-xs font-semibold rounded-lg hover:text-zinc-300 transition-colors"
+                  >
+                    Propose someone else
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* Proposer already auto-confirms */}
+            {iAmProposer && !iHaveConfirmed && (
+              <p className="text-xs text-zinc-500">
+                Your nomination is pending. Waiting for other directors to confirm.
+              </p>
+            )}
+
+            {isMajority && (
+              <div className="bg-green-950/20 border border-green-800/30 rounded-xl p-4">
+                <p className="text-green-400 text-sm font-semibold mb-3">
+                  ✓ Majority confirmed — {nomineeName} can be elected as Chairperson
+                </p>
+                <div className="space-y-3">
+                  <div>
+                    <label className="text-zinc-500 text-[10px] uppercase tracking-widest block mb-1.5">
+                      Minutes Recorder <span className="text-zinc-600">(optional)</span>
+                    </label>
+                    <select value={recId} onChange={e => setRecId(e.target.value)}
+                      className="w-full bg-[#0D0F12] border border-[#232830] rounded-lg px-3 py-2 text-sm text-zinc-200 focus:outline-none focus:border-blue-600">
+                      <option value="">Same as Chairperson (default)</option>
+                      {directors.map((d: any) => (
+                        <option key={d.user.id} value={d.user.id}>{d.user.name}</option>
+                      ))}
+                    </select>
+                    <p className="text-zinc-600 text-[10px] mt-1">
+                      Best practice: a different director records the minutes
+                    </p>
+                  </div>
+                  <Button size="sm" loading={saving} onClick={elect}>
+                    Confirm Election & Start Meeting
+                  </Button>
+                </div>
+              </div>
+            )}
+
+            <button onClick={withdraw} className="text-zinc-600 text-xs hover:text-zinc-400">
+              ← Start over
+            </button>
+          </div>
+        )}
+
+        <div className="mt-4 pt-4 border-t border-[#232830]">
+          <button onClick={onClose} className="text-zinc-600 text-xs hover:text-zinc-400">Cancel</button>
         </div>
       </div>
     </div>
@@ -735,6 +864,10 @@ function AttendancePanel({ companyId, meetingId, jwt, meeting, attendance, curre
   const [saving,    setSaving]    = useState<string | null>(null);
   const [requesting,setRequesting]= useState<string | null>(null); // 'VIDEO' | 'PHONE'
   const [err,       setErr]       = useState('');
+  // SS-1 Rule 3(4) — virtual attendance confirmation fields
+  const [location,     setLocation]     = useState('');
+  const [noThirdParty, setNoThirdParty] = useState(false);
+  const [showVirtConfirm, setShowVirtConfirm] = useState<string | null>(null); // userId being confirmed
 
   const canAuthenticate = isChairperson || isCS; // can record VIDEO/PHONE/ABSENT for others
   const canEdit = ['SCHEDULED', 'IN_PROGRESS'].includes(meeting.status) && !!meeting.chairpersonId;
@@ -744,10 +877,17 @@ function AttendancePanel({ companyId, meetingId, jwt, meeting, attendance, curre
   const quorumRequired = Math.max(2, Math.ceil(total / 3));
   const quorumMet = present.length >= quorumRequired;
 
-  async function record(userId: string, mode: AttendanceMode) {
+  async function record(userId: string, mode: AttendanceMode, loc?: string, ntp?: boolean) {
     setSaving(userId); setErr('');
     try {
-      await meetings.recordAttendance(companyId, meetingId, { userId, mode }, jwt);
+      await meetings.recordAttendance(companyId, meetingId, {
+        userId, mode,
+        ...(loc  !== undefined && { location: loc }),
+        ...(ntp  !== undefined && { noThirdParty: ntp }),
+      }, jwt);
+      setShowVirtConfirm(null);
+      setLocation('');
+      setNoThirdParty(false);
       await onRefresh();
     } catch (e: any) { setErr((e as any).body?.message ?? 'Could not save attendance'); }
     finally { setSaving(null); }
@@ -830,7 +970,7 @@ function AttendancePanel({ companyId, meetingId, jwt, meeting, attendance, curre
                 </div>
 
                 {/* Current status badge */}
-                <div className="flex-shrink-0">
+                <div className="flex-shrink-0 text-right">
                   {currentMode && (
                     <span className={`text-[10px] font-bold px-2.5 py-1 rounded-full border ${
                       isPending              ? 'bg-amber-950/40 border-amber-700/40 text-amber-400'
@@ -843,6 +983,9 @@ function AttendancePanel({ companyId, meetingId, jwt, meeting, attendance, curre
                         : currentMode.replace('_', ' ')}
                     </span>
                   )}
+                  {dir.attendance?.location && (
+                    <p className="text-zinc-600 text-[10px] mt-1">{dir.attendance.location}</p>
+                  )}
                 </div>
               </div>
 
@@ -853,15 +996,64 @@ function AttendancePanel({ companyId, meetingId, jwt, meeting, attendance, curre
                   {/* ── Own row: self-mark IN_PERSON + request VIDEO/PHONE ── */}
                   {isSelf && !canAuthenticate && (
                     <>
-                      <button disabled={isSaving || currentMode === 'IN_PERSON'}
-                        onClick={() => record(dir.userId, 'IN_PERSON')}
-                        className={`px-3 py-1.5 rounded-lg text-[11px] font-semibold border transition-all
-                          ${currentMode === 'IN_PERSON'
-                            ? 'bg-green-950/60 border-green-700/60 text-green-400'
-                            : 'bg-transparent border-zinc-700/50 text-zinc-400 hover:border-green-700/50 hover:text-green-400'}
-                          ${isSaving ? 'opacity-50 cursor-not-allowed' : ''}`}>
-                        {isSaving ? '…' : '◉ Mark In Person'}
-                      </button>
+                      {/* Show location/noThirdParty form when not yet confirmed */}
+                      {currentMode !== 'IN_PERSON' && showVirtConfirm !== dir.userId ? (
+                        <button
+                          disabled={isSaving}
+                          onClick={() => setShowVirtConfirm(dir.userId)}
+                          className="px-3 py-1.5 rounded-lg text-[11px] font-semibold border transition-all bg-transparent border-zinc-700/50 text-zinc-400 hover:border-green-700/50 hover:text-green-400"
+                        >
+                          ◉ Mark In Person
+                        </button>
+                      ) : currentMode === 'IN_PERSON' ? (
+                        <div className="w-full">
+                          <div className="flex items-center gap-2">
+                            <span className="text-green-400 text-[11px] font-semibold">◉ In Person</span>
+                            {dir.attendance?.location && (
+                              <span className="text-zinc-500 text-[10px]">from {dir.attendance.location}</span>
+                            )}
+                          </div>
+                        </div>
+                      ) : (
+                        /* Location + noThirdParty confirmation form */
+                        <div className="w-full bg-[#0D0F12] border border-[#232830] rounded-xl p-3 space-y-3">
+                          <p className="text-zinc-400 text-[11px] font-semibold">Confirm attendance details <span className="text-zinc-600 font-normal">(SS-1 Rule 3(4))</span></p>
+                          <input
+                            value={location}
+                            onChange={e => setLocation(e.target.value)}
+                            placeholder="Your current location (e.g. Mumbai, Maharashtra)"
+                            className="w-full bg-[#13161B] border border-[#232830] rounded-lg px-3 py-2 text-xs text-zinc-200 placeholder:text-zinc-700 focus:outline-none focus:border-blue-600"
+                          />
+                          <label className="flex items-start gap-2 cursor-pointer">
+                            <input
+                              type="checkbox"
+                              checked={noThirdParty}
+                              onChange={e => setNoThirdParty(e.target.checked)}
+                              className="mt-0.5 flex-shrink-0"
+                              style={{ accentColor: '#34D399', width: 13, height: 13 }}
+                            />
+                            <span className="text-[11px] text-zinc-400 leading-relaxed">
+                              I confirm no third party is present at my location
+                              <span className="text-zinc-600"> (SS-1 Rule 3(4)(ii))</span>
+                            </span>
+                          </label>
+                          <div className="flex gap-2">
+                            <button
+                              disabled={isSaving || !location.trim() || !noThirdParty}
+                              onClick={() => record(dir.userId, 'IN_PERSON', location, noThirdParty)}
+                              className="px-3 py-1.5 rounded-lg text-[11px] font-semibold bg-green-900/50 border border-green-700/50 text-green-400 disabled:opacity-50 disabled:cursor-not-allowed hover:bg-green-900/70 transition-colors"
+                            >
+                              {isSaving ? '…' : '✓ Confirm'}
+                            </button>
+                            <button
+                              onClick={() => { setShowVirtConfirm(null); setLocation(''); setNoThirdParty(false); }}
+                              className="px-3 py-1.5 rounded-lg text-[11px] text-zinc-600 hover:text-zinc-400"
+                            >
+                              Cancel
+                            </button>
+                          </div>
+                        </div>
+                      )}
                       <button disabled={!!requesting || currentMode === 'REQUESTED_VIDEO' || currentMode === 'VIDEO'}
                         onClick={() => requestMode('VIDEO')}
                         className={`px-3 py-1.5 rounded-lg text-[11px] font-semibold border transition-all
@@ -955,7 +1147,7 @@ function AttendancePanel({ companyId, meetingId, jwt, meeting, attendance, curre
 
 // ── Resolutions Panel ─────────────────────────────────────────────────────────
 
-function ResolutionsPanel({ companyId, meetingId, jwt, meeting, resolutions, activeAgendaItem, currentUserId, onRefresh, isAdmin }: any) {
+function ResolutionsPanel({ companyId, meetingId, jwt, meeting, resolutions, activeAgendaItem, currentUserId, onRefresh, isAdmin, vaultDocs }: any) {
   const [showAdd, setShowAdd] = useState(false);
   const canAdd = !['VOTING','MINUTES_DRAFT','MINUTES_CIRCULATED','SIGNED','LOCKED'].includes(meeting.status);
   return (
@@ -974,7 +1166,7 @@ function ResolutionsPanel({ companyId, meetingId, jwt, meeting, resolutions, act
       {showAdd && (
         <div className="mb-5 fade-up">
           <AddResolutionForm companyId={companyId} meetingId={meetingId} agendaItemId={activeAgendaItem?.id}
-            jwt={jwt} onAdded={() => { setShowAdd(false); onRefresh(); }} />
+            jwt={jwt} onAdded={() => { setShowAdd(false); onRefresh(); }} vaultDocs={vaultDocs} />
         </div>
       )}
       {resolutions.length === 0 && (
@@ -1271,18 +1463,25 @@ function AddAgendaForm({ companyId, meetingId, jwt, onAdded }: any) {
   );
 }
 
-function AddResolutionForm({ companyId, meetingId, agendaItemId, jwt, onAdded }: any) {
-  const [title, setTitle] = useState('');
-  const [text,  setText]  = useState('RESOLVED THAT the Board of Directors of [Company] hereby ');
-  const [type,  setType]  = useState<'MEETING'|'NOTING'>('MEETING');
-  const [loading, setLoading] = useState(false);
-  const [error,   setError]   = useState('');
+function AddResolutionForm({ companyId, meetingId, agendaItemId, jwt, onAdded, vaultDocs }: any) {
+  const [title,      setTitle]      = useState('');
+  const [text,       setText]       = useState('RESOLVED THAT the Board of Directors of [Company] hereby ');
+  const [type,       setType]       = useState<'MEETING'|'NOTING'>('MEETING');
+  const [vaultDocId, setVaultDocId] = useState('');
+  const [loading,    setLoading]    = useState(false);
+  const [error,      setError]      = useState('');
 
   async function submit(e: React.FormEvent) {
     (e as any).preventDefault();
     if (!title.trim() || !text.trim()) return;
     setLoading(true); setError('');
-    try { await resApi.create(companyId, meetingId, { title, text, agendaItemId, type }, jwt); onAdded(); }
+    try {
+      await resApi.create(companyId, meetingId, {
+        title, text, agendaItemId, type,
+        ...(type === 'NOTING' && vaultDocId ? { vaultDocId } : {}),
+      }, jwt);
+      onAdded();
+    }
     catch (err: any) { setError((err as any).body?.message ?? 'Could not create resolution'); }
     finally { setLoading(false); }
   }
@@ -1315,6 +1514,29 @@ function AddResolutionForm({ companyId, meetingId, agendaItemId, jwt, onAdded }:
         <Textarea value={text} onChange={e => setText((e as any).target.value)} rows={4} required minLength={20} placeholder={type === 'NOTING' ? 'The Board takes note of...' : 'RESOLVED THAT...'} />
         {type === 'MEETING' && <p className="text-zinc-700 text-[10px] mt-1">Must begin with "RESOLVED THAT". Minimum 50 characters.</p>}
       </div>
+      {/* Vault doc picker — only for NOTING items */}
+      {type === 'NOTING' && vaultDocs?.length > 0 && (
+        <div>
+          <label className="text-zinc-600 text-[10px] uppercase tracking-widest block mb-1.5">
+            Link Exhibit Document <span className="text-zinc-700">(optional)</span>
+          </label>
+          <select
+            value={vaultDocId}
+            onChange={e => setVaultDocId(e.target.value)}
+            className="w-full bg-[#0D0F12] border border-[#232830] rounded-lg px-3 py-2 text-sm text-zinc-200 focus:outline-none focus:border-blue-600"
+          >
+            <option value="">No document linked</option>
+            {(vaultDocs as any[]).map((d: any) => (
+              <option key={d.id} value={d.id}>{d.label || d.fileName} ({d.docType})</option>
+            ))}
+          </select>
+          {vaultDocId && (
+            <p className="text-zinc-600 text-[10px] mt-1">
+              Chairperson must open this document before placing the resolution on record.
+            </p>
+          )}
+        </div>
+      )}
       {error && <p className="text-red-400 text-xs">{error}</p>}
       <div className="flex gap-2 pt-1">
         <Button type="submit" size="sm" loading={loading}>Add {type === 'NOTING' ? 'Noting Item' : 'Resolution'}</Button>
@@ -1587,246 +1809,3 @@ function MeetingDocumentsPanel({
   );
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// ROLL CALL PANEL
-// SS-1 Rule 3(4): each director participating via video must state their name,
-// location, confirm no third party present, and confirm materials received.
-// Recorded in minutes automatically.
-// ─────────────────────────────────────────────────────────────────────────────
-
-function RollCallPanel({
-  companyId, meetingId, jwt, currentUserId, rollCall, onComplete,
-}: {
-  companyId: string; meetingId: string; jwt: string;
-  currentUserId: string; rollCall: any; onComplete: () => void;
-}) {
-  const [location,          setLocation]          = useState('');
-  const [noThirdParty,      setNoThirdParty]       = useState(false);
-  const [materialsReceived, setMaterialsReceived]  = useState(false);
-  const [saving,            setSaving]             = useState(false);
-  const [err,               setErr]                = useState('');
-
-  const myResponse = rollCall?.responses?.find((r: any) => r.userId === currentUserId);
-  const alreadyResponded = !!myResponse;
-
-  async function submit() {
-    if (!location.trim()) { setErr('Please enter your current location.'); return; }
-    if (!noThirdParty)    { setErr('Please confirm no third party is present at your location.'); return; }
-    if (!materialsReceived) { setErr('Please confirm you have received the meeting notice and agenda.'); return; }
-    setSaving(true); setErr('');
-    try {
-      await meetings.submitRollCall(companyId, meetingId, { location: location.trim(), noThirdParty, materialsReceived }, jwt);
-      onComplete();
-    } catch (e: any) {
-      setErr(e?.body?.message ?? 'Could not submit roll call. Please try again.');
-    } finally { setSaving(false); }
-  }
-
-  return (
-    <div className="bg-[#191D24] border border-[#232830] rounded-2xl p-6 mb-6 fade-up">
-      <div className="mb-5">
-        <p className="text-zinc-500 text-[10px] uppercase tracking-widest font-semibold mb-1">SS-1 Rule 3(4)</p>
-        <h2 className="text-white font-bold text-lg" style={{ fontFamily: "'Playfair Display',serif" }}>Roll Call</h2>
-        <p className="text-zinc-500 text-xs mt-1 leading-relaxed">
-          Each director attending via video conferencing must confirm their details before proceedings can begin.
-          These responses are recorded in the minutes.
-        </p>
-      </div>
-
-      {/* Who has responded */}
-      {rollCall?.responses?.length > 0 && (
-        <div className="mb-5 space-y-2">
-          {rollCall.responses.map((r: any) => (
-            <div key={r.userId} className="flex items-center gap-3 bg-green-950/20 border border-green-800/20 rounded-xl px-4 py-2.5">
-              <span className="text-green-400 text-sm">✓</span>
-              <div className="flex-1">
-                <p className="text-zinc-200 text-xs font-semibold">{r.user?.name}</p>
-                <p className="text-zinc-500 text-[10px]">Attending from {r.location} · No third party confirmed</p>
-              </div>
-              <span className="text-[9px] text-green-400 font-semibold bg-green-950 border border-green-800/30 px-2 py-0.5 rounded-full">Confirmed</span>
-            </div>
-          ))}
-        </div>
-      )}
-
-      {/* Pending directors */}
-      {rollCall?.pendingDirectors?.length > 0 && (
-        <div className="mb-5">
-          <p className="text-zinc-600 text-[10px] font-semibold uppercase tracking-wider mb-2">Pending response</p>
-          <div className="flex flex-wrap gap-2">
-            {rollCall.pendingDirectors.map((d: any) => (
-              <span key={d.userId} className="text-xs text-amber-400 bg-amber-950/30 border border-amber-800/30 px-2.5 py-1 rounded-full">
-                {d.name}
-              </span>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {/* Current director's response form */}
-      {!alreadyResponded ? (
-        <div className="border-t border-[#232830] pt-5 space-y-4">
-          <p className="text-zinc-400 text-xs font-semibold">Your roll call response</p>
-
-          <div>
-            <label className="text-zinc-500 text-[10px] uppercase tracking-widest block mb-1.5">
-              Current location <span className="text-red-400">*</span>
-            </label>
-            <input
-              value={location}
-              onChange={e => setLocation(e.target.value)}
-              placeholder="e.g. Mumbai, Maharashtra"
-              className="w-full bg-[#0D0F12] border border-[#232830] rounded-lg px-3.5 py-2.5 text-sm text-zinc-200 placeholder:text-zinc-700 focus:outline-none focus:border-blue-600"
-            />
-          </div>
-
-          <label className="flex items-start gap-3 cursor-pointer">
-            <input
-              type="checkbox"
-              checked={noThirdParty}
-              onChange={e => setNoThirdParty(e.target.checked)}
-              className="mt-0.5 flex-shrink-0"
-              style={{ accentColor: '#34D399', width: 14, height: 14 }}
-            />
-            <span className="text-xs text-zinc-300 leading-relaxed">
-              I confirm that no person other than myself is present at my location during this meeting
-              <span className="text-zinc-600"> (SS-1 Rule 3(4)(ii))</span>
-            </span>
-          </label>
-
-          <label className="flex items-start gap-3 cursor-pointer">
-            <input
-              type="checkbox"
-              checked={materialsReceived}
-              onChange={e => setMaterialsReceived(e.target.checked)}
-              className="mt-0.5 flex-shrink-0"
-              style={{ accentColor: '#34D399', width: 14, height: 14 }}
-            />
-            <span className="text-xs text-zinc-300 leading-relaxed">
-              I confirm that I have received the notice of this meeting and all agenda papers
-              <span className="text-zinc-600"> (SS-1 Rule 3(4)(iii))</span>
-            </span>
-          </label>
-
-          {err && (
-            <p className="text-red-400 text-xs bg-red-950/30 border border-red-800/30 rounded-lg px-3 py-2">{err}</p>
-          )}
-
-          <Button size="sm" onClick={submit} loading={saving}>
-            Submit Roll Call Response
-          </Button>
-        </div>
-      ) : (
-        <div className="border-t border-[#232830] pt-4">
-          <p className="text-green-400 text-xs font-semibold">
-            ✓ You have submitted your roll call response from {myResponse.location}
-          </p>
-          {rollCall?.allResponded && (
-            <p className="text-zinc-400 text-xs mt-2">All present directors have responded. Roll call is complete.</p>
-          )}
-        </div>
-      )}
-    </div>
-  );
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// CURRENT TASK BLOCK
-// Shows the single next required action for the current meeting status.
-// One clear directive at a time — no guesswork.
-// ─────────────────────────────────────────────────────────────────────────────
-
-function CurrentTaskBlock({
-  meeting, rollCall, members, noticeAckedCount, onShowRollCall, onSetPanel,
-}: {
-  meeting: any; rollCall: any; members: any[];
-  noticeAckedCount: number; onShowRollCall: () => void; onSetPanel: (p: string) => void;
-}) {
-  const directorCount = members.filter((m: any) =>
-    ['DIRECTOR', 'COMPANY_SECRETARY'].includes(m.role)
-  ).length;
-
-  type Task = { icon: string; label: string; description: string; action?: () => void; actionLabel?: string; variant?: 'amber' | 'blue' | 'green' };
-  let task: Task | null = null;
-
-  if (meeting.status === 'SCHEDULED') {
-    const allAcked = noticeAckedCount >= directorCount;
-    const rollCallDone = !!rollCall?.rollCallCompletedAt;
-
-    if (!allAcked) {
-      task = {
-        icon: '📋',
-        label: 'Notice Acknowledgement',
-        description: `${noticeAckedCount} of ${directorCount} directors have acknowledged receipt of the meeting notice. All directors must confirm before the meeting can open (SS-1 Rule 3(4)).`,
-        variant: 'amber',
-      };
-    } else if (!rollCallDone) {
-      task = {
-        icon: '🎙',
-        label: 'Roll Call Required',
-        description: 'All directors must complete the roll call — confirming their location and that no third party is present — before the meeting can be opened to business (SS-1 Rule 3(4)).',
-        action: onShowRollCall,
-        actionLabel: 'Open Roll Call',
-        variant: 'amber',
-      };
-    } else {
-      task = {
-        icon: '✓',
-        label: 'Ready to Start',
-        description: 'Notice acknowledged and roll call complete. Click "Start Meeting" to open the meeting to business.',
-        variant: 'green',
-      };
-    }
-  } else if (meeting.status === 'IN_PROGRESS') {
-    if (!meeting.chairpersonId) {
-      task = {
-        icon: '⚑',
-        label: 'Elect Chairperson — Agenda Item 1',
-        description: 'The first act of every board meeting is the election of a Chairperson (SS-1 Annexure B). No other business can proceed until the Chairperson is elected.',
-        action: () => onSetPanel('resolutions'),
-        actionLabel: 'Go to Agenda Item 1',
-        variant: 'amber',
-      };
-    } else if (!meeting.quorumConfirmedAt) {
-      task = {
-        icon: '◎',
-        label: 'Chairperson to Confirm Quorum — Agenda Item 2',
-        description: 'The elected Chairperson must formally confirm that the required quorum is present before any business can be transacted (Sec. 174 Companies Act 2013).',
-        action: () => onSetPanel('resolutions'),
-        actionLabel: 'Go to Agenda Item 2',
-        variant: 'amber',
-      };
-    } else {
-      // Meeting is properly open — show progress info, no blocking task
-      return null;
-    }
-  } else {
-    return null;
-  }
-
-  if (!task) return null;
-
-  const colors = {
-    amber: { bg: 'bg-amber-950/20', border: 'border-amber-800/30', icon: 'text-amber-400', btn: 'bg-amber-600 hover:bg-amber-500' },
-    blue:  { bg: 'bg-blue-950/20',  border: 'border-blue-800/30',  icon: 'text-blue-400',  btn: 'bg-blue-600  hover:bg-blue-500'  },
-    green: { bg: 'bg-green-950/20', border: 'border-green-800/30', icon: 'text-green-400', btn: 'bg-green-600 hover:bg-green-500' },
-  }[task.variant ?? 'blue'];
-
-  return (
-    <div className={`${colors.bg} border ${colors.border} rounded-2xl p-5 mb-6 flex items-start gap-4`}>
-      <span className={`text-xl flex-shrink-0 mt-0.5 ${colors.icon}`}>{task.icon}</span>
-      <div className="flex-1">
-        <p className={`text-sm font-semibold mb-1 ${colors.icon}`}>{task.label}</p>
-        <p className="text-zinc-400 text-xs leading-relaxed">{task.description}</p>
-        {task.action && (
-          <button
-            onClick={task.action}
-            className={`mt-3 ${colors.btn} text-white text-xs font-semibold px-4 py-2 rounded-lg transition-colors`}
-          >
-            {task.actionLabel}
-          </button>
-        )}
-      </div>
-    </div>
-  );
-}

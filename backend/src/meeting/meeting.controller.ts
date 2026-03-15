@@ -148,9 +148,12 @@ export class MeetingController {
   recordAttendance(
     @Param('companyId') companyId: string, @Param('id') id: string,
     @Req() req: any,
-    @Body() body: { userId: string; mode: 'IN_PERSON' | 'VIDEO' | 'PHONE' | 'ABSENT' },
+    @Body() body: { userId: string; mode: 'IN_PERSON' | 'VIDEO' | 'PHONE' | 'ABSENT'; location?: string; noThirdParty?: boolean },
   ) {
-    return this.meetingService.recordAttendance(companyId, id, req.user.userId, body.userId, body.mode);
+    return this.meetingService.recordAttendance(
+      companyId, id, req.user.userId, body.userId, body.mode,
+      body.location, body.noThirdParty,
+    );
   }
 
   @Post(':id/attendance/request')

@@ -172,9 +172,11 @@ export interface AttendanceRecord {
   role:       string;
   isWorkspaceAdmin: boolean;
   attendance: {
-    id:         string;
-    mode:       AttendanceMode;
-    recordedAt: string;
+    id:           string;
+    mode:         AttendanceMode;
+    recordedAt:   string;
+    location?:    string | null;
+    noThirdParty?: boolean | null;
   } | null;
 }
 
@@ -266,7 +268,7 @@ export const meetings = {
     get<Meeting[]>(`/companies/${companyId}/meetings`, token),
   findOne: (companyId: string, meetingId: string, token: string) =>
     get<MeetingDetail>(`/companies/${companyId}/meetings/${meetingId}`, token),
-  create: (companyId: string, body: { title: string; scheduledAt: string }, token: string) =>
+  create: (companyId: string, body: { title: string; scheduledAt: string; deemedVenue?: string; location?: string; videoProvider?: string; videoUrl?: string }, token: string) =>
     post<Meeting>(`/companies/${companyId}/meetings`, body, token),
   remove: (companyId: string, meetingId: string, token: string) =>
     del<{ message: string }>(`/companies/${companyId}/meetings/${meetingId}`, token),
@@ -278,7 +280,7 @@ export const meetings = {
     post<AgendaItem>(`/companies/${companyId}/meetings/${meetingId}/agenda`, body, token),
   getAttendance: (companyId: string, meetingId: string, token: string) =>
     get<AttendanceRecord[]>(`/companies/${companyId}/meetings/${meetingId}/attendance`, token),
-  recordAttendance: (companyId: string, meetingId: string, body: { userId: string; mode: AttendanceMode }, token: string) =>
+  recordAttendance: (companyId: string, meetingId: string, body: { userId: string; mode: AttendanceMode; location?: string; noThirdParty?: boolean }, token: string) =>
     post<AttendanceRecord>(`/companies/${companyId}/meetings/${meetingId}/attendance`, body, token),
   requestAttendance: (companyId: string, meetingId: string, mode: 'VIDEO' | 'PHONE', token: string) =>
     post<{ message: string }>(`/companies/${companyId}/meetings/${meetingId}/attendance/request`, { mode }, token),
@@ -588,7 +590,7 @@ export interface MeetingShareLink {
 
 export interface DocNote {
   id: string; meetingId: string; directorUserId: string;
-  formType: string; status: 'NOTED' | 'NOTED_WITH_EXCEPTION';
+  formType: string; status: 'NOTED' | 'NOTED_WITH_EXCEPTION' | 'PHYSICALLY_PRESENT';
   exception: string | null; notedBy: string; notedAt: string;
   chair: { name: string };
 }
@@ -682,7 +684,7 @@ export const vault = {
   // ── Doc notes ─────────────────────────────────────────────────────────────────
   docNotes: (companyId: string, meetingId: string, token: string) =>
     get<DocNotesResult>(`/companies/${companyId}/meetings/${meetingId}/doc-notes`, token),
-  noteDoc:  (companyId: string, meetingId: string, body: { directorUserId: string; formType: string; status: 'NOTED' | 'NOTED_WITH_EXCEPTION'; exception?: string }, token: string) =>
+  noteDoc:  (companyId: string, meetingId: string, body: { directorUserId: string; formType: string; status: 'NOTED' | 'NOTED_WITH_EXCEPTION' | 'PHYSICALLY_PRESENT'; exception?: string }, token: string) =>
     post<DocNote>(`/companies/${companyId}/meetings/${meetingId}/doc-notes`, body, token),
 };
 

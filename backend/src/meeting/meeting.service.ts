@@ -176,9 +176,15 @@ export class MeetingService {
       throw new BadRequestException(`Cannot transition from ${meeting.status} to ${targetStatus}`);
     }
 
-    // SCHEDULED → IN_PROGRESS: all expected directors must have attendance recorded.
-    // Chairperson election, quorum confirmation, and compliance noting all happen
-    // as agenda items AFTER the meeting opens — not as pre-conditions.
+    // SCHEDULED → IN_PROGRESS gates:
+    // 1. Chairperson must be elected first (restores the original working flow)
+    // 2. At least one attendance record must exist (quorum check)
+    if (targetStatus === 'IN_PROGRESS' && !(meeting as any).chairpersonId) {
+      throw new BadRequestException(
+        'A Chairperson must be elected before the meeting can be opened to business. ' +
+        'Use the "Elect Chairperson" button to elect one first.',
+      );
+    }
     if (targetStatus === 'IN_PROGRESS') {
       const members = await this.prisma.companyUser.findMany({
         where: { companyId, role: { in: ['DIRECTOR', 'COMPANY_SECRETARY'] }, acceptedAt: { not: null } },
@@ -230,6 +236,44 @@ export class MeetingService {
     });
 
     await this.audit.log({ companyId, userId, action: `MEETING_STATUS_${targetStatus}`, entity: 'Meeting', entityId: id, metadata: { from: meeting.status, to: targetStatus } });
+
+    // ── Meeting scheduled — notify all directors and CS ────────────────────
+    if (targetStatus === 'SCHEDULED') {
+      const members = await this.prisma.companyUser.findMany({
+        where: { companyId, role: { in: ['DIRECTOR', 'COMPANY_SECRETARY'] }, acceptedAt: { not: null } },
+        include: { user: { select: { id: true, name: true, email: true } } },
+      });
+      const frontendUrl  = process.env.FRONTEND_URL ?? 'http://localhost:3000';
+      const meetingUrl   = `${frontendUrl}/companies/${companyId}/meetings/${id}`;
+      const meetingDate  = new Date((updated as any).scheduledAt)
+        .toLocaleString('en-IN', { weekday: 'long', day: '2-digit', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+      const deemedVenue  = (updated as any).deemedVenue ?? (updated as any).location ?? 'Deemed venue not specified';
+
+      await Promise.all(members.map(m =>
+        this.notificationService.send({
+          userId:    m.user.id,
+          toEmail:   m.user.email,
+          companyId,
+          type:      'MEETING_INVITE',
+          subject:   `Board Meeting Scheduled — ${meeting.title}`,
+          body: [
+            `Dear ${m.user.name},`,
+            '',
+            `A Board Meeting has been scheduled. Please find the details below.`,
+            '',
+            `Meeting: ${meeting.title}`,
+            `Date & Time: ${meetingDate}`,
+            `Deemed Venue: ${deemedVenue}`,
+            '',
+            `Please acknowledge receipt of this notice by opening the meeting on BoardOS.`,
+            '',
+            `View meeting: ${meetingUrl}`,
+            '',
+            'BoardOS',
+          ].join('\n'),
+        }),
+      ));
+    }
 
     // ── Circulation emails ─────────────────────────────────────────────────
     // When draft minutes are circulated (SS-1 7-day comment window begins),
@@ -306,6 +350,8 @@ export class MeetingService {
     requestingUserId: string,
     targetUserId: string,
     mode: string,
+    location?: string,
+    noThirdParty?: boolean,
   ) {
     const meeting = await this.prisma.meeting.findFirst({
       where: { id: meetingId, companyId },
@@ -349,8 +395,16 @@ export class MeetingService {
 
     const record = await this.prisma.meetingAttendance.upsert({
       where:  { meetingId_userId: { meetingId, userId: targetUserId } },
-      create: { meetingId, userId: targetUserId, mode: mode as any },
-      update: { mode: mode as any, recordedAt: new Date() },
+      create: {
+        meetingId, userId: targetUserId, mode: mode as any,
+        ...(location     !== undefined && { location }),
+        ...(noThirdParty !== undefined && { noThirdParty }),
+      },
+      update: {
+        mode: mode as any, recordedAt: new Date(),
+        ...(location     !== undefined && { location }),
+        ...(noThirdParty !== undefined && { noThirdParty }),
+      },
     });
 
     await this.audit.log({

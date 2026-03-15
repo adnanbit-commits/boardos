@@ -138,6 +138,7 @@ enum MeetingDocType {
 enum DocNoteStatus {
   NOTED                // Chair confirmed receipt with no issues
   NOTED_WITH_EXCEPTION // Chair noted but flagged an issue
+  PHYSICALLY_PRESENT   // Doc not uploaded but chairperson confirms physical presence at deemed venue
 }
 
 // ── DeclarationFormType (existing, keep here) ─────────────────────────────────
@@ -316,11 +317,14 @@ model Meeting {
 }
 
 model MeetingAttendance {
-  id         String         @id @default(uuid())
-  meetingId  String
-  userId     String
-  mode       AttendanceMode @default(IN_PERSON)
-  recordedAt DateTime       @default(now())
+  id             String         @id @default(uuid())
+  meetingId      String
+  userId         String
+  mode           AttendanceMode @default(IN_PERSON)
+  recordedAt     DateTime       @default(now())
+  // SS-1 Rule 3(4): virtual attendance confirmation fields
+  location       String?        // city/address director is attending from
+  noThirdParty   Boolean?       // confirmed no third party present at their location
 
   meeting    Meeting @relation(fields: [meetingId], references: [id], onDelete: Cascade)
   user       User    @relation(fields: [userId], references: [id])
