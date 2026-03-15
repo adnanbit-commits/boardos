@@ -96,7 +96,115 @@ export class MeetingService {
     });
   }
 
-  // ── Chairperson ──────────────────────────────────────────────────────────────
+  // ── Chairperson nomination flow ──────────────────────────────────────────────
+  //
+  // Three persisted steps — all directors see the same state on page reload:
+  //
+  //   1. nominateChairperson  — any director proposes a nominee
+  //   2. confirmChairperson   — other directors confirm (majority needed)
+  //   3. electChairperson     — once majority confirmed, any director finalises
+  //
+  // The nomination state (chairNomineeId, chairNomineeProposedBy,
+  // chairNomineeConfirmedBy) is stored on the Meeting row so every director's
+  // browser shows the same pending nomination when they reload.
+
+  async getNomination(companyId: string, meetingId: string) {
+    const meeting = await this.prisma.meeting.findFirst({
+      where: { id: meetingId, companyId },
+      select: {
+        id: true, chairpersonId: true,
+        chairNomineeId: true,
+        chairNomineeProposedBy: true,
+        chairNomineeConfirmedBy: true,
+      },
+    });
+    if (!meeting) throw new NotFoundException('Meeting not found');
+
+    const directors = await this.prisma.companyUser.findMany({
+      where: { companyId, role: { in: ['DIRECTOR', 'COMPANY_SECRETARY'] }, acceptedAt: { not: null } },
+      include: { user: { select: { id: true, name: true } } },
+    });
+    const totalDirectors  = directors.length;
+    const majorityNeeded  = Math.max(1, Math.ceil(totalDirectors / 2));
+    const confirmedBy     = (meeting as any).chairNomineeConfirmedBy ?? [];
+    const confirmCount    = confirmedBy.length;
+
+    return {
+      chairpersonId:         meeting.chairpersonId,
+      nomineeId:             (meeting as any).chairNomineeId    ?? null,
+      proposedBy:            (meeting as any).chairNomineeProposedBy ?? null,
+      confirmedBy,
+      confirmCount,
+      majorityNeeded,
+      totalDirectors,
+      isMajority:            confirmCount >= majorityNeeded,
+      directors:             directors.map(d => ({ userId: d.user.id, name: d.user.name })),
+    };
+  }
+
+  async nominateChairperson(companyId: string, meetingId: string, nomineeId: string, userId: string) {
+    const meeting = await this.prisma.meeting.findFirst({ where: { id: meetingId, companyId } });
+    if (!meeting) throw new NotFoundException('Meeting not found');
+    if (['SIGNED', 'LOCKED'].includes(meeting.status))
+      throw new BadRequestException('Cannot change chairperson on a signed or locked meeting');
+    if (meeting.chairpersonId)
+      throw new BadRequestException('A chairperson has already been elected for this meeting');
+
+    // Validate nominee is a director/CS of this company
+    const membership = await this.prisma.companyUser.findFirst({
+      where: { companyId, userId: nomineeId, role: { in: ['DIRECTOR', 'COMPANY_SECRETARY'] }, acceptedAt: { not: null } },
+    });
+    if (!membership) throw new BadRequestException('Nominee must be a Director or Company Secretary of this company');
+
+    // Clear any existing nomination and start fresh
+    // The proposer auto-confirms their own nomination
+    const updated = await this.prisma.meeting.update({
+      where: { id: meetingId },
+      data: {
+        chairNomineeId:          nomineeId,
+        chairNomineeProposedBy:  userId,
+        chairNomineeConfirmedBy: [userId],  // proposer auto-confirms
+      } as any,
+    });
+
+    await this.audit.log({
+      companyId, userId,
+      action: 'CHAIRPERSON_NOMINATED',
+      entity: 'Meeting', entityId: meetingId,
+      metadata: { nomineeId },
+    });
+
+    return this.getNomination(companyId, meetingId);
+  }
+
+  async confirmChairperson(companyId: string, meetingId: string, userId: string) {
+    const meeting = await this.prisma.meeting.findFirst({ where: { id: meetingId, companyId } });
+    if (!meeting) throw new NotFoundException('Meeting not found');
+    if (!(meeting as any).chairNomineeId)
+      throw new BadRequestException('No chairperson nomination is pending');
+    if (meeting.chairpersonId)
+      throw new BadRequestException('A chairperson has already been elected');
+
+    const confirmedBy = (meeting as any).chairNomineeConfirmedBy ?? [];
+    if (confirmedBy.includes(userId)) {
+      // Already confirmed — idempotent, just return current state
+      return this.getNomination(companyId, meetingId);
+    }
+
+    await this.prisma.meeting.update({
+      where: { id: meetingId },
+      data: { chairNomineeConfirmedBy: { push: userId } } as any,
+    });
+
+    await this.audit.log({
+      companyId, userId,
+      action: 'CHAIRPERSON_NOMINATION_CONFIRMED',
+      entity: 'Meeting', entityId: meetingId,
+      metadata: { nomineeId: (meeting as any).chairNomineeId },
+    });
+
+    return this.getNomination(companyId, meetingId);
+  }
 
   async electChairperson(companyId: string, meetingId: string, chairpersonId: string, userId: string) {
     const meeting = await this.prisma.meeting.findFirst({ where: { id: meetingId, companyId } });
@@ -104,13 +212,46 @@ export class MeetingService {
     if (['SIGNED', 'LOCKED'].includes(meeting.status))
       throw new BadRequestException('Cannot change chairperson on a signed meeting');
 
-    const membership = await this.prisma.companyUser.findFirst({
-      where: { companyId, userId: chairpersonId, role: { in: ['DIRECTOR', 'COMPANY_SECRETARY'] } },
+    // Validate nominee is the confirmed one (or skip if direct election without nomination)
+    const nomineeId   = (meeting as any).chairNomineeId;
+    const confirmedBy = (meeting as any).chairNomineeConfirmedBy ?? [];
+    const directors   = await this.prisma.companyUser.count({
+      where: { companyId, role: { in: ['DIRECTOR', 'COMPANY_SECRETARY'] }, acceptedAt: { not: null } },
     });
-    if (!membership) throw new BadRequestException('Nominated chairperson must be a Director or Admin');
+    const majorityNeeded = Math.max(1, Math.ceil(directors / 2));
 
-    const updated = await this.prisma.meeting.update({ where: { id: meetingId }, data: { chairpersonId } });
-    await this.audit.log({ companyId, userId, action: 'MEETING_CHAIRPERSON_ELECTED', entity: 'Meeting', entityId: meetingId, metadata: { chairpersonId } });
+    if (nomineeId && nomineeId !== chairpersonId) {
+      throw new BadRequestException('The nominee being elected must match the pending nomination');
+    }
+    if (nomineeId && confirmedBy.length < majorityNeeded) {
+      throw new BadRequestException(
+        `Majority not yet reached. ${confirmedBy.length} of ${directors} confirmed, need ${majorityNeeded}.`,
+      );
+    }
+
+    const membership = await this.prisma.companyUser.findFirst({
+      where: { companyId, userId: chairpersonId, role: { in: ['DIRECTOR', 'COMPANY_SECRETARY'] }, acceptedAt: { not: null } },
+    });
+    if (!membership) throw new BadRequestException('Nominated chairperson must be a Director or CS');
+
+    // Set chairperson and clear nomination state
+    const updated = await this.prisma.meeting.update({
+      where: { id: meetingId },
+      data: {
+        chairpersonId,
+        chairNomineeId:          null,
+        chairNomineeProposedBy:  null,
+        chairNomineeConfirmedBy: [],
+      } as any,
+    });
+
+    await this.audit.log({
+      companyId, userId,
+      action: 'MEETING_CHAIRPERSON_ELECTED',
+      entity: 'Meeting', entityId: meetingId,
+      metadata: { chairpersonId },
+    });
+
     return updated;
   }
 
@@ -176,38 +317,23 @@ export class MeetingService {
       throw new BadRequestException(`Cannot transition from ${meeting.status} to ${targetStatus}`);
     }
 
-    // SCHEDULED → IN_PROGRESS gates:
-    // 1. Chairperson must be elected first (restores the original working flow)
-    // 2. At least one attendance record must exist (quorum check)
-    if (targetStatus === 'IN_PROGRESS' && !(meeting as any).chairpersonId) {
-      throw new BadRequestException(
-        'A Chairperson must be elected before the meeting can be opened to business. ' +
-        'Use the "Elect Chairperson" button to elect one first.',
-      );
-    }
+    // SCHEDULED → IN_PROGRESS: quorum must be met based on pre-meeting attendance.
+    // Correct SS-1 sequence:
+    //   SCHEDULED: directors self-record attendance (no chairperson needed)
+    //   IN_PROGRESS: meeting opens, chairperson elected as first agenda item
     if (targetStatus === 'IN_PROGRESS') {
       const members = await this.prisma.companyUser.findMany({
         where: { companyId, role: { in: ['DIRECTOR', 'COMPANY_SECRETARY'] }, acceptedAt: { not: null } },
       });
-      const attendanceCount = await this.prisma.meetingAttendance.count({
-        where: { meetingId: id },
-      });
-      if (attendanceCount === 0) {
-        throw new BadRequestException(
-          'Attendance has not been recorded for any director. ' +
-          'Please record attendance (roll call) before opening the meeting to business.',
-        );
-      }
-      // Quorum check: max(2, ceil(n/3)) directors must be present (not ABSENT)
       const presentCount = await this.prisma.meetingAttendance.count({
         where: { meetingId: id, mode: { notIn: ['ABSENT', 'REQUESTED_VIDEO', 'REQUESTED_PHONE'] as any[] } },
       });
       const quorumRequired = Math.max(2, Math.ceil(members.length / 3));
       if (presentCount < quorumRequired) {
         throw new BadRequestException(
-          `Quorum not met. ${presentCount} of ${members.length} directors present — ` +
+          `Quorum not met. ${presentCount} of ${members.length} directors have recorded attendance — ` +
           `minimum ${quorumRequired} required (Sec. 174 Companies Act 2013). ` +
-          `The meeting cannot be opened without quorum.`,
+          `Please record attendance before starting the meeting.`,
         );
       }
     }
@@ -361,9 +487,8 @@ export class MeetingService {
     if (!['SCHEDULED', 'IN_PROGRESS'].includes(meeting.status)) {
       throw new BadRequestException('Attendance can only be recorded for scheduled or in-progress meetings');
     }
-    if (!meeting.chairpersonId) {
-      throw new BadRequestException('A chairperson must be elected before attendance can be recorded');
-    }
+    // Self-marking IN_PERSON never requires a chairperson.
+    // VIDEO/PHONE/ABSENT still require chairperson or CS authentication.
 
     const requester = await this.prisma.companyUser.findUnique({
       where: { userId_companyId: { userId: requestingUserId, companyId } },

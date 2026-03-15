@@ -286,8 +286,12 @@ model Meeting {
   videoUrl      String?
   videoMeetingId String?
 
-  chairpersonId    String?       // Director elected as chairperson for this specific meeting
-  minutesRecorderId String?      // Director authorised to record proceedings for this meeting (SS-1)
+  chairpersonId         String?  // Director elected as chairperson for this specific meeting
+  minutesRecorderId     String?  // Director authorised to record proceedings for this meeting (SS-1)
+  // Chairperson nomination — persisted so all directors see the same pending nomination
+  chairNomineeId        String?  // pending nominee (null once elected)
+  chairNomineeProposedBy String? // userId of director who proposed the nominee
+  chairNomineeConfirmedBy String[] @default([]) @map("chair_nominee_confirmed_by") // userIds who confirmed
   minutesCirculatedAt   DateTime?   // When draft minutes were circulated to directors
 
   // First meeting + virtual meeting fields

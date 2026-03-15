@@ -52,8 +52,38 @@ export class MeetingController {
     return this.meetingService.transition(companyId, id, status, req.user.userId);
   }
 
-  // ── Chairperson & Recorder ──────────────────────────────────────────────────
+  // ── Chairperson nomination flow ────────────────────────────────────────────
+  // Three-step: nominate → confirm → elect
+  // All state is persisted to DB so every director's browser shows the same
+  // pending nomination on reload — no local-state-only flows.
 
+  // GET current nomination state (nominee, who proposed, who confirmed, majority status)
+  @Get(':id/chairperson/nomination')
+  getNomination(@Param('companyId') companyId: string, @Param('id') meetingId: string) {
+    return this.meetingService.getNomination(companyId, meetingId);
+  }
+
+  // POST — any director nominates a colleague (or themselves)
+  @Post(':id/chairperson/nominate')
+  @RequireRole('DIRECTOR')
+  nominateChairperson(
+    @Param('companyId') companyId: string, @Param('id') meetingId: string,
+    @Body() body: { nomineeId: string }, @Req() req: any,
+  ) {
+    return this.meetingService.nominateChairperson(companyId, meetingId, body.nomineeId, req.user.userId);
+  }
+
+  // POST — any director confirms the pending nomination
+  @Post(':id/chairperson/confirm')
+  @HttpCode(200)
+  @RequireRole('DIRECTOR')
+  confirmChairperson(
+    @Param('companyId') companyId: string, @Param('id') meetingId: string, @Req() req: any,
+  ) {
+    return this.meetingService.confirmChairperson(companyId, meetingId, req.user.userId);
+  }
+
+  // POST — finalise election once majority confirmed (any director can call)
   @Post(':id/chairperson')
   @RequireRole('DIRECTOR')
   electChairperson(
