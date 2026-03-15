@@ -8,6 +8,7 @@ import type {
   AttendanceRecord, AttendanceMode,
   DirectorDeclarationRecord, DeclarationFormType,
   MeetingDocument, MeetingShareLink,
+  RollCallStatus,
 } from '@/lib/api';
 import { StatusBadge, VoteBar, Spinner, Button, Textarea } from '@/components/ui';
 import DocNotesPanel from '@/components/DocNotesPanel';
