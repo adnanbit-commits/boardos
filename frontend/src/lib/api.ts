@@ -43,6 +43,7 @@ export interface User {
 
 export interface CompanyWithMeta {
   id: string; name: string; cin?: string;
+  registeredAt?: string | null;  // registered office address
   myRole: 'DIRECTOR' | 'COMPANY_SECRETARY' | 'AUDITOR' | 'OBSERVER';
   isWorkspaceAdmin: boolean; createdAt: string;
   pendingVotes?: number; unsignedDocs?: number; live?: boolean;
