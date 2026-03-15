@@ -12,16 +12,21 @@
 import {
   Injectable, NotFoundException, ForbiddenException, BadRequestException,
 } from '@nestjs/common';
-import * as crypto from 'crypto';
+import * as crypto    from 'crypto';
+import * as puppeteer from 'puppeteer';
 import { MinutesStatus } from '@prisma/client';
-import { PrismaService } from '../prisma/prisma.service';
-import { AuditService } from '../audit/audit.service';
+import { PrismaService }       from '../prisma/prisma.service';
+import { AuditService }        from '../audit/audit.service';
+import { StorageService }      from '../storage/storage.service';
+import { NotificationService } from '../notification/notification.service';
 
 @Injectable()
 export class MinutesService {
   constructor(
-    private readonly prisma: PrismaService,
-    private readonly audit: AuditService,
+    private readonly prisma:        PrismaService,
+    private readonly audit:         AuditService,
+    private readonly storage:       StorageService,
+    private readonly notifications: NotificationService,
   ) {}
 
   async generate(companyId: string, meetingId: string, userId: string) {
@@ -269,4 +274,105 @@ export class MinutesService {
         </body>
       </html>`;
   }
+  // ── PDF export ───────────────────────────────────────────────────────────────
+  // Renders the HTML minutes content to PDF via Puppeteer, uploads to GCS,
+  // and returns the download URL.  Called from POST /minutes/export.
+
+  async exportPdf(companyId: string, meetingId: string, userId: string) {
+    const minutes = await this.findByMeeting(companyId, meetingId);
+
+    const browser = await puppeteer.launch({
+      executablePath: process.env.PUPPETEER_EXECUTABLE_PATH ?? '/usr/bin/chromium',
+      args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage'],
+      headless: true,
+    });
+
+    let pdfBuffer: Buffer;
+    try {
+      const page = await browser.newPage();
+      await page.setContent(minutes.content, { waitUntil: 'networkidle0' });
+      pdfBuffer = Buffer.from(await page.pdf({
+        format: 'A4',
+        margin: { top: '20mm', bottom: '20mm', left: '20mm', right: '20mm' },
+        printBackground: true,
+      }));
+    } finally {
+      await browser.close();
+    }
+
+    // Signed minutes PDF — archive path for immutable retention.
+    const objectPath = this.storage.buildArchivePath(companyId, 'minutes', `${meetingId}.pdf`);
+    await this.storage.uploadArchiveFile(objectPath, pdfBuffer, 'application/pdf', {
+      'x-boardos-meeting-id': meetingId,
+    });
+    const downloadUrl = await this.storage.getDownloadUrl(objectPath, 120);
+
+    await this.audit.log({
+      companyId, userId,
+      action:   'MINUTES_PDF_EXPORTED',
+      entity:   'Minutes',
+      entityId: minutes.id,
+    });
+
+    return { downloadUrl, objectPath };
+  }
+
+  // ── Circulation email ────────────────────────────────────────────────────────
+  // Called by MeetingService when status advances to MINUTES_CIRCULATED.
+  // Sends the draft minutes HTML to all directors and CS members for the
+  // SS-1 7-day comment window.
+
+  async sendCirculationEmails(companyId: string, meetingId: string, actingUserId: string) {
+    const [minutes, meeting, members] = await Promise.all([
+      this.prisma.minutes.findUnique({ where: { meetingId } }),
+      this.prisma.meeting.findFirst({
+        where: { id: meetingId, companyId },
+        include: { company: { select: { name: true } } },
+      }),
+      this.prisma.companyUser.findMany({
+        where: { companyId, role: { in: ['DIRECTOR', 'COMPANY_SECRETARY'] }, acceptedAt: { not: null } },
+        include: { user: { select: { id: true, name: true, email: true } } },
+      }),
+    ]);
+
+    if (!minutes || !meeting) return;
+
+    const frontendUrl = process.env.FRONTEND_URL ?? 'http://localhost:3000';
+    const meetingUrl  = `${frontendUrl}/companies/${companyId}/meetings/${meetingId}`;
+    const deadline    = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000)
+      .toLocaleDateString('en-IN', { day: '2-digit', month: 'long', year: 'numeric' });
+
+    await Promise.all(members.map(m =>
+      this.notifications.send({
+        userId:    m.user.id,
+        toEmail:   m.user.email,
+        companyId,
+        type:      'MINUTES_READY',
+        subject:   `Draft Minutes Circulated — ${meeting.title} | ${meeting.company.name}`,
+        body: [
+          `Dear ${m.user.name},`,
+          '',
+          `The draft minutes of the Board Meeting "${meeting.title}" have been circulated for your review.`,
+          '',
+          `Please review the draft minutes and raise any objections or suggestions within 7 clear days, by ${deadline}, as required under SS-1 (Secretarial Standard on Board Meetings).`,
+          '',
+          `View minutes: ${meetingUrl}`,
+          '',
+          'If you have no objections, no action is required.',
+          '',
+          'BoardOS',
+        ].join('\n'),
+      }),
+    ));
+
+    await this.audit.log({
+      companyId,
+      userId:   actingUserId,
+      action:   'MINUTES_CIRCULATED_EMAIL_SENT',
+      entity:   'Minutes',
+      entityId: minutes.id,
+      metadata: { recipientCount: members.length, deadline },
+    });
+  }
+
 }

@@ -4,11 +4,12 @@ import { Module }             from '@nestjs/common';
 import { DocumentService }    from './document.service';
 import { DocumentController } from './document.controller';
 import { AuditModule }        from '../audit/audit.module';
+import { StorageModule }      from '../storage/storage.module';
 
 @Module({
-  imports:     [AuditModule],
+  imports:     [AuditModule, StorageModule],
   controllers: [DocumentController],
   providers:   [DocumentService],
-  exports:     [DocumentService],   // ArchiveService needs this
+  exports:     [DocumentService],
 })
 export class DocumentModule {}

@@ -22,7 +22,7 @@ export class MinutesController {
     return this.minutes.findByMeeting(companyId, meetingId);
   }
 
-  // POST — generate minutes (PARTICIPANT: Director or CS)
+  // POST — generate minutes HTML (PARTICIPANT = DIRECTOR or CS)
   @Post()
   @RequireRole('PARTICIPANT')
   generate(
@@ -33,9 +33,7 @@ export class MinutesController {
     return this.minutes.generate(companyId, meetingId, req.user.userId);
   }
 
-  
-  
-  
+  // POST /sign — sign minutes with SHA-256 hash
   @Post('sign')
   @RequireRole('PARTICIPANT')
   sign(
@@ -44,5 +42,16 @@ export class MinutesController {
     @Request() req: any,
   ) {
     return this.minutes.sign(companyId, meetingId, req.user.userId);
+  }
+
+  // POST /export — render minutes to PDF via Puppeteer, upload to GCS, return download URL
+  // Available to any meeting member so the signed PDF can be distributed.
+  @Post('export')
+  exportPdf(
+    @Param('companyId') companyId: string,
+    @Param('meetingId') meetingId: string,
+    @Request() req: any,
+  ) {
+    return this.minutes.exportPdf(companyId, meetingId, req.user.userId);
   }
 }

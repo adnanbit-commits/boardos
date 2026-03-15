@@ -214,6 +214,50 @@ export class MeetingService {
     });
 
     await this.audit.log({ companyId, userId, action: `MEETING_STATUS_${targetStatus}`, entity: 'Meeting', entityId: id, metadata: { from: meeting.status, to: targetStatus } });
+
+    // ── Circulation emails ─────────────────────────────────────────────────
+    // When draft minutes are circulated (SS-1 7-day comment window begins),
+    // notify all directors and CS so they can review before the meeting is signed.
+    if (targetStatus === 'MINUTES_CIRCULATED') {
+      const [minutes, members] = await Promise.all([
+        this.prisma.minutes.findUnique({ where: { meetingId: id } }),
+        this.prisma.companyUser.findMany({
+          where: { companyId, role: { in: ['DIRECTOR', 'COMPANY_SECRETARY'] }, acceptedAt: { not: null } },
+          include: { user: { select: { id: true, name: true, email: true } } },
+        }),
+      ]);
+
+      if (minutes) {
+        const frontendUrl = process.env.FRONTEND_URL ?? 'http://localhost:3000';
+        const meetingUrl  = `${frontendUrl}/companies/${companyId}/meetings/${id}`;
+        const deadline    = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000)
+          .toLocaleDateString('en-IN', { day: '2-digit', month: 'long', year: 'numeric' });
+
+        await Promise.all(members.map(m =>
+          this.notificationService.send({
+            userId:    m.user.id,
+            toEmail:   m.user.email,
+            companyId,
+            type:      'MINUTES_READY',
+            subject:   `Draft Minutes for Review — ${meeting.title}`,
+            body: [
+              `Dear ${m.user.name},`,
+              '',
+              `The draft minutes of the Board Meeting "${meeting.title}" have been circulated for your review.`,
+              '',
+              `Please review and raise any objections by ${deadline} (7 clear days as per SS-1).`,
+              '',
+              `Open minutes: ${meetingUrl}`,
+              '',
+              'If you have no objections, no action is needed.',
+              '',
+              'BoardOS',
+            ].join('\n'),
+          }),
+        ));
+      }
+    }
+
     return updated;
   }
 

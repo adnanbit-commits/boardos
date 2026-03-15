@@ -332,7 +332,12 @@ export default function MeetingWorkspacePage() {
             />
           )}
           {panel === 'minutes' && meeting.minutes && (
-            <MinutesPanel minutes={meeting.minutes} />
+            <MinutesPanel
+              minutes={meeting.minutes}
+              companyId={companyId}
+              meetingId={meetingId}
+              jwt={jwt}
+            />
           )}
           {panel === 'docnotes' && (
             <div>
@@ -479,9 +484,14 @@ function RoleAssignmentMini({ meeting, directors, companyId, meetingId, jwt, onU
   const chairName    = directors.find((d: any) => d.user.id === meeting.chairpersonId)?.user?.name;
   const recorderName = directors.find((d: any) => d.user.id === meeting.minutesRecorderId)?.user?.name;
 
+  // Recorder can be set/changed during IN_PROGRESS (not after voting begins)
+  const canSetRecorder = !['VOTING','MINUTES_DRAFT','MINUTES_CIRCULATED','SIGNED','LOCKED'].includes(meeting.status);
+
   return (
     <div className="space-y-2 py-2">
       <p className="text-zinc-600 text-[10px] uppercase tracking-widest font-semibold px-1">Meeting Roles</p>
+
+      {/* Chairperson */}
       <div>
         <p className="text-zinc-600 text-[10px] mb-0.5 px-1">Chairperson</p>
         {chairName
@@ -491,9 +501,25 @@ function RoleAssignmentMini({ meeting, directors, companyId, meetingId, jwt, onU
             </button>
         }
       </div>
+
+      {/* Minutes Recorder — selectable dropdown */}
       <div>
-        <p className="text-zinc-600 text-[10px] mb-0.5 px-1">Minutes Recorder</p>
-        <p className="text-zinc-400 text-[10px] px-1">{recorderName ?? 'Not designated'}</p>
+        <p className="text-zinc-600 text-[10px] mb-1 px-1">Minutes Recorder</p>
+        {canSetRecorder ? (
+          <select
+            value={meeting.minutesRecorderId ?? ''}
+            onChange={e => e.target.value && changeRecorder(e.target.value)}
+            disabled={saving}
+            className="w-full bg-[#0D0F12] border border-[#232830] rounded-lg px-2 py-1 text-[11px] text-zinc-300 focus:outline-none focus:border-blue-600 cursor-pointer disabled:opacity-50"
+          >
+            <option value="">— Designate recorder</option>
+            {directors.map((d: any) => (
+              <option key={d.user.id} value={d.user.id}>{d.user.name}</option>
+            ))}
+          </select>
+        ) : (
+          <p className="text-zinc-400 text-[10px] px-1">{recorderName ?? '— Not designated'}</p>
+        )}
       </div>
     </div>
   );
@@ -1042,7 +1068,33 @@ function ResolutionCard({ resolution, index, companyId, jwt, currentUserId, meet
 
 // ── Minutes Panel ─────────────────────────────────────────────────────────────
 
-function MinutesPanel({ minutes }: any) {
+function MinutesPanel({ minutes, companyId, meetingId, jwt }: any) {
+  const [exporting,  setExporting]  = useState(false);
+  const [exportUrl,  setExportUrl]  = useState<string | null>(null);
+  const [exportErr,  setExportErr]  = useState('');
+
+  // Minutes are available to download from MINUTES_CIRCULATED onwards so
+  // directors can review the draft PDF during the 7-day comment window.
+  const canExport = ['MINUTES_CIRCULATED', 'SIGNED', 'LOCKED'].includes(minutes.status);
+
+  async function handleExport() {
+    setExporting(true);
+    setExportErr('');
+    try {
+      const result = await minutesApi.exportPdf(companyId, meetingId, jwt);
+      // Backend returns { downloadUrl, objectPath }
+      const url = (result as any).downloadUrl ?? (result as any).s3Url;
+      if (url) {
+        setExportUrl(url);
+        window.open(url, '_blank');
+      }
+    } catch (err: any) {
+      setExportErr(err?.body?.message ?? 'PDF export failed. Please try again.');
+    } finally {
+      setExporting(false);
+    }
+  }
+
   return (
     <div className="max-w-2xl fade-up">
       <div className="flex items-center justify-between mb-6">
@@ -1052,9 +1104,25 @@ function MinutesPanel({ minutes }: any) {
         </div>
         <div className="flex items-center gap-3">
           <StatusBadge status={minutes.status.toLowerCase()} />
-          {minutes.status === 'SIGNED' && <Button size="sm" variant="outline">⬇ Download PDF</Button>}
+          {canExport && (
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={handleExport}
+              loading={exporting}
+            >
+              {exporting ? 'Generating…' : exportUrl ? '↗ Open PDF' : '⬇ Download PDF'}
+            </Button>
+          )}
         </div>
       </div>
+
+      {exportErr && (
+        <div className="mb-4 bg-red-950/30 border border-red-800/30 rounded-lg px-4 py-2.5 text-red-400 text-xs">
+          {exportErr}
+        </div>
+      )}
+
       {minutes.signatureHash && (
         <div className="mb-5 bg-green-950/30 border border-green-800/30 rounded-xl p-3.5 flex items-start gap-3">
           <span className="text-green-400 text-lg mt-0.5">✓</span>

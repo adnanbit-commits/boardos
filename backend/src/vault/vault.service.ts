@@ -343,23 +343,32 @@ export class VaultService {
     const noteMap = new Map(existingNotes.map((n) => [`${n.directorUserId}:${n.formType}`, n]));
     const compMap = new Map(complianceDocs.map((d) => [`${d.userId}:${d.formType}`, d]));
 
-    const rows = directors.map((m) => ({
+    const rows = await Promise.all(directors.map(async (m) => ({
       userId: m.user.id,
-      name: m.user.name,
-      email: m.user.email,
-      role: m.role,
-      forms: MANDATORY_FORMS.map((formType) => {
-        const note = noteMap.get(`${m.user.id}:${formType}`);
+      name:   m.user.name,
+      email:  m.user.email,
+      role:   m.role,
+      forms:  await Promise.all(MANDATORY_FORMS.map(async (formType) => {
+        const note    = noteMap.get(`${m.user.id}:${formType}`);
         const compDoc = compMap.get(`${m.user.id}:${formType}`);
         return {
           formType,
           note: note ?? null,
           complianceDoc: compDoc
-            ? { id: compDoc.id, fileName: compDoc.fileName, submittedAt: compDoc.submittedAt }
+            ? {
+                id:          compDoc.id,
+                fileName:    compDoc.fileName,
+                submittedAt: compDoc.submittedAt,
+                // Signed download URL so the chairperson can open the actual file
+                // before formally noting it — closes the review→note link.
+                downloadUrl: compDoc.fileUrl
+                  ? await this.storage.getDownloadUrl(compDoc.fileUrl)
+                  : null,
+              }
             : null,
         };
-      }),
-    }));
+      })),
+    })));
 
     // All noted = every director has a note for every mandatory form
     const totalRequired = directors.length * MANDATORY_FORMS.length;

@@ -1,77 +1,66 @@
 // ─── document/document.service.ts ────────────────────────────────────────────
-// Generates PDFs using Puppeteer and stores them in S3.
-// Called after minutes are signed or certified copies are requested.
+// Generates PDFs using Puppeteer and stores them in GCS.
+// Called when certified copies of resolutions are requested.
+//
+// NOTE: Minutes PDF export is handled by MinutesService.exportPdf()
+// which has direct access to MinutesService.buildMinutesContent().
+// This service handles resolution certified copies only.
 
 import { Injectable, NotFoundException } from '@nestjs/common';
 import * as puppeteer from 'puppeteer';
-import * as crypto from 'crypto';
-import { S3Client, PutObjectCommand } from '@aws-sdk/client-s3';
-import { PrismaService } from '../prisma/prisma.service';
-import { AuditService } from '../audit/audit.service';
+import * as crypto    from 'crypto';
+import { PrismaService }  from '../prisma/prisma.service';
+import { AuditService }   from '../audit/audit.service';
+import { StorageService } from '../storage/storage.service';
 
 @Injectable()
 export class DocumentService {
-  private _s3: S3Client | null = null;
-  private readonly bucket: string;
-
   constructor(
-    private readonly prisma: PrismaService,
-    private readonly audit: AuditService,
-  ) {
-    this.bucket = process.env.S3_BUCKET ?? '';
-  }
-
-  /** Lazy S3 client — only initialised when AWS_REGION is present */
-  private get s3(): S3Client {
-    if (!this._s3) {
-      const region = process.env.AWS_REGION;
-      if (!region) throw new Error('AWS_REGION is not configured. Set it in backend/.env to enable S3 document storage.');
-      this._s3 = new S3Client({
-        region,
-        credentials: {
-          accessKeyId:     process.env.AWS_ACCESS_KEY_ID!,
-          secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY!,
-        },
-      });
-    }
-    return this._s3;
-  }
-
+    private readonly prisma:   PrismaService,
+    private readonly audit:    AuditService,
+    private readonly storage:  StorageService,
+  ) {}
 
   // List all documents for a company
   async listByCompany(companyId: string) {
     return this.prisma.document.findMany({
-      where: { companyId },
+      where:   { companyId },
       include: { minutes: { select: { meetingId: true, status: true } } },
       orderBy: { createdAt: 'desc' },
     });
   }
 
-  // Generate PDF from signed minutes and store in S3
-  async generateMinutesPdf(companyId: string, meetingId: string, userId: string) {
+  // Generate PDF from signed minutes and store in GCS
+  async generateMinutesPdf(companyId: string, meetingId: string, actorId: string) {
     const minutes = await this.prisma.minutes.findUnique({
-      where: { meetingId },
+      where:   { meetingId },
       include: { meeting: { select: { title: true } } },
     });
 
-    if (!minutes) throw new NotFoundException('Minutes not found');
+    if (!minutes)                    throw new NotFoundException('Minutes not found');
     if (minutes.status !== 'SIGNED') throw new Error('Only signed minutes can be exported');
 
     const pdfBuffer = await this.htmlToPdf(minutes.content);
-    const hash = crypto.createHash('sha256').update(pdfBuffer).digest('hex');
+    const hash      = crypto.createHash('sha256').update(pdfBuffer).digest('hex');
 
-    const s3Key = `companies/${companyId}/minutes/${meetingId}.pdf`;
-    await this.uploadToS3(s3Key, pdfBuffer);
+    // Signed minutes are statutory records — use the archive path so they
+    // fall under the bucket retention policy and carry a temporary hold.
+    const objectPath = this.storage.buildArchivePath(companyId, 'minutes', `${meetingId}.pdf`);
+    await this.storage.uploadArchiveFile(objectPath, pdfBuffer, 'application/pdf', {
+      'x-boardos-meeting-id':  meetingId,
+      'x-boardos-minutes-hash': hash,
+    });
+    const downloadUrl = await this.storage.getDownloadUrl(objectPath, 120);
 
     const doc = await this.prisma.document.create({
       data: {
         companyId,
         minutesId: minutes.id,
-        name: `Minutes - ${minutes.meeting.title}`,
-        type: 'minutes',
-        s3Key,
-        s3Url: this.getS3Url(s3Key),
-        mimeType: 'application/pdf',
+        name:      `Minutes — ${minutes.meeting.title}`,
+        type:      'minutes',
+        s3Key:     objectPath,
+        s3Url:     downloadUrl,
+        mimeType:  'application/pdf',
         sizeBytes: pdfBuffer.length,
         hash,
         isImmutable: true,
@@ -79,88 +68,84 @@ export class DocumentService {
     });
 
     await this.audit.log({
-      companyId, userId,
+      companyId, userId: actorId,
       action: 'MINUTES_PDF_GENERATED',
-      entity: 'Document',
-      entityId: doc.id,
+      entity: 'Document', entityId: doc.id,
     });
 
-    return doc;
+    return { ...doc, downloadUrl };
   }
 
   // Generate a certified copy of an approved resolution
-  async generateCertifiedCopy(companyId: string, resolutionId: string, userId: string) {
+  async generateCertifiedCopy(
+    companyId: string,
+    resolutionId: string,
+    actorId: string,
+  ) {
     const resolution = await this.prisma.resolution.findFirst({
-      where: { id: resolutionId, companyId },
+      where:   { id: resolutionId, companyId },
       include: {
-        votes: { include: { user: { select: { name: true } } } },
+        votes:   { include: { user: { select: { name: true } } } },
         meeting: { include: { company: true } },
       },
     });
 
     if (!resolution) throw new NotFoundException('Resolution not found');
-    if (resolution.status !== 'APPROVED') throw new Error('Only approved resolutions can be certified');
+    if (resolution.status !== 'APPROVED')
+      throw new Error('Only approved resolutions can be certified');
 
-    const html = this.buildCertifiedCopyHtml(resolution);
+    const html      = this.buildCertifiedCopyHtml(resolution);
     const pdfBuffer = await this.htmlToPdf(html);
     const signatureHash = crypto.createHash('sha256').update(pdfBuffer).digest('hex');
 
-    const s3Key = `companies/${companyId}/certified/${resolutionId}.pdf`;
-    await this.uploadToS3(s3Key, pdfBuffer);
+    // Certified copies are statutory records — archive path + immutable storage.
+    const objectPath = this.storage.buildArchivePath(
+      companyId, 'certified', `${resolutionId}.pdf`,
+    );
+    await this.storage.uploadArchiveFile(objectPath, pdfBuffer, 'application/pdf', {
+      'x-boardos-resolution-id': resolutionId,
+      'x-boardos-signature-hash': signatureHash,
+    });
+    const downloadUrl = await this.storage.getDownloadUrl(objectPath, 120);
 
     const copy = await this.prisma.certifiedCopy.create({
       data: {
         resolutionId,
-        documentUrl: this.getS3Url(s3Key),
-        s3Key,
+        documentUrl:  downloadUrl,
+        s3Key:        objectPath,
         signatureHash,
       },
     });
 
     await this.audit.log({
-      companyId, userId,
-      action: 'CERTIFIED_COPY_GENERATED',
-      entity: 'CertifiedCopy',
-      entityId: copy.id,
+      companyId, userId: actorId,
+      action:   'CERTIFIED_COPY_GENERATED',
+      entity:   'CertifiedCopy', entityId: copy.id,
       metadata: { signatureHash },
     });
 
-    return copy;
+    return { ...copy, downloadUrl };
   }
 
   // ── Puppeteer helper ──────────────────────────────────────────────────────
   private async htmlToPdf(html: string): Promise<Buffer> {
     const browser = await puppeteer.launch({
+      executablePath: process.env.PUPPETEER_EXECUTABLE_PATH ?? '/usr/bin/chromium',
+      args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage'],
       headless: true,
-      args: ['--no-sandbox', '--disable-setuid-sandbox'],
     });
-    const page = await browser.newPage();
-    await page.setContent(html, { waitUntil: 'networkidle0' });
-
-    const pdf = await page.pdf({
-      format: 'A4',
-      margin: { top: '40px', bottom: '40px', left: '50px', right: '50px' },
-      printBackground: true,
-    });
-
-    await browser.close();
-    return Buffer.from(pdf);
-  }
-
-  // ── S3 helpers ────────────────────────────────────────────────────────────
-  private async uploadToS3(key: string, buffer: Buffer) {
-    await this.s3.send(new PutObjectCommand({
-      Bucket: this.bucket,
-      Key: key,
-      Body: buffer,
-      ContentType: 'application/pdf',
-      // Server-side encryption at rest
-      ServerSideEncryption: 'AES256',
-    }));
-  }
-
-  private getS3Url(key: string) {
-    return `https://${this.bucket}.s3.${process.env.AWS_REGION}.amazonaws.com/${key}`;
+    try {
+      const page = await browser.newPage();
+      await page.setContent(html, { waitUntil: 'networkidle0' });
+      const pdf = await page.pdf({
+        format: 'A4',
+        margin: { top: '20mm', bottom: '20mm', left: '20mm', right: '20mm' },
+        printBackground: true,
+      });
+      return Buffer.from(pdf);
+    } finally {
+      await browser.close();
+    }
   }
 
   // ── Certified copy HTML template ─────────────────────────────────────────
@@ -169,37 +154,48 @@ export class DocumentService {
       .filter((v: any) => v.value === 'APPROVE')
       .map((v: any) => v.user.name)
       .join(', ');
+    const rejections = resolution.votes
+      .filter((v: any) => v.value === 'REJECT')
+      .map((v: any) => v.user.name)
+      .join(', ');
 
     return `
       <html>
         <head>
           <style>
-            body { font-family: 'Times New Roman', serif; font-size: 12pt; line-height: 1.8; padding: 80px; }
-            h1 { text-align: center; font-size: 14pt; text-transform: uppercase; letter-spacing: 0.08em; }
-            .stamp { border: 2px solid #333; padding: 20px; margin: 40px 0; }
+            body { font-family: 'Times New Roman', serif; font-size: 12pt; line-height: 1.8; padding: 80px; color: #1a1a1a; }
+            h1 { text-align: center; font-size: 14pt; text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 4px; }
+            h2 { text-align: center; font-size: 12pt; font-weight: normal; color: #444; margin-top: 0; }
+            .stamp { border: 2px solid #333; padding: 24px 28px; margin: 32px 0; }
+            .resolution-text { font-style: italic; margin: 12px 0; padding: 12px 16px; background: #f9f9f9; border-left: 3px solid #333; }
             .footer { margin-top: 60px; font-size: 9pt; color: #666; border-top: 1px solid #ccc; padding-top: 12px; }
+            table { width: 100%; border-collapse: collapse; margin: 8px 0; font-size: 11pt; }
+            td { padding: 4px 0; vertical-align: top; }
+            td:first-child { width: 180px; font-weight: bold; color: #333; }
           </style>
         </head>
         <body>
-          <h1>Certified True Copy of Board Resolution</h1>
-          <p style="text-align:center"><strong>${resolution.meeting.company.name}</strong></p>
-          <p style="text-align:center">CIN: ${resolution.meeting.company.cin || '—'}</p>
+          <h1>Certified True Copy</h1>
+          <h2>Board Resolution — ${resolution.meeting.company.name}</h2>
+          ${resolution.meeting.company.cin ? `<p style="text-align:center;font-size:10pt;color:#666">CIN: ${resolution.meeting.company.cin}</p>` : ''}
 
           <div class="stamp">
-            <p><strong>Resolution Title:</strong> ${resolution.title}</p>
-            <p><strong>Meeting:</strong> ${resolution.meeting.title}</p>
-            <p><strong>Date:</strong> ${new Date(resolution.meeting.scheduledAt).toLocaleDateString('en-IN')}</p>
-            <p><strong>Status:</strong> APPROVED</p>
-            <p><strong>Voted in favour by:</strong> ${approvals}</p>
+            <table>
+              <tr><td>Resolution Title</td><td>${resolution.title}</td></tr>
+              <tr><td>Meeting</td><td>${resolution.meeting.title}</td></tr>
+              <tr><td>Date</td><td>${new Date(resolution.meeting.scheduledAt).toLocaleDateString('en-IN', { day: '2-digit', month: 'long', year: 'numeric' })}</td></tr>
+              <tr><td>Status</td><td>APPROVED</td></tr>
+              <tr><td>In favour</td><td>${approvals || '—'}</td></tr>
+              ${rejections ? `<tr><td>Dissenting</td><td>${rejections}</td></tr>` : ''}
+            </table>
           </div>
 
           <p><strong>Resolution Text:</strong></p>
-          <p style="font-style:italic">${resolution.text}</p>
+          <div class="resolution-text">${resolution.text}</div>
 
           <div class="footer">
-            <p>This is a certified true copy of the resolution passed at the Board Meeting.</p>
-            <p>Document Hash (SHA-256): [HASH]</p>
-            <p>Generated: ${new Date().toISOString()}</p>
+            <p>This is a certified true copy of the resolution passed at the Board Meeting of ${resolution.meeting.company.name}.</p>
+            <p>Generated: ${new Date().toLocaleString('en-IN')}</p>
           </div>
         </body>
       </html>`;

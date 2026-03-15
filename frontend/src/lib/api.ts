@@ -324,16 +324,48 @@ export const minutesApi = {
   sign: (companyId: string, meetingId: string, token: string) =>
     post<Minutes>(`/companies/${companyId}/meetings/${meetingId}/minutes/sign`, undefined, token),
   exportPdf: (companyId: string, meetingId: string, token: string) =>
-    post<{ s3Url: string; s3Key: string }>(`/companies/${companyId}/meetings/${meetingId}/minutes/export`, undefined, token),
+    post<{ downloadUrl: string; objectPath: string }>(`/companies/${companyId}/meetings/${meetingId}/minutes/export`, undefined, token),
 };
 
 // ── Archive ───────────────────────────────────────────────────────────────────
 
+// ── Archive entry type (full statutory register) ─────────────────────────────
+
+export interface ArchiveAttendanceRecord {
+  userId: string; name: string; mode: string;
+}
+export interface ArchiveDeclarationForm {
+  formType: string; received: boolean; notes: string | null;
+}
+export interface ArchiveDeclaration {
+  name: string;
+  forms: ArchiveDeclarationForm[];
+}
+export interface ArchiveResolution {
+  id: string; title: string; type: string; status: string;
+  tally: { APPROVE: number; REJECT: number; ABSTAIN: number };
+  dissenters: string[];
+  certifiedCopiesCount: number;
+}
+export interface ArchiveEntry {
+  id: string; companyId: string; title: string;
+  scheduledAt: string; status: 'SIGNED' | 'LOCKED';
+  location: string | null; videoProvider: string | null;
+  chairpersonId: string | null;
+  signedAt: string | null; signatureHash: string | null; minutesStatus: string | null;
+  attendanceRegister: {
+    present: ArchiveAttendanceRecord[];
+    absent:  ArchiveAttendanceRecord[];
+    presentCount: number; totalCount: number; quorumMet: boolean;
+  };
+  declarations: ArchiveDeclaration[];
+  resolutions: ArchiveResolution[];
+  documentCount: number; certifiedCopiesTotal: number;
+}
+
 export const archive = {
   list: (companyId: string, token: string) =>
-    get<(Meeting & { signatureHash?: string; documentCount: number; certifiedCopies: number })[]>(
-      `/companies/${companyId}/archive`, token,
-    ),
+    get<ArchiveEntry[]>(`/companies/${companyId}/archive`, token),
   lock: (companyId: string, meetingId: string, token: string) =>
     post<Meeting>(`/companies/${companyId}/archive/meetings/${meetingId}/lock`, undefined, token),
   certify: (companyId: string, meetingId: string, token: string) =>
@@ -516,7 +548,7 @@ export interface DocNotesResult {
     forms: {
       formType: string;
       note: DocNote | null;
-      complianceDoc: { id: string; fileName: string | null; submittedAt: string | null } | null;
+      complianceDoc: { id: string; fileName: string | null; submittedAt: string | null; downloadUrl: string | null } | null;
     }[];
   }[];
 }
