@@ -20,8 +20,53 @@ function currentFinancialYear(): string {
     : `${year - 1}-${String(year).slice(2)}`;
 }
 
-// Mandatory forms that must be noted by chairperson at each meeting
-export const MANDATORY_FORMS = ['DIR_8', 'MBP_1'] as const;
+// Context-aware mandatory forms for a meeting.
+// First meeting of the company: DIR_2 + DIR_8 + MBP_1 for all directors.
+// Subsequent meetings same FY: DIR_8 + MBP_1 only (unless a new director
+// was added since the last meeting, in which case DIR_2 is added for them).
+// Carry-forward: if DIR_8/MBP_1 were already noted THIS FY at a previous
+// meeting, they are satisfied — only show them if not yet noted this FY.
+export const MANDATORY_FORMS = ['DIR_8', 'MBP_1'] as const; // default for backward compat
+
+export async function getMandatoryFormsForMeeting(
+  prisma: any,
+  companyId: string,
+  meetingId: string,
+): Promise<string[]> {
+  const [meeting, company] = await Promise.all([
+    prisma.meeting.findUnique({ where: { id: meetingId }, select: { isFirstMeeting: true } }),
+    prisma.company.findUnique({ where: { id: companyId }, select: { firstBoardMeetingLockedId: true } }),
+  ]);
+
+  const isFirstMeeting = meeting?.isFirstMeeting || !company?.firstBoardMeetingLockedId;
+
+  if (isFirstMeeting) {
+    // First board meeting: must note DIR_2 (confirm appointment), DIR_8, MBP_1
+    return ['DIR_2', 'DIR_8', 'MBP_1'];
+  }
+
+  // Subsequent meetings: check if DIR_8/MBP_1 already noted this FY
+  const fy = currentFinancialYear();
+  const alreadyNotedThisFY = await prisma.meetingDocNote.findFirst({
+    where: {
+      companyId,
+      formType: { in: ['DIR_8', 'MBP_1'] },
+      meeting: {
+        status: { in: ['SIGNED', 'LOCKED'] },
+        // Only count meetings in the current FY (April 1 start)
+        scheduledAt: { gte: new Date(`${fy.split('-')[0]}-04-01`) },
+      },
+    },
+  });
+
+  if (alreadyNotedThisFY) {
+    // DIR_8/MBP_1 already satisfied this FY — no mandatory forms unless new director
+    // New directors (DIR_2 not yet noted) are handled per-director in the matrix
+    return [];
+  }
+
+  return ['DIR_8', 'MBP_1'];
+}
 
 @Injectable()
 export class VaultService {
@@ -343,12 +388,19 @@ export class VaultService {
     const noteMap = new Map(existingNotes.map((n) => [`${n.directorUserId}:${n.formType}`, n]));
     const compMap = new Map(complianceDocs.map((d) => [`${d.userId}:${d.formType}`, d]));
 
+    // Get context-aware mandatory forms for this specific meeting
+    const mandatoryForms = await getMandatoryFormsForMeeting(this.prisma, companyId, meetingId);
+
+    // If no mandatory forms (already satisfied this FY), return empty matrix
+    // but still show the rows so chairperson can see directors are compliant
+    const formsToShow = mandatoryForms.length > 0 ? mandatoryForms : ['DIR_8', 'MBP_1'];
+
     const rows = await Promise.all(directors.map(async (m) => ({
       userId: m.user.id,
       name:   m.user.name,
       email:  m.user.email,
       role:   m.role,
-      forms:  await Promise.all(MANDATORY_FORMS.map(async (formType) => {
+      forms:  await Promise.all(formsToShow.map(async (formType) => {
         const note    = noteMap.get(`${m.user.id}:${formType}`);
         const compDoc = compMap.get(`${m.user.id}:${formType}`);
         return {
@@ -371,7 +423,7 @@ export class VaultService {
     })));
 
     // All noted = every director has a note for every mandatory form
-    const totalRequired = directors.length * MANDATORY_FORMS.length;
+    const totalRequired = directors.length * formsToShow.length;
     const totalNoted = existingNotes.length;
     const allNoted = totalNoted >= totalRequired;
 

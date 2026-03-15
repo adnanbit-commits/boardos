@@ -182,6 +182,7 @@ model User {
   meetingDocUploads   MeetingDocument[]      @relation("MeetingDocUploads")
   shareLinkCreated    MeetingShareLink[]     @relation("ShareLinkCreators")
   directorNotes       MeetingDocNote[]       @relation("DirectorNotes")
+  rollCalls           MeetingRollCall[]
   chairNotes          MeetingDocNote[]       @relation("ChairNotes")
 
   @@map("users")
@@ -199,7 +200,8 @@ model Company {
   registeredAt  String?           // e.g. "Mumbai, MH"
   logoUrl       String?
   isActive            Boolean  @default(true)
-  minutesCustodianId  String?  // Director authorised to keep statutory registers (Rule 25(1)(f))
+  minutesCustodianId          String?  // Director authorised to keep statutory registers (Rule 25(1)(f))
+  firstBoardMeetingLockedId   String?  // meetingId of locked first meeting — suppresses first-meeting-only template items
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 
@@ -285,7 +287,17 @@ model Meeting {
 
   chairpersonId    String?       // Director elected as chairperson for this specific meeting
   minutesRecorderId String?      // Director authorised to record proceedings for this meeting (SS-1)
-  minutesCirculatedAt DateTime?   // When draft minutes were circulated to directors
+  minutesCirculatedAt   DateTime?   // When draft minutes were circulated to directors
+
+  // First meeting + virtual meeting fields
+  isFirstMeeting          Boolean   @default(false)  // flags first board meeting post-incorporation
+  deemedVenue             String?   // SS-1: venue for virtual meetings (usually registered office)
+  noticeSentAt            DateTime? // when notice was dispatched
+  noticeAcknowledgedBy    String[]  @default([]) @map("notice_acknowledged_by")
+  rollCallCompletedAt     DateTime?
+  quorumConfirmedAt       DateTime?
+  quorumConfirmedBy       String?   // userId of chairperson who confirmed quorum
+
   createdAt     DateTime      @default(now())
   updatedAt     DateTime      @updatedAt
 
@@ -298,6 +310,7 @@ model Meeting {
   documents     MeetingDocument[]
   shareLink     MeetingShareLink?
   docNotes      MeetingDocNote[]
+  rollCalls     MeetingRollCall[]
 
   @@map("meetings")
 }
@@ -340,6 +353,14 @@ model AgendaItem {
   description String?
   order       Int      @default(0)
   isAob       Boolean  @default(false)  // Added after meeting started — Any Other Business (SS-1 Clause 6)
+
+  // Typed items drive specialised UI — STANDARD works as before
+  // Values: STANDARD | ROLL_CALL | QUORUM_CONFIRMATION | CHAIRPERSON_ELECTION |
+  //         COMPLIANCE_NOTING | VAULT_DOC_NOTING | ELECTRONIC_CONSENT
+  itemType     String   @default("STANDARD") @map("item_type")
+  legalBasis   String?  @map("legal_basis")    // shown to CS, never in minutes
+  guidanceNote String?  @map("guidance_note")  // shown to CS, never in minutes
+
   createdAt   DateTime @default(now())
 
   meeting     Meeting      @relation(fields: [meetingId], references: [id], onDelete: Cascade)
@@ -362,6 +383,8 @@ model Resolution {
   serialNumber String?          // e.g. CR/2026/001 — assigned on circulate
   notedAtMeetingId String?      // Sec. 175(2) — noted at subsequent board meeting
   agendaItemId String?
+  vaultDocId   String?  // exhibit: vault document linked to this NOTING resolution
+  meetingDocId String?  // exhibit: meeting document linked to this NOTING resolution
   title        String
   text         String           // Full legal resolution text
   status       ResolutionStatus @default(DRAFT)
@@ -371,6 +394,8 @@ model Resolution {
   company      Company          @relation(fields: [companyId], references: [id])
   meeting      Meeting?         @relation(fields: [meetingId], references: [id])
   agendaItem   AgendaItem?      @relation(fields: [agendaItemId], references: [id])
+  vaultDoc     VaultDocument?   @relation(fields: [vaultDocId],   references: [id])
+  meetingDoc   MeetingDocument? @relation(fields: [meetingDocId], references: [id])
   votes        Vote[]
   certifiedCopies CertifiedCopy[]
   signatures   CircularSignature[]
@@ -568,6 +593,8 @@ model VaultDocument {
   uploader   User    @relation("VaultUploads", fields: [uploadedBy], references: [id])
 
   // Only one document per slot per company (CUSTOM can have multiples)
+  resolutions Resolution[]
+
   @@unique([companyId, docType, label])
   @@map("vault_documents")
 }
@@ -613,6 +640,8 @@ model MeetingDocument {
   company   Company @relation(fields: [companyId], references: [id])
   uploader  User    @relation("MeetingDocUploads", fields: [uploadedBy], references: [id])
 
+  resolutions Resolution[]
+
   @@map("meeting_documents")
 }
 
@@ -651,4 +680,29 @@ model MeetingDocNote {
 
   @@unique([meetingId, directorUserId, formType])
   @@map("meeting_doc_notes")
+}
+
+// ─────────────────────────────────────────────
+// MEETING ROLL CALL
+// ─────────────────────────────────────────────
+
+// Per-director roll call response at meeting opening.
+// Required by SS-1 Rule 3(4) for video conferencing — every director
+// must confirm their location and that no third party is present.
+// Recorded in minutes automatically.
+
+model MeetingRollCall {
+  id                 String   @id @default(uuid())
+  meetingId          String
+  userId             String
+  location           String   // city/address director is attending from
+  noThirdParty       Boolean  @default(false) // confirmed no one else present
+  materialsReceived  Boolean  @default(false) // confirmed receipt of notice + agenda
+  respondedAt        DateTime @default(now())
+
+  meeting  Meeting @relation(fields: [meetingId], references: [id], onDelete: Cascade)
+  user     User    @relation(fields: [userId],    references: [id])
+
+  @@unique([meetingId, userId])
+  @@map("meeting_roll_calls")
 }

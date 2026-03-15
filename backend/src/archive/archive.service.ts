@@ -14,9 +14,10 @@
 import {
   Injectable, NotFoundException, BadRequestException,
 } from '@nestjs/common';
-import { PrismaService }   from '../prisma/prisma.service';
-import { DocumentService } from '../document/document.service';
-import { AuditService }    from '../audit/audit.service';
+import { PrismaService }    from '../prisma/prisma.service';
+import { DocumentService }  from '../document/document.service';
+import { AuditService }     from '../audit/audit.service';
+import { CompanyService }   from '../company/company.service';
 import * as crypto         from 'crypto';
 
 @Injectable()
@@ -25,6 +26,7 @@ export class ArchiveService {
     private readonly prisma:     PrismaService,
     private readonly documents:  DocumentService,
     private readonly audit:      AuditService,
+    private readonly companies:  CompanyService,
   ) {}
 
   // ── List archived meetings with full statutory register ──────────────────
@@ -156,6 +158,12 @@ export class ArchiveService {
       entity:   'Meeting', entityId: meetingId,
       metadata: { signatureHash: meeting.minutes.signatureHash },
     });
+
+    // If this is the first board meeting, mark it on the company.
+    // This suppresses first-meeting-only items from all future meeting templates.
+    if ((meeting as any).isFirstMeeting) {
+      await this.companies.setFirstMeetingLocked(companyId, meetingId);
+    }
 
     return locked;
   }

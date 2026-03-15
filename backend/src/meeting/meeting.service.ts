@@ -81,7 +81,19 @@ export class MeetingService {
     if (!meeting) throw new NotFoundException('Meeting not found');
     const count = await this.prisma.agendaItem.count({ where: { meetingId } });
     const isAob = ['IN_PROGRESS', 'VOTING'].includes(meeting.status);
-    return this.prisma.agendaItem.create({ data: { meetingId, ...dto, order: count + 1, isAob } });
+    return this.prisma.agendaItem.create({
+      data: {
+        meetingId,
+        title:       dto.title,
+        description: dto.description,
+        order:       count + 1,
+        isAob,
+        // Typed item metadata from template application
+        ...(dto.itemType    ? { itemType:    dto.itemType    } : {}),
+        ...(dto.legalBasis  ? { legalBasis:  dto.legalBasis  } : {}),
+        ...(dto.guidanceNote? { guidanceNote:dto.guidanceNote} : {}),
+      } as any,
+    });
   }
 
   // ── Chairperson ──────────────────────────────────────────────────────────────
@@ -164,28 +176,32 @@ export class MeetingService {
       throw new BadRequestException(`Cannot transition from ${meeting.status} to ${targetStatus}`);
     }
 
-    // Chairperson must be elected before meeting starts
-    if (targetStatus === 'IN_PROGRESS' && !(meeting as any).chairpersonId) {
-      throw new BadRequestException(
-        'A chairperson must be elected before the meeting can be opened. Use POST /meetings/:id/chairperson first.',
-      );
-    }
-
-    // All mandatory compliance documents must be noted by chairperson before opening
+    // SCHEDULED → IN_PROGRESS: all expected directors must have attendance recorded.
+    // Chairperson election, quorum confirmation, and compliance noting all happen
+    // as agenda items AFTER the meeting opens — not as pre-conditions.
     if (targetStatus === 'IN_PROGRESS') {
-      const directors = await this.prisma.companyUser.findMany({
+      const members = await this.prisma.companyUser.findMany({
         where: { companyId, role: { in: ['DIRECTOR', 'COMPANY_SECRETARY'] }, acceptedAt: { not: null } },
       });
-      const MANDATORY_FORMS = ['DIR_8', 'MBP_1'];
-      const totalRequired = directors.length * MANDATORY_FORMS.length;
-      const totalNoted = await this.prisma.meetingDocNote.count({
-        where: { meetingId: id, formType: { in: MANDATORY_FORMS as any[] } },
+      const attendanceCount = await this.prisma.meetingAttendance.count({
+        where: { meetingId: id },
       });
-      if (totalNoted < totalRequired) {
-        const missing = totalRequired - totalNoted;
+      if (attendanceCount === 0) {
         throw new BadRequestException(
-          `${missing} compliance document(s) have not been noted by the Chairperson. ` +
-          `Please open the Documents panel and note all DIR-8 and MBP-1 declarations before opening the meeting.`,
+          'Attendance has not been recorded for any director. ' +
+          'Please record attendance (roll call) before opening the meeting to business.',
+        );
+      }
+      // Quorum check: max(2, ceil(n/3)) directors must be present (not ABSENT)
+      const presentCount = await this.prisma.meetingAttendance.count({
+        where: { meetingId: id, mode: { notIn: ['ABSENT', 'REQUESTED_VIDEO', 'REQUESTED_PHONE'] as any[] } },
+      });
+      const quorumRequired = Math.max(2, Math.ceil(members.length / 3));
+      if (presentCount < quorumRequired) {
+        throw new BadRequestException(
+          `Quorum not met. ${presentCount} of ${members.length} directors present — ` +
+          `minimum ${quorumRequired} required (Sec. 174 Companies Act 2013). ` +
+          `The meeting cannot be opened without quorum.`,
         );
       }
     }
@@ -408,4 +424,176 @@ export class MeetingService {
 
     return { message: 'Attendance request sent to chairperson and Company Secretary' };
   }
+  // ── Notice acknowledgement ────────────────────────────────────────────────────
+  // Each director confirms receipt of notice and agenda before the meeting.
+  // Satisfies SS-1 requirement that materials be received before participation.
+
+  async acknowledgeNotice(companyId: string, meetingId: string, userId: string) {
+    const meeting = await this.prisma.meeting.findFirst({ where: { id: meetingId, companyId } });
+    if (!meeting) throw new NotFoundException('Meeting not found');
+    if (!['DRAFT', 'SCHEDULED'].includes(meeting.status)) {
+      throw new BadRequestException('Notice can only be acknowledged for draft or scheduled meetings');
+    }
+
+    const alreadyAck = (meeting as any).noticeAcknowledgedBy ?? [];
+    if (alreadyAck.includes(userId)) {
+      return { acknowledged: true, noticeAcknowledgedBy: alreadyAck };
+    }
+
+    const updated = await this.prisma.meeting.update({
+      where: { id: meetingId },
+      data: { noticeAcknowledgedBy: { push: userId } },
+    });
+
+    await this.audit.log({
+      companyId, userId,
+      action: 'NOTICE_ACKNOWLEDGED', entity: 'Meeting', entityId: meetingId,
+    });
+
+    return { acknowledged: true, noticeAcknowledgedBy: (updated as any).noticeAcknowledgedBy };
+  }
+
+  // ── Roll call ─────────────────────────────────────────────────────────────────
+  // Each director responding to the roll call states their location and confirms:
+  //   (a) their location, (b) no third party present, (c) materials received.
+  // Required by SS-1 Rule 3(4) for video conferencing meetings.
+  // When all present directors have responded, rollCallCompletedAt is set.
+
+  async submitRollCall(
+    companyId: string,
+    meetingId: string,
+    userId: string,
+    body: { location: string; noThirdParty: boolean; materialsReceived: boolean },
+  ) {
+    const meeting = await this.prisma.meeting.findFirst({ where: { id: meetingId, companyId } });
+    if (!meeting) throw new NotFoundException('Meeting not found');
+    if (!['SCHEDULED', 'IN_PROGRESS'].includes(meeting.status)) {
+      throw new BadRequestException('Roll call can only be submitted for scheduled or in-progress meetings');
+    }
+
+    // Upsert roll call response
+    const rollCall = await (this.prisma as any).meetingRollCall.upsert({
+      where: { meetingId_userId: { meetingId, userId } },
+      create: { meetingId, userId, ...body, respondedAt: new Date() },
+      update: { ...body, respondedAt: new Date() },
+    });
+
+    // Check if all present directors have responded
+    const presentAttendance = await this.prisma.meetingAttendance.findMany({
+      where: { meetingId, mode: { notIn: ['ABSENT', 'REQUESTED_VIDEO', 'REQUESTED_PHONE'] as any[] } },
+    });
+    const respondedIds = await (this.prisma as any).meetingRollCall.findMany({
+      where: { meetingId },
+      select: { userId: true },
+    });
+    const respondedSet = new Set(respondedIds.map((r: any) => r.userId));
+    const allResponded = presentAttendance.every(a => respondedSet.has(a.userId));
+
+    if (allResponded && !(meeting as any).rollCallCompletedAt) {
+      await this.prisma.meeting.update({
+        where: { id: meetingId },
+        data: { rollCallCompletedAt: new Date() } as any,
+      });
+    }
+
+    await this.audit.log({
+      companyId, userId,
+      action: 'ROLL_CALL_SUBMITTED', entity: 'Meeting', entityId: meetingId,
+      metadata: { location: body.location, allResponded },
+    });
+
+    return { rollCall, allResponded };
+  }
+
+  async getRollCall(companyId: string, meetingId: string) {
+    const meeting = await this.prisma.meeting.findFirst({ where: { id: meetingId, companyId } });
+    if (!meeting) throw new NotFoundException('Meeting not found');
+
+    const [responses, presentAttendance] = await Promise.all([
+      (this.prisma as any).meetingRollCall.findMany({
+        where: { meetingId },
+        include: { user: { select: { id: true, name: true } } },
+      }),
+      this.prisma.meetingAttendance.findMany({
+        where: { meetingId, mode: { notIn: ['ABSENT', 'REQUESTED_VIDEO', 'REQUESTED_PHONE'] as any[] } },
+        include: { user: { select: { id: true, name: true } } },
+      }),
+    ]);
+
+    const respondedSet = new Set(responses.map((r: any) => r.userId));
+    const pendingDirectors = presentAttendance
+      .filter(a => !respondedSet.has(a.userId))
+      .map(a => ({ userId: a.userId, name: a.user.name }));
+
+    return {
+      responses,
+      pendingDirectors,
+      allResponded: pendingDirectors.length === 0,
+      rollCallCompletedAt: (meeting as any).rollCallCompletedAt ?? null,
+    };
+  }
+
+  // ── Quorum confirmation ───────────────────────────────────────────────────────
+  // Chairperson formally confirms quorum on the record after roll call.
+  // This is agenda item 2 in the guided flow.
+
+  async confirmQuorum(companyId: string, meetingId: string, userId: string) {
+    const meeting = await this.prisma.meeting.findFirst({ where: { id: meetingId, companyId } });
+    if (!meeting) throw new NotFoundException('Meeting not found');
+    if (!['SCHEDULED', 'IN_PROGRESS'].includes(meeting.status)) {
+      throw new BadRequestException('Quorum can only be confirmed for open meetings');
+    }
+    if ((meeting as any).chairpersonId !== userId) {
+      throw new ForbiddenException('Only the elected Chairperson can confirm quorum on the record');
+    }
+
+    const members = await this.prisma.companyUser.findMany({
+      where: { companyId, role: { in: ['DIRECTOR', 'COMPANY_SECRETARY'] }, acceptedAt: { not: null } },
+    });
+    const presentCount = await this.prisma.meetingAttendance.count({
+      where: { meetingId, mode: { notIn: ['ABSENT', 'REQUESTED_VIDEO', 'REQUESTED_PHONE'] as any[] } },
+    });
+    const quorumRequired = Math.max(2, Math.ceil(members.length / 3));
+
+    if (presentCount < quorumRequired) {
+      throw new BadRequestException(
+        `Cannot confirm quorum: only ${presentCount} of ${members.length} directors present ` +
+        `(minimum ${quorumRequired} required).`,
+      );
+    }
+
+    const updated = await this.prisma.meeting.update({
+      where: { id: meetingId },
+      data: { quorumConfirmedAt: new Date(), quorumConfirmedBy: userId } as any,
+    });
+
+    await this.audit.log({
+      companyId, userId,
+      action: 'QUORUM_CONFIRMED', entity: 'Meeting', entityId: meetingId,
+      metadata: { presentCount, totalMembers: members.length, quorumRequired },
+    });
+
+    return {
+      confirmed: true,
+      presentCount,
+      totalMembers: members.length,
+      quorumRequired,
+      quorumConfirmedAt: (updated as any).quorumConfirmedAt,
+    };
+  }
+
+  // ── Mark meeting as first board meeting ──────────────────────────────────────
+
+  async markAsFirstMeeting(companyId: string, meetingId: string, userId: string) {
+    const meeting = await this.prisma.meeting.findFirst({ where: { id: meetingId, companyId } });
+    if (!meeting) throw new NotFoundException('Meeting not found');
+    if (!['DRAFT', 'SCHEDULED'].includes(meeting.status)) {
+      throw new BadRequestException('Can only mark a draft or scheduled meeting as the first meeting');
+    }
+    return this.prisma.meeting.update({
+      where: { id: meetingId },
+      data: { isFirstMeeting: true } as any,
+    });
+  }
+
 }

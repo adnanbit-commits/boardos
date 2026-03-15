@@ -91,9 +91,40 @@ export interface Meeting {
   minutesCirculatedAt?: string | null;
 }
 
+export interface MeetingRollCallResponse {
+  userId:            string;
+  location:          string;
+  noThirdParty:      boolean;
+  materialsReceived: boolean;
+  respondedAt:       string;
+  user:              { id: string; name: string };
+}
+
+export interface RollCallStatus {
+  responses:           MeetingRollCallResponse[];
+  pendingDirectors:    { userId: string; name: string }[];
+  allResponded:        boolean;
+  rollCallCompletedAt: string | null;
+}
+
+export interface QuorumResult {
+  confirmed:           boolean;
+  presentCount:        number;
+  totalMembers:        number;
+  quorumRequired:      number;
+  quorumConfirmedAt:   string;
+}
+
 export type MeetingDetail = Meeting & {
-  agendaItems: AgendaItem[];
-  minutes?: Minutes | null;
+  agendaItems:             AgendaItem[];
+  minutes?:                Minutes | null;
+  isFirstMeeting?:         boolean;
+  deemedVenue?:            string | null;
+  noticeSentAt?:           string | null;
+  noticeAcknowledgedBy?:   string[];
+  rollCallCompletedAt?:    string | null;
+  quorumConfirmedAt?:      string | null;
+  quorumConfirmedBy?:      string | null;
 };
 
 export interface Resolution {
@@ -104,6 +135,10 @@ export interface Resolution {
   votes?: Vote[];
   directorCount?: number;
   createdAt: string;
+  vaultDocId?:   string | null;
+  meetingDocId?: string | null;
+  // Exhibit document — returned by findByMeeting, must be opened before noting
+  exhibitDoc?: { fileName: string; downloadUrl: string } | null;
 }
 
 export type ResolutionWithTally = Resolution & {
@@ -233,7 +268,7 @@ export const meetings = {
     patch<Meeting>(`/companies/${companyId}/meetings/${meetingId}`, body, token),
   advance: (companyId: string, meetingId: string, status: string, token: string) =>
     patch<Meeting>(`/companies/${companyId}/meetings/${meetingId}/status/${status}`, undefined, token),
-  addAgendaItem: (companyId: string, meetingId: string, body: { title: string; description?: string }, token: string) =>
+  addAgendaItem: (companyId: string, meetingId: string, body: { title: string; description?: string; itemType?: string; legalBasis?: string; guidanceNote?: string }, token: string) =>
     post<AgendaItem>(`/companies/${companyId}/meetings/${meetingId}/agenda`, body, token),
   getAttendance: (companyId: string, meetingId: string, token: string) =>
     get<AttendanceRecord[]>(`/companies/${companyId}/meetings/${meetingId}/attendance`, token),
@@ -249,6 +284,18 @@ export const meetings = {
     get<DirectorDeclarationRecord[]>(`/companies/${companyId}/meetings/${meetingId}/declarations`, token),
   recordDeclaration: (companyId: string, meetingId: string, body: { userId: string; formType: DeclarationFormType; received: boolean; notes?: string }, token: string) =>
     post<DirectorDeclarationRecord>(`/companies/${companyId}/meetings/${meetingId}/declarations`, body, token),
+
+  // ── Guided first meeting flow ───────────────────────────────────────────────
+  markAsFirstMeeting: (companyId: string, meetingId: string, token: string) =>
+    post<Meeting>(`/companies/${companyId}/meetings/${meetingId}/mark-first-meeting`, undefined, token),
+  acknowledgeNotice: (companyId: string, meetingId: string, token: string) =>
+    post<{ acknowledged: boolean; noticeAcknowledgedBy: string[] }>(`/companies/${companyId}/meetings/${meetingId}/acknowledge-notice`, undefined, token),
+  getRollCall: (companyId: string, meetingId: string, token: string) =>
+    get<RollCallStatus>(`/companies/${companyId}/meetings/${meetingId}/roll-call`, token),
+  submitRollCall: (companyId: string, meetingId: string, body: { location: string; noThirdParty: boolean; materialsReceived: boolean }, token: string) =>
+    post<{ rollCall: MeetingRollCallResponse; allResponded: boolean }>(`/companies/${companyId}/meetings/${meetingId}/roll-call`, body, token),
+  confirmQuorum: (companyId: string, meetingId: string, token: string) =>
+    post<QuorumResult>(`/companies/${companyId}/meetings/${meetingId}/confirm-quorum`, undefined, token),
 };
 
 // ── Meeting Templates ─────────────────────────────────────────────────────────
@@ -285,7 +332,7 @@ export const resolutions = {
     get<Resolution[]>(`/companies/${companyId}/resolutions${params?.status ? `?status=${params.status}` : ''}`, token),
   listForMeeting: (companyId: string, meetingId: string, token: string) =>
     get<Resolution[]>(`/companies/${companyId}/meetings/${meetingId}/resolutions`, token),
-  create: (companyId: string, meetingId: string, body: { title: string; text: string; agendaItemId?: string; type?: 'MEETING' | 'NOTING' }, token: string) =>
+  create: (companyId: string, meetingId: string, body: { title: string; text: string; agendaItemId?: string; type?: 'MEETING' | 'NOTING'; vaultDocId?: string; meetingDocId?: string }, token: string) =>
     post<Resolution>(`/companies/${companyId}/meetings/${meetingId}/resolutions`, body, token),
   update: (companyId: string, resolutionId: string, body: Partial<{ title: string; text: string }>, token: string) =>
     patch<Resolution>(`/companies/${companyId}/resolutions/${resolutionId}`, body, token),

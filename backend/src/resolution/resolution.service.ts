@@ -72,19 +72,25 @@ export class ResolutionService {
     const resolutions = await this.prisma.resolution.findMany({
       where: { companyId, meetingId },
       include: {
-        agendaItem: { select: { id: true, title: true, order: true } },
-        votes: {
-          include: { user: { select: { id: true, name: true } } },
-        },
+        agendaItem:      { select: { id: true, title: true, order: true } },
+        votes:           { include: { user: { select: { id: true, name: true } } } },
         certifiedCopies: { select: { id: true, certifiedAt: true, documentUrl: true } },
+        // Exhibit document — vault slot linked to this NOTING resolution
+        vaultDoc:        { select: { id: true, fileName: true, fileUrl: true, docType: true, label: true } },
+        // Exhibit document — meeting paper linked to this NOTING resolution
+        meetingDoc:      { select: { id: true, fileName: true, fileUrl: true, title: true, docType: true } },
       },
       orderBy: { createdAt: 'asc' },
     });
 
-    // Attach computed tally to each resolution — saves the frontend an extra call
-    return resolutions.map(r => ({
-      ...r,
-      tally: this.computeTally(r.votes),
+    // Attach computed tally + exhibit download URLs
+    return Promise.all(resolutions.map(async r => {
+      const exhibitDoc = await this.resolveExhibitDoc(r);
+      return {
+        ...r,
+        tally:      this.computeTally(r.votes),
+        exhibitDoc, // { fileName, downloadUrl } | null
+      };
     }));
   }
 
@@ -148,11 +154,13 @@ export class ResolutionService {
       data: {
         companyId,
         meetingId,
-        agendaItemId: dto.agendaItemId,
-        title: dto.title,
-        text: dto.text,
-        type: dto.type ?? 'MEETING',  // MEETING | NOTING
-        status: ResolutionStatus.DRAFT,
+        agendaItemId:  dto.agendaItemId,
+        title:         dto.title,
+        text:          dto.text,
+        type:          dto.type ?? 'MEETING',
+        status:        ResolutionStatus.DRAFT,
+        vaultDocId:    (dto as any).vaultDocId    ?? null,
+        meetingDocId:  (dto as any).meetingDocId  ?? null,
       },
       include: {
         meeting:   { select: { title: true } },
@@ -487,4 +495,48 @@ export class ResolutionService {
       ),
     );
   }
+  // ── Exhibit document resolver ─────────────────────────────────────────────────
+  // Returns a short-lived signed download URL for the exhibit document linked to
+  // a NOTING resolution. This is the document the chairperson must open before
+  // placing the resolution on record — vault docs (COI, MOA, AOA etc.) or
+  // meeting papers (supporting documents, director declarations).
+
+  private async resolveExhibitDoc(resolution: any): Promise<{ fileName: string; downloadUrl: string } | null> {
+    if (resolution.type !== 'NOTING') return null;
+
+    // Vault document takes priority (statutory docs like COI, MOA, AOA)
+    if (resolution.vaultDoc?.fileUrl) {
+      try {
+        const { Storage } = require('@google-cloud/storage');
+        const storage = new Storage({ projectId: process.env.GCS_PROJECT_ID });
+        const bucket  = process.env.GCS_BUCKET_NAME ?? 'boardos-vault';
+        const [url]   = await storage.bucket(bucket).file(resolution.vaultDoc.fileUrl).getSignedUrl({
+          version: 'v4', action: 'read',
+          expires: Date.now() + 60 * 60 * 1000, // 1 hour
+        });
+        return { fileName: resolution.vaultDoc.fileName, downloadUrl: url };
+      } catch {
+        return { fileName: resolution.vaultDoc.fileName, downloadUrl: `__proxy__:${resolution.vaultDoc.fileUrl}` };
+      }
+    }
+
+    // Meeting document (supporting papers, custom docs)
+    if (resolution.meetingDoc?.fileUrl) {
+      try {
+        const { Storage } = require('@google-cloud/storage');
+        const storage = new Storage({ projectId: process.env.GCS_PROJECT_ID });
+        const bucket  = process.env.GCS_BUCKET_NAME ?? 'boardos-vault';
+        const [url]   = await storage.bucket(bucket).file(resolution.meetingDoc.fileUrl).getSignedUrl({
+          version: 'v4', action: 'read',
+          expires: Date.now() + 60 * 60 * 1000,
+        });
+        return { fileName: resolution.meetingDoc.fileName, downloadUrl: url };
+      } catch {
+        return { fileName: resolution.meetingDoc.fileName, downloadUrl: `__proxy__:${resolution.meetingDoc.fileUrl}` };
+      }
+    }
+
+    return null;
+  }
+
 }

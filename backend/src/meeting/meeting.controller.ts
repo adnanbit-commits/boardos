@@ -1,11 +1,11 @@
-import { Controller, Get, Post, Patch, Delete, Param, Body, UseGuards, Req } from '@nestjs/common';
-import { JwtAuthGuard }   from '../auth/jwt-auth.guard';
-import { CompanyGuard }   from '../company/guards/company.guard';
-import { RequireRole, RequireWorkspaceAdmin }    from '../company/decorators/require-role.decorator';
-import { MeetingService } from './meeting.service';
-import { CreateMeetingDto } from './dto/create-meeting.dto';
-import { UpdateMeetingDto } from './dto/update-meeting.dto';
-import { AddAgendaItemDto } from './dto/add-agenda-item.dto';
+import { Controller, Get, Post, Patch, Delete, Param, Body, UseGuards, Req, HttpCode } from '@nestjs/common';
+import { JwtAuthGuard }        from '../auth/jwt-auth.guard';
+import { CompanyGuard }        from '../company/guards/company.guard';
+import { RequireRole, RequireWorkspaceAdmin } from '../company/decorators/require-role.decorator';
+import { MeetingService }      from './meeting.service';
+import { CreateMeetingDto }    from './dto/create-meeting.dto';
+import { UpdateMeetingDto }    from './dto/update-meeting.dto';
+import { AddAgendaItemDto }    from './dto/add-agenda-item.dto';
 
 @UseGuards(JwtAuthGuard, CompanyGuard)
 @Controller('companies/:companyId/meetings')
@@ -52,15 +52,13 @@ export class MeetingController {
     return this.meetingService.transition(companyId, id, status, req.user.userId);
   }
 
-  // ── Chairperson ─────────────────────────────────────────────────────────────
+  // ── Chairperson & Recorder ──────────────────────────────────────────────────
 
   @Post(':id/chairperson')
   @RequireRole('DIRECTOR')
   electChairperson(
-    @Param('companyId') companyId: string,
-    @Param('id') meetingId: string,
-    @Body() body: { chairpersonId: string },
-    @Req() req: any,
+    @Param('companyId') companyId: string, @Param('id') meetingId: string,
+    @Body() body: { chairpersonId: string }, @Req() req: any,
   ) {
     return this.meetingService.electChairperson(companyId, meetingId, body.chairpersonId, req.user.userId);
   }
@@ -68,15 +66,60 @@ export class MeetingController {
   @Post(':id/recorder')
   @RequireRole('DIRECTOR')
   setMinutesRecorder(
-    @Param('companyId') companyId: string,
-    @Param('id') meetingId: string,
-    @Body() body: { recorderId: string },
-    @Req() req: any,
+    @Param('companyId') companyId: string, @Param('id') meetingId: string,
+    @Body() body: { recorderId: string }, @Req() req: any,
   ) {
     return this.meetingService.setMinutesRecorder(companyId, meetingId, body.recorderId, req.user.userId);
   }
 
-  // ── Declarations (DIR-2, DIR-8, MBP-1) ─────────────────────────────────────
+  // ── First meeting flag ──────────────────────────────────────────────────────
+
+  @Post(':id/mark-first-meeting')
+  @RequireRole('DIRECTOR')
+  markAsFirstMeeting(
+    @Param('companyId') companyId: string, @Param('id') meetingId: string, @Req() req: any,
+  ) {
+    return this.meetingService.markAsFirstMeeting(companyId, meetingId, req.user.userId);
+  }
+
+  // ── Notice acknowledgement ──────────────────────────────────────────────────
+
+  @Post(':id/acknowledge-notice')
+  @HttpCode(200)
+  acknowledgeNotice(
+    @Param('companyId') companyId: string, @Param('id') meetingId: string, @Req() req: any,
+  ) {
+    return this.meetingService.acknowledgeNotice(companyId, meetingId, req.user.userId);
+  }
+
+  // ── Roll call ───────────────────────────────────────────────────────────────
+
+  @Get(':id/roll-call')
+  getRollCall(@Param('companyId') companyId: string, @Param('id') id: string) {
+    return this.meetingService.getRollCall(companyId, id);
+  }
+
+  @Post(':id/roll-call')
+  @HttpCode(200)
+  submitRollCall(
+    @Param('companyId') companyId: string, @Param('id') meetingId: string,
+    @Body() body: { location: string; noThirdParty: boolean; materialsReceived: boolean },
+    @Req() req: any,
+  ) {
+    return this.meetingService.submitRollCall(companyId, meetingId, req.user.userId, body);
+  }
+
+  // ── Quorum confirmation ─────────────────────────────────────────────────────
+
+  @Post(':id/confirm-quorum')
+  @HttpCode(200)
+  confirmQuorum(
+    @Param('companyId') companyId: string, @Param('id') meetingId: string, @Req() req: any,
+  ) {
+    return this.meetingService.confirmQuorum(companyId, meetingId, req.user.userId);
+  }
+
+  // ── Declarations (DIR-2, DIR-8, MBP-1) — legacy, kept for data ────────────
 
   @Get(':id/declarations')
   getDeclarations(@Param('companyId') companyId: string, @Param('id') id: string) {
@@ -86,15 +129,14 @@ export class MeetingController {
   @Post(':id/declarations')
   @RequireRole('DIRECTOR')
   recordDeclaration(
-    @Param('companyId') companyId: string,
-    @Param('id') id: string,
+    @Param('companyId') companyId: string, @Param('id') id: string,
     @Body() body: { userId: string; formType: 'DIR_2' | 'DIR_8' | 'MBP_1'; received: boolean; notes?: string },
     @Req() req: any,
   ) {
     return this.meetingService.recordDeclaration(companyId, id, body, req.user.userId);
   }
 
-  // ── Attendance ───────────────────────────────────────────────────────────────
+  // ── Attendance ──────────────────────────────────────────────────────────────
 
   @Get(':id/attendance')
   getAttendance(@Param('companyId') companyId: string, @Param('id') id: string) {
@@ -104,8 +146,7 @@ export class MeetingController {
   @Post(':id/attendance')
   @RequireRole('DIRECTOR')
   recordAttendance(
-    @Param('companyId') companyId: string,
-    @Param('id') id: string,
+    @Param('companyId') companyId: string, @Param('id') id: string,
     @Req() req: any,
     @Body() body: { userId: string; mode: 'IN_PERSON' | 'VIDEO' | 'PHONE' | 'ABSENT' },
   ) {
@@ -115,10 +156,8 @@ export class MeetingController {
   @Post(':id/attendance/request')
   @RequireRole('DIRECTOR')
   requestAttendance(
-    @Param('companyId') companyId: string,
-    @Param('id') id: string,
-    @Req() req: any,
-    @Body() body: { mode: 'VIDEO' | 'PHONE' },
+    @Param('companyId') companyId: string, @Param('id') id: string,
+    @Req() req: any, @Body() body: { mode: 'VIDEO' | 'PHONE' },
   ) {
     return this.meetingService.requestAttendance(companyId, id, req.user.userId, body.mode);
   }

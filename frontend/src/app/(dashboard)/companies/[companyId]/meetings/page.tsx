@@ -6,11 +6,18 @@ import { useParams } from 'next/navigation';
 import Link from 'next/link';
 import {
   meetings as meetingsApi,
+  resolutions as resApi,
   meetingTemplates as templatesApi,
+  companies as companiesApi,
   type Meeting,
   type MeetingTemplate,
 } from '@/lib/api';
-import { SYSTEM_TEMPLATES } from '@/lib/meeting-templates';
+import {
+  SYSTEM_TEMPLATES,
+  filterAgendaForCompany,
+  substituteTemplateVars,
+  type TemplateAgendaItem,
+} from '@/lib/meeting-templates';
 import { getToken } from '@/lib/auth';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -79,16 +86,30 @@ export default function MeetingsPage() {
   const [creating,    setCreating]    = useState(false);
   const [createErr,   setCreateErr]   = useState('');
 
+  // Company context — needed to filter template items (first meeting done, FY state)
+  const [companyData,  setCompanyData]  = useState<any>(null);
+  const [memberList,   setMemberList]   = useState<any[]>([]);
+  // First-meeting checkbox shown in step 2
+  const [isFirstMtg,   setIsFirstMtg]   = useState(false);
+
   const load = useCallback(async () => {
     if (!token) return;
     setLoading(true);
     try {
-      const [mtgs, tpls] = await Promise.all([
+      const [mtgs, tpls, company, members] = await Promise.all([
         meetingsApi.list(companyId, token),
         templatesApi.list(companyId, token).catch(() => [] as MeetingTemplate[]),
+        companiesApi.findOne(companyId, token).catch(() => null),
+        companiesApi.listMembers(companyId, token).catch(() => []),
       ]);
       setMeetings(mtgs);
       setCustomTpls(tpls);
+      setCompanyData(company);
+      setMemberList(members);
+      // Auto-detect first meeting: no locked first meeting on company record
+      if (company && !(company as any).firstBoardMeetingLockedId) {
+        setIsFirstMtg(true);
+      }
     } catch { setError('Could not load meetings.'); }
     finally { setLoading(false); }
   }, [companyId, token]);
@@ -96,10 +117,36 @@ export default function MeetingsPage() {
   useEffect(() => { load(); }, [load]);
 
   // ── Template picker ─────────────────────────────────────────────────────────
-  function applyTemplate(items: { title: string; description?: string }[], tplId?: string) {
-    setAgendaItems(items.map(a => ({ id: uid(), title: a.title, goal: a.description ?? '' })));
+  function applyTemplate(items: TemplateAgendaItem[] | { title: string; description?: string }[], tplId?: string) {
+    // Rich TemplateAgendaItem[] from system templates — use title + legalBasis as goal
+    if (items.length > 0 && 'itemType' in items[0]) {
+      const richItems = items as TemplateAgendaItem[];
+      setAgendaItems(richItems.map(a => ({
+        id:    uid(),
+        title: a.title,
+        goal:  a.legalBasis ?? '',
+      })));
+    } else {
+      // Flat items from custom templates
+      setAgendaItems((items as { title: string; description?: string }[])
+        .map(a => ({ id: uid(), title: a.title, goal: a.description ?? '' })));
+    }
     setSelectedTplId(tplId ?? null);
     setCreateStep('form');
+  }
+
+  function applySystemTemplate(tpl: typeof SYSTEM_TEMPLATES[0]) {
+    const isFirstMeetingDone = !!(companyData as any)?.firstBoardMeetingLockedId;
+    // TODO: derive isFirstMeetingOfFY from last noted DIR-8/MBP-1 meeting
+    const filtered = filterAgendaForCompany(tpl, {
+      isFirstMeetingDone,
+      isFirstMeetingOfFY: true, // conservative — always show at apply time, gate at meeting time
+    });
+    applyTemplate(filtered, tpl.id);
+    // Auto-set first meeting flag if this is the first board meeting template
+    if (tpl.id === 'sys_first_board' && !isFirstMeetingDone) {
+      setIsFirstMtg(true);
+    }
   }
 
   function startBlank() {
@@ -128,12 +175,74 @@ export default function MeetingsPage() {
         scheduledAt: new Date(scheduledAt).toISOString(),
       }, token);
 
+      // Mark as first meeting if flagged
+      if (isFirstMtg) {
+        await meetingsApi.markAsFirstMeeting(companyId, meeting.id, token).catch(() => {});
+      }
+
+      // Find the matching system template for work item creation
+      const sysTpl = selectedTplId?.startsWith('sys_')
+        ? SYSTEM_TEMPLATES.find(t => t.id === selectedTplId)
+        : null;
+
+      // Template vars for substitution
+      const templateVars: Record<string, string> = {
+        company_name:      (companyData as any)?.name ?? '',
+        cin:               (companyData as any)?.cin  ?? '',
+        registered_address:(companyData as any)?.registeredAt ?? '',
+        roc_city:          (companyData as any)?.registeredAt ?? '',
+        date:              new Date(scheduledAt).toLocaleDateString('en-IN'),
+      };
+
+      const directors = memberList.filter((m: any) =>
+        ['DIRECTOR', 'COMPANY_SECRETARY'].includes(m.role)
+      );
+
       const validItems = agendaItems.filter(a => a.title.trim());
-      for (const item of validItems) {
-        await meetingsApi.addAgendaItem(companyId, meeting.id, {
-          title: item.title.trim(),
-          ...(item.goal.trim() ? { description: item.goal.trim() } : {}),
+      for (let i = 0; i < validItems.length; i++) {
+        const item = validItems[i];
+
+        // Find matching template agenda item by order index
+        const tplItem = sysTpl?.agendaItems.find(t => t.title === item.title);
+
+        const agendaItem = await meetingsApi.addAgendaItem(companyId, meeting.id, {
+          title:       item.title.trim(),
+          description: item.goal.trim() || undefined,
+          ...(tplItem ? {
+            itemType:    tplItem.itemType,
+            legalBasis:  tplItem.legalBasis,
+            guidanceNote:tplItem.guidanceNote,
+          } : {}),
         }, token);
+
+        if (!tplItem || !tplItem.workItems.length) continue;
+
+        // Create pre-filled resolutions/noting items for each work item
+        for (const wi of tplItem.workItems) {
+          if (wi.type === 'SYSTEM_ACTION') continue; // handled at runtime, not pre-created
+
+          if (wi.isDynamic) {
+            // One resolution per director
+            for (const member of directors) {
+              const vars = { ...templateVars, director_name: member.user?.name ?? member.name ?? '' };
+              await resApi.create(companyId, meeting.id, {
+                title:       substituteTemplateVars(wi.title, vars),
+                text:        substituteTemplateVars(wi.textTemplate, vars),
+                type:        'NOTING',
+                agendaItemId:agendaItem.id,
+              }, token).catch(() => {});
+            }
+          } else {
+            // Single resolution for this work item
+            const resType = wi.type === 'RESOLUTION_VOTING' ? 'MEETING' : 'NOTING';
+            await resApi.create(companyId, meeting.id, {
+              title:       substituteTemplateVars(wi.title, templateVars),
+              text:        substituteTemplateVars(wi.textTemplate, templateVars),
+              type:        resType as 'MEETING' | 'NOTING',
+              agendaItemId:agendaItem.id,
+            }, token).catch(() => {});
+          }
+        }
       }
 
       // Record template usage
@@ -274,7 +383,7 @@ export default function MeetingsPage() {
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 20 }}>
                     {SYSTEM_TEMPLATES.map(tpl => (
                       <button key={tpl.id} className="tpl-card"
-                        onClick={() => applyTemplate(tpl.agendaItems, tpl.id)}
+                        onClick={() => applySystemTemplate(tpl)}
                         style={{
                           background: '#13161B', border: '1px solid #232830', borderRadius: 12,
                           padding: '14px 16px', cursor: 'pointer', textAlign: 'left', transition: 'border-color 0.15s',
@@ -366,6 +475,24 @@ export default function MeetingsPage() {
                   <label style={{ ...labelStyle, marginTop: 16 }}>Date & Time *</label>
                   <input type="datetime-local" value={scheduledAt}
                     onChange={e => setScheduledAt(e.target.value)} style={inputStyle} />
+
+                  {/* First meeting flag */}
+                  {!companyData?.firstBoardMeetingLockedId && (
+                    <div style={{ background: '#13161B', border: '1px solid #1B3A2A', borderRadius: 10, padding: '12px 16px', marginTop: 16 }}>
+                      <label style={{ display: 'flex', alignItems: 'flex-start', gap: 10, cursor: 'pointer' }}>
+                        <input type="checkbox" checked={isFirstMtg} onChange={e => setIsFirstMtg(e.target.checked)}
+                          style={{ marginTop: 2, accentColor: '#34D399', width: 14, height: 14, flexShrink: 0 }} />
+                        <div>
+                          <p style={{ fontSize: 13, fontWeight: 600, color: '#34D399', margin: '0 0 2px' }}>
+                            First board meeting after incorporation
+                          </p>
+                          <p style={{ fontSize: 11, color: '#6B7280', margin: 0, lineHeight: 1.5 }}>
+                            Enables COI / MOA / AOA noting, DIR-2, custodian appointment and all mandatory first-meeting items under SS-1 Annexure B. Must be within 30 days of incorporation.
+                          </p>
+                        </div>
+                      </label>
+                    </div>
+                  )}
 
                   {/* Agenda Builder */}
                   <div style={{ marginTop: 28, marginBottom: 4 }}>

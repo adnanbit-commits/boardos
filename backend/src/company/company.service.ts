@@ -266,4 +266,35 @@ export class CompanyService {
       where: { userId_companyId: { userId, companyId } },
     });
   }
+  // ── First meeting tracking ────────────────────────────────────────────────────
+  // Called by archive.service when a meeting is locked.
+  // Sets firstBoardMeetingLockedId on the company — this suppresses all
+  // "first meeting only" items from subsequent meeting templates.
+
+  async setFirstMeetingLocked(companyId: string, meetingId: string) {
+    const company = await this.prisma.company.findUnique({ where: { id: companyId } });
+    if (!company) return;
+    // Only set once — don't overwrite with a later locked meeting
+    if ((company as any).firstBoardMeetingLockedId) return;
+    await this.prisma.company.update({
+      where: { id: companyId },
+      data: { firstBoardMeetingLockedId: meetingId } as any,
+    });
+  }
+
+  // ── Custodian of statutory registers ─────────────────────────────────────────
+  // Designated by board resolution at first meeting under Rule 28.
+
+  async setCustodian(companyId: string, custodianUserId: string, actorId: string) {
+    const member = await this.prisma.companyUser.findFirst({
+      where: { companyId, userId: custodianUserId, role: { in: ['DIRECTOR', 'COMPANY_SECRETARY'] } },
+    });
+    if (!member) throw new Error('Custodian must be a Director or Company Secretary of this company');
+
+    await this.prisma.company.update({
+      where: { id: companyId },
+      data: { minutesCustodianId: custodianUserId },
+    });
+  }
+
 }
