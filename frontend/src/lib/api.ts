@@ -134,6 +134,19 @@ export type MeetingDetail = Meeting & {
   quorumConfirmedBy?:      string | null;
 };
 
+// Chairperson nomination state — returned by GET /chairperson/nomination
+export interface NominationState {
+  chairpersonId:  string | null;   // set once elected, null while pending
+  nomineeId:      string | null;   // current pending nominee
+  proposedBy:     string | null;   // userId of proposer
+  confirmedBy:    string[];        // userIds who confirmed
+  confirmCount:   number;
+  majorityNeeded: number;
+  totalDirectors: number;
+  isMajority:     boolean;
+  directors:      { userId: string; name: string }[];
+}
+
 export interface Resolution {
   id: string; meetingId: string | null; agendaItemId: string | null;
   type?: 'MEETING' | 'CIRCULAR' | 'NOTING';
@@ -285,6 +298,13 @@ export const meetings = {
     post<AttendanceRecord>(`/companies/${companyId}/meetings/${meetingId}/attendance`, body, token),
   requestAttendance: (companyId: string, meetingId: string, mode: 'VIDEO' | 'PHONE', token: string) =>
     post<{ message: string }>(`/companies/${companyId}/meetings/${meetingId}/attendance/request`, { mode }, token),
+  // ── Chairperson nomination — persisted to DB so all directors see the same state ──
+  getNomination: (companyId: string, meetingId: string, token: string) =>
+    get<NominationState>(`/companies/${companyId}/meetings/${meetingId}/chairperson/nomination`, token),
+  nominateChairperson: (companyId: string, meetingId: string, nomineeId: string, token: string) =>
+    post<NominationState>(`/companies/${companyId}/meetings/${meetingId}/chairperson/nominate`, { nomineeId }, token),
+  confirmChairperson: (companyId: string, meetingId: string, token: string) =>
+    post<NominationState>(`/companies/${companyId}/meetings/${meetingId}/chairperson/confirm`, undefined, token),
   electChairperson: (companyId: string, meetingId: string, chairpersonId: string, token: string) =>
     post<Meeting>(`/companies/${companyId}/meetings/${meetingId}/chairperson`, { chairpersonId }, token),
   setRecorder: (companyId: string, meetingId: string, recorderId: string, token: string) =>

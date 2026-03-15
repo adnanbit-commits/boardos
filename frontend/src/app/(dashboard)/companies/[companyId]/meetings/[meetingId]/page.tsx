@@ -8,6 +8,7 @@ import type {
   AttendanceRecord, AttendanceMode,
   DirectorDeclarationRecord, DeclarationFormType,
   MeetingDocument, MeetingShareLink,
+  NominationState,
 } from '@/lib/api';
 import { StatusBadge, VoteBar, Spinner, Button, Textarea } from '@/components/ui';
 import DocNotesPanel from '@/components/DocNotesPanel';
@@ -101,11 +102,8 @@ export default function MeetingWorkspacePage() {
     const target = nextStatus(meeting.status as MeetingStatus);
     if (!target) return;
 
-    // Restore chairperson gate: must elect before opening to business
-    if (target === 'IN_PROGRESS' && !meeting.chairpersonId) {
-      setShowChairModal(true);
-      return;
-    }
+    // No pre-gate for chairperson — elected as first agenda item inside the meeting.
+    // Backend enforces quorum only. If chairperson needed, prompt appears inside meeting.
 
     setAdvancing(true); setError('');
     try {
@@ -167,10 +165,9 @@ export default function MeetingWorkspacePage() {
       {/* Chairperson election modal */}
       {showChairModal && (
         <ChairpersonModal
-          directors={directors}
           companyId={companyId} meetingId={meetingId} jwt={jwt}
           currentUserId={me?.id ?? ''}
-          onElected={async () => { setShowChairModal(false); await reload(); await advanceMeeting(); }}
+          onElected={async () => { setShowChairModal(false); await reload(); }}
           onClose={() => setShowChairModal(false)}
         />
       )}
@@ -473,50 +470,68 @@ function WorkflowProgress({ status }: { status: MeetingStatus }) {
 // For single-director companies: director self-nominates and confirms immediately.
 // Backend requires DIRECTOR role — any director can nominate, not just admin.
 
-function ChairpersonModal({ directors, companyId, meetingId, jwt, currentUserId, onElected, onClose }: any) {
-  const [nominee,    setNominee]    = useState('');
-  const [proposedBy, setProposedBy] = useState('');
-  const [confirmed,  setConfirmed]  = useState<string[]>([]); // userIds who confirmed
+// ── Chairperson Election Modal ────────────────────────────────────────────────
+//
+// DB-backed nomination flow. State is persisted via API so every director's
+// browser shows the same pending nomination on reload.
+//
+// Flow:
+//   Step 1: Any director nominates (POST /nominate)   → proposer auto-confirms
+//   Step 2: Other directors confirm  (POST /confirm)  → each adds their userId
+//   Step 3: Once majority reached   (POST /chairperson) → election finalised
+//
+// The modal polls every 3s so Director B sees Director A's nomination without
+// needing to manually refresh the page.
+
+function ChairpersonModal({ companyId, meetingId, jwt, currentUserId, onElected, onClose }: any) {
+  const [nomination, setNomination] = useState<NominationState | null>(null);
+  const [loadError,  setLoadError]  = useState('');
   const [saving,     setSaving]     = useState(false);
-  const [step,       setStep]       = useState<'nominate' | 'confirm'>('nominate');
   const [recId,      setRecId]      = useState('');
 
-  const totalDirectors = directors.length;
-  const majorityNeeded = Math.ceil(totalDirectors / 2);
-  const confirmCount   = confirmed.length;
-  const isMajority     = confirmCount >= majorityNeeded;
-  const myId           = currentUserId;
-  const iHaveConfirmed = confirmed.includes(myId);
-  const iAmNominee     = nominee === myId;
-  const iAmProposer    = proposedBy === myId;
-
-  function nominate(nomineeId: string) {
-    setNominee(nomineeId);
-    setProposedBy(myId);
-    // If sole director or nominee is self and they confirm themselves
-    const initialConfirm = totalDirectors === 1 ? [myId] : [];
-    setConfirmed(initialConfirm);
-    setStep('confirm');
-  }
-
-  function confirm() {
-    if (!iHaveConfirmed) {
-      setConfirmed(prev => [...prev, myId]);
+  // Load nomination state from DB
+  const loadNomination = useCallback(async () => {
+    try {
+      const n = await meetings.getNomination(companyId, meetingId, jwt);
+      setNomination(n);
+      setLoadError('');
+    } catch {
+      setLoadError('Could not load nomination state. Please try again.');
     }
+  }, [companyId, meetingId, jwt]);
+
+  useEffect(() => {
+    loadNomination();
+    // Poll every 3s so Director B sees Director A's nomination in real time
+    const interval = setInterval(loadNomination, 3000);
+    return () => clearInterval(interval);
+  }, [loadNomination]);
+
+  async function nominate(nomineeId: string) {
+    setSaving(true);
+    try {
+      const n = await meetings.nominateChairperson(companyId, meetingId, nomineeId, jwt);
+      setNomination(n);
+    } catch (err: any) {
+      alert(err?.body?.message ?? 'Could not submit nomination.');
+    } finally { setSaving(false); }
   }
 
-  function withdraw() {
-    setNominee('');
-    setProposedBy('');
-    setConfirmed([]);
-    setStep('nominate');
+  async function confirm() {
+    setSaving(true);
+    try {
+      const n = await meetings.confirmChairperson(companyId, meetingId, jwt);
+      setNomination(n);
+    } catch (err: any) {
+      alert(err?.body?.message ?? 'Could not confirm nomination.');
+    } finally { setSaving(false); }
   }
 
   async function elect() {
-    if (!nominee || !isMajority) return;
+    if (!nomination?.nomineeId || !nomination.isMajority) return;
     setSaving(true);
     try {
-      await meetings.electChairperson(companyId, meetingId, nominee, jwt);
+      await meetings.electChairperson(companyId, meetingId, nomination.nomineeId, jwt);
       if (recId) await meetings.setRecorder(companyId, meetingId, recId, jwt);
       await onElected();
     } catch (err: any) {
@@ -524,8 +539,32 @@ function ChairpersonModal({ directors, companyId, meetingId, jwt, currentUserId,
     } finally { setSaving(false); }
   }
 
-  const nomineeName  = directors.find((d: any) => d.user.id === nominee)?.user?.name ?? '';
-  const proposerName = directors.find((d: any) => d.user.id === proposedBy)?.user?.name ?? '';
+  async function withdrawNomination() {
+    // Nominate the current user with no nominee (clears state via backend)
+    // Actually — just call nominate again to reset, or we can add a clear endpoint.
+    // For now: reload to get fresh state; admin can re-nominate to override.
+    await loadNomination();
+  }
+
+  if (!nomination) {
+    return (
+      <div className="fixed inset-0 bg-black/70 z-50 flex items-center justify-center p-4">
+        <div className="bg-[#13161B] border border-[#232830] rounded-2xl p-7 max-w-md w-full">
+          {loadError
+            ? <p className="text-red-400 text-sm">{loadError}</p>
+            : <div className="flex items-center gap-3"><div className="w-5 h-5 border-2 border-zinc-700 border-t-blue-500 rounded-full animate-spin"/><p className="text-zinc-400 text-sm">Loading…</p></div>
+          }
+          <button onClick={onClose} className="mt-4 text-zinc-600 text-xs hover:text-zinc-400">Cancel</button>
+        </div>
+      </div>
+    );
+  }
+
+  const myId           = currentUserId;
+  const iHaveConfirmed = nomination.confirmedBy.includes(myId);
+  const iAmProposer    = nomination.proposedBy === myId;
+  const nomineeName    = nomination.directors.find(d => d.userId === nomination.nomineeId)?.name ?? '';
+  const proposerName   = nomination.directors.find(d => d.userId === nomination.proposedBy)?.name ?? '';
 
   return (
     <div className="fixed inset-0 bg-black/70 z-50 flex items-center justify-center p-4">
@@ -535,72 +574,78 @@ function ChairpersonModal({ directors, companyId, meetingId, jwt, currentUserId,
           Elect Chairperson
         </h2>
         <p className="text-zinc-500 text-xs mb-5">
-          Any director may nominate themselves or a colleague. The nomination requires
-          confirmation by a majority of directors present before proceeding.
+          Any director may nominate. Nomination requires confirmation by a majority
+          of directors before the election is finalised.
         </p>
 
-        {step === 'nominate' ? (
-          <div className="space-y-4">
-            <p className="text-zinc-400 text-xs font-semibold">Nominate a Chairperson for this Meeting</p>
-            <div className="space-y-2">
-              {directors.map((d: any) => (
-                <button
-                  key={d.user.id}
-                  onClick={() => nominate(d.user.id)}
-                  className="w-full flex items-center justify-between px-4 py-3 bg-[#0D0F12] border border-[#232830] rounded-xl hover:border-blue-700/50 hover:bg-[#0d1524] transition-all text-left"
-                >
-                  <div>
-                    <p className="text-sm font-semibold text-zinc-200">{d.user.name}</p>
-                    <p className="text-[10px] text-zinc-600 mt-0.5">
-                      {d.user.id === myId ? 'Nominate yourself' : 'Nominate this director'}
-                    </p>
-                  </div>
-                  <span className="text-zinc-600 text-xs">→</span>
-                </button>
-              ))}
-            </div>
+        {!nomination.nomineeId ? (
+          // ── Step 1: No pending nomination — anyone can propose ──────────────
+          <div className="space-y-3">
+            <p className="text-zinc-400 text-xs font-semibold mb-2">Nominate a Chairperson</p>
+            {nomination.directors.map(d => (
+              <button
+                key={d.userId}
+                onClick={() => nominate(d.userId)}
+                disabled={saving}
+                className="w-full flex items-center justify-between px-4 py-3 bg-[#0D0F12] border border-[#232830] rounded-xl hover:border-blue-700/50 hover:bg-[#0d1524] transition-all text-left disabled:opacity-50"
+              >
+                <div>
+                  <p className="text-sm font-semibold text-zinc-200">{d.name}</p>
+                  <p className="text-[10px] text-zinc-600 mt-0.5">
+                    {d.userId === myId ? 'Nominate yourself' : 'Nominate this director'}
+                  </p>
+                </div>
+                <span className="text-zinc-600 text-xs">→</span>
+              </button>
+            ))}
           </div>
         ) : (
+          // ── Step 2 / 3: Nomination pending — confirm or elect ───────────────
           <div className="space-y-4">
             {/* Nomination card */}
             <div className="bg-blue-950/20 border border-blue-800/30 rounded-xl p-4">
-              <p className="text-xs text-zinc-500 mb-1">Nominated by {proposerName}</p>
+              <p className="text-[10px] text-zinc-500 mb-1">Proposed by {proposerName}</p>
               <p className="text-base font-bold text-zinc-100">{nomineeName}</p>
-              <p className="text-[10px] text-zinc-600 mt-1">
-                {confirmCount} of {totalDirectors} director{totalDirectors > 1 ? 's' : ''} confirmed
-                {totalDirectors > 1 ? ` · ${majorityNeeded} needed` : ''}
+              <p className="text-[10px] text-zinc-500 mt-1">
+                {nomination.confirmCount} of {nomination.totalDirectors} director{nomination.totalDirectors > 1 ? 's' : ''} confirmed
+                {nomination.totalDirectors > 1 ? ` · ${nomination.majorityNeeded} needed` : ''}
               </p>
-              {/* Confirmation progress */}
-              <div className="mt-2 flex gap-1.5">
-                {directors.map((d: any) => (
+              {/* Progress bar — one segment per director */}
+              <div className="mt-2.5 flex gap-1.5">
+                {nomination.directors.map(d => (
                   <div
-                    key={d.user.id}
-                    title={d.user.name}
-                    className={`h-1.5 flex-1 rounded-full transition-colors ${
-                      confirmed.includes(d.user.id) ? 'bg-green-500' : 'bg-zinc-700'
+                    key={d.userId}
+                    title={`${d.name}${nomination.confirmedBy.includes(d.userId) ? ' ✓' : ''}`}
+                    className={`h-1.5 flex-1 rounded-full transition-colors duration-300 ${
+                      nomination.confirmedBy.includes(d.userId) ? 'bg-green-500' : 'bg-zinc-700'
                     }`}
                   />
                 ))}
               </div>
             </div>
 
-            {/* Actions for current user */}
+            {/* Current director action */}
             {!iHaveConfirmed && !iAmProposer && (
               <div className="bg-[#0D0F12] border border-[#232830] rounded-xl p-4">
                 <p className="text-xs text-zinc-400 mb-3">
-                  {proposerName} has proposed {nomineeName} as Chairperson.
-                  Do you confirm this nomination?
+                  {proposerName} has proposed <strong className="text-zinc-200">{nomineeName}</strong> as Chairperson.
+                  Do you confirm?
                 </p>
                 <div className="flex gap-2">
                   <button
                     onClick={confirm}
-                    className="px-4 py-2 bg-green-900/50 border border-green-700/50 text-green-400 text-xs font-semibold rounded-lg hover:bg-green-900/70 transition-colors"
+                    disabled={saving}
+                    className="px-4 py-2 bg-green-900/50 border border-green-700/50 text-green-400 text-xs font-semibold rounded-lg hover:bg-green-900/70 transition-colors disabled:opacity-50"
                   >
-                    ✓ Confirm Nomination
+                    {saving ? '…' : '✓ Confirm'}
                   </button>
                   <button
-                    onClick={withdraw}
-                    className="px-4 py-2 bg-transparent border border-zinc-700/50 text-zinc-500 text-xs font-semibold rounded-lg hover:text-zinc-300 transition-colors"
+                    onClick={() => nominate(myId === nomination.nomineeId
+                      ? nomination.directors.find(d => d.userId !== myId)?.userId ?? myId
+                      : myId
+                    )}
+                    disabled={saving}
+                    className="px-4 py-2 bg-transparent border border-zinc-700/50 text-zinc-500 text-xs font-semibold rounded-lg hover:text-zinc-300 transition-colors disabled:opacity-50"
                   >
                     Propose someone else
                   </button>
@@ -608,43 +653,54 @@ function ChairpersonModal({ directors, companyId, meetingId, jwt, currentUserId,
               </div>
             )}
 
-            {/* Proposer already auto-confirms */}
-            {iAmProposer && !iHaveConfirmed && (
-              <p className="text-xs text-zinc-500">
-                Your nomination is pending. Waiting for other directors to confirm.
+            {iAmProposer && !nomination.isMajority && (
+              <p className="text-zinc-500 text-xs bg-[#0D0F12] border border-[#232830] rounded-lg px-4 py-3">
+                You proposed {nomineeName}. Waiting for other directors to confirm…
+                <span className="block text-zinc-700 text-[10px] mt-1">This page updates automatically every few seconds.</span>
               </p>
             )}
 
-            {isMajority && (
-              <div className="bg-green-950/20 border border-green-800/30 rounded-xl p-4">
-                <p className="text-green-400 text-sm font-semibold mb-3">
-                  ✓ Majority confirmed — {nomineeName} can be elected as Chairperson
+            {iHaveConfirmed && !iAmProposer && !nomination.isMajority && (
+              <p className="text-zinc-500 text-xs bg-[#0D0F12] border border-[#232830] rounded-lg px-4 py-3">
+                ✓ You confirmed. Waiting for more directors…
+              </p>
+            )}
+
+            {/* Election finalisation — shown once majority reached */}
+            {nomination.isMajority && (
+              <div className="bg-green-950/20 border border-green-800/30 rounded-xl p-4 space-y-3">
+                <p className="text-green-400 text-sm font-semibold">
+                  ✓ Majority confirmed — ready to finalise
                 </p>
-                <div className="space-y-3">
-                  <div>
-                    <label className="text-zinc-500 text-[10px] uppercase tracking-widest block mb-1.5">
-                      Minutes Recorder <span className="text-zinc-600">(optional)</span>
-                    </label>
-                    <select value={recId} onChange={e => setRecId(e.target.value)}
-                      className="w-full bg-[#0D0F12] border border-[#232830] rounded-lg px-3 py-2 text-sm text-zinc-200 focus:outline-none focus:border-blue-600">
-                      <option value="">Same as Chairperson (default)</option>
-                      {directors.map((d: any) => (
-                        <option key={d.user.id} value={d.user.id}>{d.user.name}</option>
-                      ))}
-                    </select>
-                    <p className="text-zinc-600 text-[10px] mt-1">
-                      Best practice: a different director records the minutes
-                    </p>
-                  </div>
-                  <Button size="sm" loading={saving} onClick={elect}>
-                    Confirm Election & Start Meeting
-                  </Button>
+                <div>
+                  <label className="text-zinc-500 text-[10px] uppercase tracking-widest block mb-1.5">
+                    Minutes Recorder <span className="text-zinc-600">(optional)</span>
+                  </label>
+                  <select
+                    value={recId}
+                    onChange={e => setRecId(e.target.value)}
+                    className="w-full bg-[#0D0F12] border border-[#232830] rounded-lg px-3 py-2 text-sm text-zinc-200 focus:outline-none focus:border-blue-600"
+                  >
+                    <option value="">Same as Chairperson (default)</option>
+                    {nomination.directors.map(d => (
+                      <option key={d.userId} value={d.userId}>{d.name}</option>
+                    ))}
+                  </select>
+                  <p className="text-zinc-600 text-[10px] mt-1">
+                    Best practice: a different director records the minutes
+                  </p>
                 </div>
+                <Button size="sm" loading={saving} onClick={elect}>
+                  Confirm Election & Open Meeting
+                </Button>
               </div>
             )}
 
-            <button onClick={withdraw} className="text-zinc-600 text-xs hover:text-zinc-400">
-              ← Start over
+            <button
+              onClick={() => nominate(nomination.directors[0]?.userId ?? '')}
+              className="text-zinc-600 text-xs hover:text-zinc-400"
+            >
+              ← Start over with a different nominee
             </button>
           </div>
         )}
@@ -870,7 +926,8 @@ function AttendancePanel({ companyId, meetingId, jwt, meeting, attendance, curre
   const [showVirtConfirm, setShowVirtConfirm] = useState<string | null>(null); // userId being confirmed
 
   const canAuthenticate = isChairperson || isCS; // can record VIDEO/PHONE/ABSENT for others
-  const canEdit = ['SCHEDULED', 'IN_PROGRESS'].includes(meeting.status) && !!meeting.chairpersonId;
+  // No chairperson required for self-marking. Only VIDEO/PHONE/ABSENT need chair/CS auth.
+  const canEdit = ['SCHEDULED', 'IN_PROGRESS'].includes(meeting.status);
 
   const present = attendance.filter((a: any) => a.attendance && !['ABSENT', null].includes(a.attendance?.mode) && !a.attendance?.mode?.startsWith('REQUESTED'));
   const total   = attendance.length;
