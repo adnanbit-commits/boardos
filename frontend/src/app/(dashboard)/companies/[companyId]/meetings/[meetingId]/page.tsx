@@ -365,7 +365,7 @@ export default function MeetingWorkspacePage() {
               meeting={meeting} rollCall={rollCall} members={members}
               noticeAckedCount={meeting.noticeAcknowledgedBy?.length ?? 0}
               onShowRollCall={() => setShowRollCall(true)}
-              onSetPanel={setPanel}
+              onSetPanel={setPanel as (p: string) => void}
             />
           )}
 
