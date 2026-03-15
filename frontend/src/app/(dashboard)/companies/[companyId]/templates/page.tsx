@@ -96,7 +96,7 @@ export default function TemplatesPage() {
     setBName(`${tpl.name} (Custom)`);
     setBDesc(tpl.description);
     setBCategory(tpl.category);
-    setBItems(tpl.agendaItems.map(a => ({ id: uid(), title: a.title, description: a.description })));
+    setBItems(tpl.agendaItems.map(a => ({ id: uid(), title: a.title, description: a.description ?? a.legalBasis ?? '' })));
     setBErr('');
     setView('builder');
   }

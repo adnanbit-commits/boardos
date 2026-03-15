@@ -50,6 +50,8 @@ export interface TemplateAgendaItem {
   isOptional:   boolean;
   requiredFor:  RequiredFor;
   workItems:    TemplateWorkItem[];
+  // Backward-compat alias used by the template builder UI (maps to legalBasis)
+  description?: string;
 }
 
 export interface SystemTemplate {

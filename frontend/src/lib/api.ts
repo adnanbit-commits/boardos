@@ -50,6 +50,8 @@ export interface CompanyWithMeta {
 
 export interface CompanyDetail extends CompanyWithMeta {
   _count: { meetings: number; resolutions: number; documents: number };
+  firstBoardMeetingLockedId?: string | null;
+  minutesCustodianId?: string | null;
 }
 
 export interface CompanyMember {
@@ -73,6 +75,10 @@ export interface InvitePreview {
 export interface AgendaItem {
   id: string; meetingId: string; title: string;
   description: string | null; order: number;
+  itemType?: string;
+  legalBasis?: string | null;
+  guidanceNote?: string | null;
+  isAob?: boolean;
 }
 
 export type MeetingStatus =
