@@ -12,10 +12,24 @@ import { getToken } from '@/lib/auth';
 // ── Types ─────────────────────────────────────────────────────────────────────
 
 interface AgendaDraft {
-  id: string;
-  title: string;
-  description: string;
+  id:           string;
+  title:        string;
+  description:  string;
+  itemType:     string;   // 'STANDARD' | 'DOCUMENT_NOTING' | 'COMPLIANCE_NOTING'
+  vaultDocType: string;   // only for DOCUMENT_NOTING — vault slot key or ''
+  docLabel:     string;   // only for DOCUMENT_NOTING — human label
 }
+
+const VAULT_SLOT_OPTIONS = [
+  { value: '',                  label: 'Custom / not in vault' },
+  { value: 'INCORPORATION_CERT',label: 'Certificate of Incorporation (COI)' },
+  { value: 'MOA',               label: 'Memorandum of Association (MOA)' },
+  { value: 'AOA',               label: 'Articles of Association (AOA)' },
+  { value: 'PAN',               label: 'Company PAN Card' },
+  { value: 'GST_CERT',          label: 'GST Registration Certificate' },
+  { value: 'COMMON_SEAL',       label: 'Common Seal' },
+  { value: 'CUSTOM',            label: 'Custom vault document' },
+];
 
 type ViewMode = 'library' | 'builder';
 
@@ -81,11 +95,11 @@ export default function TemplatesPage() {
       setBName(tpl.name);
       setBDesc(tpl.description ?? '');
       setBCategory(tpl.category);
-      setBItems((tpl.agendaItems as any[]).map(a => ({ id: uid(), title: a.title, description: a.description ?? '' })));
+      setBItems((tpl.agendaItems as any[]).map(a => ({ id: uid(), title: a.title, description: a.description ?? '', itemType: a.itemType ?? 'STANDARD', vaultDocType: a.vaultDocType ?? '', docLabel: a.docLabel ?? '' })));
     } else {
       setEditingTpl(null);
       setBName(''); setBDesc(''); setBCategory('BOARD');
-      setBItems([{ id: uid(), title: '', description: '' }]);
+      setBItems([{ id: uid(), title: '', description: '', itemType: 'STANDARD', vaultDocType: '', docLabel: '' }]);
     }
     setBErr('');
     setView('builder');
@@ -96,14 +110,14 @@ export default function TemplatesPage() {
     setBName(`${tpl.name} (Custom)`);
     setBDesc(tpl.description);
     setBCategory(tpl.category);
-    setBItems(tpl.agendaItems.map(a => ({ id: uid(), title: a.title, description: a.description ?? a.legalBasis ?? '' })));
+    setBItems(tpl.agendaItems.map(a => ({ id: uid(), title: a.title, description: a.description ?? a.legalBasis ?? '', itemType: a.itemType ?? 'STANDARD', vaultDocType: (a.workItems?.[0] as any)?.vaultDocType ?? '', docLabel: (a.workItems?.[0] as any)?.docLabel ?? '' })));
     setBErr('');
     setView('builder');
   }
 
-  function addItem() { setBItems(p => [...p, { id: uid(), title: '', description: '' }]); }
+  function addItem() { setBItems(p => [...p, { id: uid(), title: '', description: '', itemType: 'STANDARD', vaultDocType: '', docLabel: '' }]); }
   function removeItem(id: string) { setBItems(p => p.length > 1 ? p.filter(a => a.id !== id) : p); }
-  function updateItem(id: string, field: 'title' | 'description', val: string) {
+  function updateItem(id: string, field: keyof AgendaDraft, val: string) {
     setBItems(p => p.map(a => a.id === id ? { ...a, [field]: val } : a));
   }
   function moveItem(id: string, dir: -1 | 1) {
@@ -128,7 +142,14 @@ export default function TemplatesPage() {
         name: bName.trim(),
         description: bDesc.trim() || undefined,
         category: bCategory,
-        agendaItems: validItems.map((a, i) => ({ title: a.title.trim(), description: a.description.trim() || undefined, order: i + 1 })),
+        agendaItems: validItems.map((a, i) => ({
+          title:        a.title.trim(),
+          description:  a.description.trim() || undefined,
+          order:        i + 1,
+          itemType:     a.itemType !== 'STANDARD' ? a.itemType : undefined,
+          vaultDocType: a.itemType === 'DOCUMENT_NOTING' && a.vaultDocType ? a.vaultDocType : undefined,
+          docLabel:     a.itemType === 'DOCUMENT_NOTING' && a.docLabel.trim() ? a.docLabel.trim() : undefined,
+        })),
       };
       if (editingTpl) {
         await templatesApi.update(companyId, editingTpl.id, payload, token);
@@ -269,10 +290,73 @@ export default function TemplatesPage() {
                   </div>
                 </div>
                 <div style={{ padding: '12px 14px', display: 'flex', flexDirection: 'column', gap: 8 }}>
+                  {/* Item type selector */}
+                  <div style={{ display: 'flex', gap: 6 }}>
+                    {[
+                      { v: 'STANDARD',         l: 'Standard',          desc: 'Voting resolution or general discussion' },
+                      { v: 'DOCUMENT_NOTING',  l: 'Document Noting',   desc: 'Note a company document on record' },
+                      { v: 'COMPLIANCE_NOTING',l: 'Compliance Noting', desc: 'Director declarations (DIR-8, MBP-1, DIR-2)' },
+                    ].map(t => (
+                      <button key={t.v} type="button" title={t.desc}
+                        onClick={() => updateItem(item.id, 'itemType', t.v)}
+                        style={{
+                          padding: '4px 10px', borderRadius: 6, fontSize: 10, fontWeight: 600, cursor: 'pointer',
+                          border: `1px solid ${item.itemType === t.v ? (t.v === 'DOCUMENT_NOTING' ? '#3B82F6' : t.v === 'COMPLIANCE_NOTING' ? '#10B981' : '#4B5563') : '#232830'}`,
+                          background: item.itemType === t.v ? (t.v === 'DOCUMENT_NOTING' ? 'rgba(59,130,246,0.12)' : t.v === 'COMPLIANCE_NOTING' ? 'rgba(16,185,129,0.12)' : 'rgba(75,85,99,0.12)') : 'transparent',
+                          color: item.itemType === t.v ? (t.v === 'DOCUMENT_NOTING' ? '#60A5FA' : t.v === 'COMPLIANCE_NOTING' ? '#34D399' : '#9CA3AF') : '#4B5563',
+                          transition: 'all 0.15s',
+                        }}>
+                        {t.l}
+                      </button>
+                    ))}
+                  </div>
+
                   <input value={item.title} onChange={e => updateItem(item.id, 'title', e.target.value)}
-                    placeholder="Agenda item title" style={{ ...inputStyle, fontSize: 13, fontWeight: 600, padding: '9px 12px' }} />
+                    placeholder={
+                      item.itemType === 'DOCUMENT_NOTING'  ? 'e.g. To take note of the Shareholders Agreement' :
+                      item.itemType === 'COMPLIANCE_NOTING' ? 'e.g. To take note of Director Declarations' :
+                      'e.g. To consider and approve the Business Plan'
+                    }
+                    style={{ ...inputStyle, fontSize: 13, fontWeight: 600, padding: '9px 12px' }} />
+
+                  {/* Document Noting fields */}
+                  {item.itemType === 'DOCUMENT_NOTING' && (
+                    <div style={{ background: 'rgba(59,130,246,0.06)', border: '1px solid rgba(59,130,246,0.2)', borderRadius: 8, padding: '10px 12px', display: 'flex', flexDirection: 'column', gap: 8 }}>
+                      <p style={{ fontSize: 10, fontWeight: 700, color: '#60A5FA', textTransform: 'uppercase', letterSpacing: '0.06em', margin: 0 }}>Document Details</p>
+                      <input
+                        value={item.docLabel}
+                        onChange={e => updateItem(item.id, 'docLabel', e.target.value)}
+                        placeholder="Document name (e.g. Shareholders Agreement, Brand Licence)"
+                        style={{ ...inputStyle, fontSize: 12, padding: '7px 10px' }}
+                      />
+                      <div>
+                        <p style={{ fontSize: 10, color: '#6B7280', marginBottom: 4 }}>
+                          Vault slot (optional) — if the document is uploaded to the vault under a known slot, select it here so the system auto-links it during the meeting.
+                        </p>
+                        <select
+                          value={item.vaultDocType}
+                          onChange={e => updateItem(item.id, 'vaultDocType', e.target.value)}
+                          style={{ ...inputStyle, fontSize: 12, padding: '7px 10px' }}
+                        >
+                          {VAULT_SLOT_OPTIONS.map(opt => (
+                            <option key={opt.value} value={opt.value}>{opt.label}</option>
+                          ))}
+                        </select>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Compliance Noting hint */}
+                  {item.itemType === 'COMPLIANCE_NOTING' && (
+                    <div style={{ background: 'rgba(16,185,129,0.06)', border: '1px solid rgba(16,185,129,0.2)', borderRadius: 8, padding: '8px 12px' }}>
+                      <p style={{ fontSize: 11, color: '#34D399', margin: 0, lineHeight: 1.5 }}>
+                        The system will automatically show the compliance noting surface (DIR-8, MBP-1, DIR-2) for each director when this agenda item is active in the meeting.
+                      </p>
+                    </div>
+                  )}
+
                   <textarea value={item.description} onChange={e => updateItem(item.id, 'description', e.target.value)}
-                    placeholder="Description / notes for CS (optional)" rows={2}
+                    placeholder="Notes for CS / legal basis (optional — shown to CS, not in minutes)" rows={2}
                     style={{ ...inputStyle, fontSize: 12, color: '#9CA3AF', resize: 'vertical', padding: '8px 12px' }} />
                 </div>
               </div>

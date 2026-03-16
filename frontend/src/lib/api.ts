@@ -322,16 +322,27 @@ export interface MeetingTemplate {
   name: string;
   description?: string;
   category: string;
-  agendaItems: { title: string; description?: string; order: number }[];
+  agendaItems: {
+    title:        string;
+    description?: string;
+    order:        number;
+    // Rich fields for typed agenda items
+    itemType?:    string;  // 'STANDARD' | 'DOCUMENT_NOTING' | 'COMPLIANCE_NOTING' | etc.
+    vaultDocType?:string;  // for DOCUMENT_NOTING — auto-links vault slot
+    docLabel?:    string;  // human label for the document
+  }[];
   usageCount: number;
   createdAt: string;
   updatedAt: string;
 }
 
+// Also update the create/update API types
+
+
 export const meetingTemplates = {
   list: (companyId: string, token: string) =>
     get<MeetingTemplate[]>(`/companies/${companyId}/meeting-templates`, token),
-  create: (companyId: string, body: { name: string; description?: string; category?: string; agendaItems: { title: string; description?: string; order: number }[] }, token: string) =>
+  create: (companyId: string, body: { name: string; description?: string; category?: string; agendaItems: { title: string; description?: string; order: number; itemType?: string; vaultDocType?: string; docLabel?: string }[] }, token: string) =>
     post<MeetingTemplate>(`/companies/${companyId}/meeting-templates`, body, token),
   update: (companyId: string, id: string, body: Partial<{ name: string; description: string; category: string; agendaItems: { title: string; description?: string; order: number }[] }>, token: string) =>
     patch<MeetingTemplate>(`/companies/${companyId}/meeting-templates/${id}`, body, token),

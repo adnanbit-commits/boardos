@@ -11,7 +11,6 @@ import type {
   NominationState,
 } from '@/lib/api';
 import { StatusBadge, VoteBar, Spinner, Button, Textarea } from '@/components/ui';
-import DocNotesPanel from '@/components/DocNotesPanel';
 
 const STATUS_ORDER: MeetingStatus[] = [
   'DRAFT','SCHEDULED','IN_PROGRESS','VOTING','MINUTES_DRAFT','MINUTES_CIRCULATED','SIGNED','LOCKED',
@@ -43,7 +42,7 @@ export default function MeetingWorkspacePage() {
   const [myRole,      setMyRole]      = useState('OBSERVER');
   const [loading,     setLoading]     = useState(true);
   const [activeAgenda,setActiveAgenda]= useState<string | null>(null);
-  const [panel,       setPanel]       = useState<'resolutions'|'declarations'|'attendance'|'minutes'|'documents'|'docnotes'>('resolutions');
+  const [panel,       setPanel]       = useState<'resolutions'|'declarations'|'attendance'|'minutes'|'documents'>('resolutions');
   const [advancing,   setAdvancing]   = useState(false);
   const [error,       setError]       = useState('');
 
@@ -306,9 +305,8 @@ export default function MeetingWorkspacePage() {
 
               { key: 'attendance', label: '◎ Attendance', show: !['DRAFT'].includes(meeting.status),
                 badge: meeting.status === 'IN_PROGRESS' ? 'Required' : undefined, badgeColor: 'amber' },
-              { key: 'docnotes', label: '⊟ Compliance Docs',
-                show: ['SCHEDULED','IN_PROGRESS'].includes(meeting.status),
-                badge: meeting.status === 'SCHEDULED' ? 'Required' : undefined, badgeColor: 'amber' },
+              // Compliance docs noted inline within agenda items (COMPLIANCE_NOTING itemType)
+
               { key: 'documents', label: '📎 Meeting Papers', always: true },
               { key: 'minutes', label: '▣ Minutes', show: !!meeting.minutes },
             ].map((p: any) => p.always || p.show ? (
@@ -379,20 +377,7 @@ export default function MeetingWorkspacePage() {
               jwt={jwt}
             />
           )}
-          {panel === 'docnotes' && (
-            <div>
-              <h2 className="text-lg font-bold text-zinc-200 mb-1">Compliance Documents</h2>
-              <p className="text-sm text-zinc-500 mb-6">
-                The Chairperson must formally note receipt of DIR-8 and MBP-1 from all directors before the meeting can open.
-              </p>
-              <DocNotesPanel
-                companyId={companyId} meetingId={meetingId} token={jwt}
-                isChairperson={meeting.chairpersonId === me?.id}
-                deemedVenue={(meeting as any).deemedVenue ?? (meeting as any).location ?? null}
-                onAllNoted={reload}
-              />
-            </div>
-          )}
+          {/* Compliance docs noted inline — navigate to the Director Declarations agenda item */}
           {panel === 'documents' && (
             <MeetingDocumentsPanel
               companyId={companyId} meetingId={meetingId} token={jwt}
@@ -1118,6 +1103,32 @@ function AttendancePanel({ companyId, meetingId, jwt, meeting, attendance, curre
 function ResolutionsPanel({ companyId, meetingId, jwt, meeting, resolutions, activeAgendaItem, currentUserId, onRefresh, isAdmin, isChairperson, vaultDocs }: any) {
   const [showAdd, setShowAdd] = useState(false);
   const canAdd = !['VOTING','MINUTES_DRAFT','MINUTES_CIRCULATED','SIGNED','LOCKED'].includes(meeting.status);
+
+  const itemType = (activeAgendaItem as any)?.itemType ?? 'STANDARD';
+
+  // ── Route to specialised inline surfaces based on agenda item type ──────────
+  if (itemType === 'COMPLIANCE_NOTING') {
+    return (
+      <ComplianceNotingInline
+        companyId={companyId} meetingId={meetingId} jwt={jwt}
+        meeting={meeting} isChairperson={isChairperson}
+        agendaItem={activeAgendaItem}
+      />
+    );
+  }
+
+  if (itemType === 'DOCUMENT_NOTING' || itemType === 'VAULT_DOC_NOTING') {
+    return (
+      <DocumentNotingInline
+        companyId={companyId} meetingId={meetingId} jwt={jwt}
+        meeting={meeting} resolutions={resolutions}
+        isChairperson={isChairperson} vaultDocs={vaultDocs}
+        agendaItem={activeAgendaItem} onRefresh={onRefresh}
+      />
+    );
+  }
+
+  // ── Default: standard resolution list ──────────────────────────────────────
   return (
     <div className="max-w-2xl fade-up">
       <div className="flex items-center justify-between mb-6">
@@ -1156,6 +1167,263 @@ function ResolutionsPanel({ companyId, meetingId, jwt, meeting, resolutions, act
 }
 
 // ── Resolution Card ───────────────────────────────────────────────────────────
+
+// ── Compliance Noting Inline ─────────────────────────────────────────────────
+//
+// Shown when the active agenda item has itemType === 'COMPLIANCE_NOTING'.
+// Renders the full director × form matrix inline in the main panel — same
+// logic as DocNotesPanel but without navigation away from the agenda.
+
+const FORM_META_INLINE: Record<string, { label: string; description: string; law: string }> = {
+  DIR_2: { label: 'DIR-2', description: 'Consent to act as Director',       law: 'Sec. 152(5)' },
+  DIR_8: { label: 'DIR-8', description: 'Non-disqualification declaration', law: 'Sec. 164(2)' },
+  MBP_1: { label: 'MBP-1', description: 'Disclosure of interest',           law: 'Sec. 184(1)' },
+};
+
+function ComplianceNotingInline({ companyId, meetingId, jwt, meeting, isChairperson, agendaItem }: any) {
+  const [data,       setData]       = useState<any>(null);
+  const [loading,    setLoading]    = useState(true);
+  const [noting,     setNoting]     = useState<string | null>(null);
+  const [activeCell, setActiveCell] = useState<{ userId: string; formType: string; mode: 'options'|'exception'|'physical' } | null>(null);
+  const [exceptionText, setExceptionText] = useState('');
+  const [reviewed,   setReviewed]   = useState<Set<string>>(new Set());
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    try {
+      const result = await vaultApi.docNotes(companyId, meetingId, jwt);
+      setData(result);
+    } catch { /* chairperson not yet elected */ }
+    finally { setLoading(false); }
+  }, [companyId, meetingId, jwt]);
+
+  useEffect(() => { load(); }, [load]);
+
+  async function submitNote(directorUserId: string, formType: string, status: 'NOTED'|'NOTED_WITH_EXCEPTION'|'PHYSICALLY_PRESENT', exception?: string) {
+    if (!isChairperson) return;
+    const key = `${directorUserId}:${formType}`;
+    setNoting(key);
+    try {
+      await vaultApi.noteDoc(companyId, meetingId, { directorUserId, formType, status, exception: exception?.trim() || undefined }, jwt);
+      setActiveCell(null); setExceptionText(''); await load();
+    } catch (err: any) { alert(err?.body?.message ?? 'Failed to note document.'); }
+    finally { setNoting(null); }
+  }
+
+  const deemedVenue = (meeting as any).deemedVenue ?? (meeting as any).location ?? 'deemed venue';
+
+  if (loading) return (
+    <div className="max-w-2xl fade-up flex items-center gap-3 py-8 text-zinc-500 text-sm">
+      <div className="w-4 h-4 border-2 border-zinc-700 border-t-blue-500 rounded-full animate-spin"/>
+      Loading compliance declarations…
+    </div>
+  );
+  if (!data) return (
+    <div className="max-w-2xl fade-up bg-amber-950/20 border border-amber-800/30 rounded-xl px-5 py-4 text-amber-400 text-sm">
+      ⚑ Elect a Chairperson first before noting compliance declarations.
+    </div>
+  );
+
+  const missingDocs = data.rows.flatMap((r: any) =>
+    r.forms.filter((f: any) => !f.complianceDoc?.submittedAt).map((f: any) => `${r.name} — ${FORM_META_INLINE[f.formType]?.label ?? f.formType}`)
+  );
+
+  return (
+    <div className="max-w-2xl fade-up space-y-4">
+      <div>
+        <p className="text-zinc-600 text-xs uppercase tracking-widest font-semibold mb-1">
+          {agendaItem?.title ?? 'Director Declarations'}
+        </p>
+        <h2 className="text-white text-xl font-bold mb-1" style={{fontFamily:"'Playfair Display',serif"}}>
+          Compliance Declarations
+        </h2>
+        <p className="text-zinc-500 text-xs">
+          The Chairperson must open and note each director's statutory declaration before proceeding.
+        </p>
+      </div>
+
+      {/* Progress */}
+      <div className={`rounded-xl border px-4 py-3 flex items-center justify-between ${data.allNoted ? 'bg-green-950/20 border-green-800/30' : 'bg-[#191D24] border-[#232830]'}`}>
+        <p className={`text-sm font-semibold ${data.allNoted ? 'text-green-400' : 'text-zinc-300'}`}>
+          {data.allNoted ? '✓ All declarations noted' : `${data.totalNoted} of ${data.totalRequired} noted`}
+        </p>
+        <div className="flex items-center gap-2">
+          <div className="w-24 h-1.5 bg-zinc-800 rounded-full overflow-hidden">
+            <div className="h-full rounded-full transition-all" style={{ width: `${data.totalRequired > 0 ? Math.round(data.totalNoted / data.totalRequired * 100) : 0}%`, background: data.allNoted ? '#34D399' : '#4F7FFF' }} />
+          </div>
+          <span className="text-zinc-500 text-xs">{data.totalRequired > 0 ? Math.round(data.totalNoted / data.totalRequired * 100) : 0}%</span>
+        </div>
+      </div>
+
+      {missingDocs.length > 0 && (
+        <div className="bg-amber-950/20 border border-amber-800/30 rounded-xl px-4 py-3">
+          <p className="text-amber-400 text-xs font-semibold mb-1">⚠ {missingDocs.length} form{missingDocs.length > 1 ? 's' : ''} not uploaded to vault</p>
+          <p className="text-zinc-500 text-xs">These can still be noted as physically present at {deemedVenue}.</p>
+        </div>
+      )}
+
+      {/* Director × Form matrix */}
+      <div className="space-y-3">
+        {data.rows.map((row: any) => (
+          <div key={row.userId} className="bg-[#191D24] border border-[#232830] rounded-xl overflow-hidden">
+            <div className="bg-[#1a1e26] border-b border-[#232830] px-4 py-2.5 flex items-center justify-between">
+              <div>
+                <span className="text-sm font-semibold text-zinc-200">{row.name}</span>
+                <span className="text-zinc-600 text-[11px] ml-2">{row.email}</span>
+              </div>
+              <span className="text-[10px] font-bold text-zinc-600 uppercase tracking-wider">{row.role}</span>
+            </div>
+            <div className={`grid gap-0`} style={{ gridTemplateColumns: `repeat(${row.forms.length}, 1fr)` }}>
+              {row.forms.map((cell: any, ci: number) => {
+                const cellKey   = `${row.userId}:${cell.formType}`;
+                const noted     = !!cell.note;
+                const hasDoc    = !!cell.complianceDoc?.submittedAt;
+                const rawUrl    = cell.complianceDoc?.downloadUrl ?? null;
+                const downloadUrl = rawUrl ? resolveDownloadUrl(rawUrl, jwt) : null;
+                const hasReviewed = reviewed.has(cellKey);
+                const isActive  = activeCell?.userId === row.userId && activeCell?.formType === cell.formType;
+                const isNoting  = noting === cellKey;
+                const meta      = FORM_META_INLINE[cell.formType] ?? { label: cell.formType, description: '', law: '' };
+                const noteColor = cell.note?.status === 'NOTED' ? '#34D399' : cell.note?.status === 'PHYSICALLY_PRESENT' ? '#60A5FA' : '#FBBF24';
+                const noteLabel = cell.note?.status === 'NOTED' ? '✓ Noted' : cell.note?.status === 'PHYSICALLY_PRESENT' ? '✓ Physical' : '⚠ Exception';
+
+                return (
+                  <div key={cell.formType} className="p-3.5" style={{ borderRight: ci < row.forms.length - 1 ? '1px solid #232830' : 'none' }}>
+                    <div className="flex items-center gap-1.5 mb-1">
+                      <span className="text-xs font-bold text-zinc-300">{meta.label}</span>
+                      <span className="text-[10px] text-zinc-600">{meta.law}</span>
+                    </div>
+                    <p className="text-[10px] text-zinc-600 mb-2 leading-tight">{meta.description}</p>
+
+                    {/* Doc link */}
+                    {hasDoc && downloadUrl ? (
+                      <a href={downloadUrl} target="_blank" rel="noopener noreferrer"
+                        onClick={() => setReviewed(prev => new Set(prev).add(cellKey))}
+                        className={`inline-flex items-center gap-1 text-[11px] font-semibold px-2 py-1 rounded-lg border mb-2 transition-colors ${hasReviewed ? 'text-green-400 border-green-800/40 bg-green-950/20' : 'text-blue-400 border-blue-800/40 bg-blue-950/10 hover:bg-blue-950/20'}`}>
+                        {hasReviewed ? '✓' : '↗'} {cell.complianceDoc.fileName?.slice(0, 20) ?? 'Open'}
+                      </a>
+                    ) : (
+                      <span className="inline-block text-[10px] font-bold text-red-400 bg-red-950/30 border border-red-800/30 px-2 py-0.5 rounded mb-2">Not uploaded</span>
+                    )}
+
+                    {/* Action */}
+                    {noted ? (
+                      <p className="text-xs font-semibold" style={{ color: noteColor }}>{noteLabel}</p>
+                    ) : isChairperson ? (
+                      !isActive ? (
+                        <div className="flex flex-col gap-1">
+                          {hasDoc && (
+                            <button
+                              onClick={() => hasReviewed && setActiveCell({ userId: row.userId, formType: cell.formType, mode: 'options' })}
+                              disabled={!hasReviewed}
+                              className="text-[11px] font-semibold text-blue-400 disabled:text-zinc-700 disabled:cursor-not-allowed"
+                              title={!hasReviewed ? 'Open doc above first' : undefined}>
+                              {isNoting ? '…' : hasReviewed ? 'Note ›' : 'Open doc first'}
+                            </button>
+                          )}
+                          <button
+                            onClick={() => setActiveCell({ userId: row.userId, formType: cell.formType, mode: 'physical' })}
+                            className="text-[11px] font-semibold text-zinc-400 hover:text-blue-400 transition-colors">
+                            Physical ›
+                          </button>
+                        </div>
+                      ) : activeCell?.mode === 'options' ? (
+                        <div className="flex gap-1 flex-wrap">
+                          <button onClick={() => submitNote(row.userId, cell.formType, 'NOTED')}
+                            className="text-[11px] font-semibold text-green-400 bg-green-950/30 border border-green-800/30 px-2 py-1 rounded cursor-pointer">✓ Note</button>
+                          <button onClick={() => setActiveCell({ userId: row.userId, formType: cell.formType, mode: 'exception' })}
+                            className="text-[11px] font-semibold text-amber-400 bg-amber-950/30 border border-amber-800/30 px-2 py-1 rounded cursor-pointer">⚠</button>
+                          <button onClick={() => setActiveCell(null)} className="text-[11px] text-zinc-600 px-1">✕</button>
+                        </div>
+                      ) : activeCell?.mode === 'exception' ? (
+                        <div className="space-y-1">
+                          <textarea value={exceptionText} onChange={e => setExceptionText(e.target.value)} rows={2} placeholder="Describe exception…"
+                            className="w-full bg-[#0D0F12] border border-amber-800/30 rounded px-2 py-1 text-[11px] text-zinc-300 resize-none focus:outline-none"/>
+                          <div className="flex gap-1">
+                            <button onClick={() => submitNote(row.userId, cell.formType, 'NOTED_WITH_EXCEPTION', exceptionText)} disabled={!exceptionText.trim()}
+                              className="text-[11px] font-semibold text-amber-400 disabled:opacity-40 cursor-pointer">Save</button>
+                            <button onClick={() => setActiveCell(null)} className="text-[11px] text-zinc-600">Cancel</button>
+                          </div>
+                        </div>
+                      ) : activeCell?.mode === 'physical' ? (
+                        <div className="bg-[#0D0F12] border border-zinc-700/40 rounded p-2 space-y-1">
+                          <p className="text-[10px] text-zinc-400">Confirm {meta.label} physically present at {deemedVenue}</p>
+                          <div className="flex gap-1">
+                            <button onClick={() => submitNote(row.userId, cell.formType, 'PHYSICALLY_PRESENT', `${meta.label} physically present at ${deemedVenue}`)}
+                              className="text-[11px] font-semibold text-blue-400 cursor-pointer">✓ Confirm</button>
+                            <button onClick={() => setActiveCell(null)} className="text-[11px] text-zinc-600">Cancel</button>
+                          </div>
+                        </div>
+                      ) : null
+                    ) : (
+                      <span className="text-[11px] text-zinc-600 italic">Awaiting Chair</span>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// ── Document Noting Inline ─────────────────────────────────────────────────────
+//
+// Shown when the active agenda item has itemType === 'DOCUMENT_NOTING'.
+// Renders one card per NOTING resolution under this agenda item.
+// Each card shows the document source (vault / external / physical) and lets
+// the Chairperson confirm evidence and place on record — all inline.
+
+function DocumentNotingInline({ companyId, meetingId, jwt, meeting, resolutions, isChairperson, vaultDocs, agendaItem, onRefresh }: any) {
+  const notingResolutions = resolutions.filter((r: any) => r.type === 'NOTING');
+  const vaultDocType = (agendaItem as any)?.vaultDocType;
+  const docLabel     = (agendaItem as any)?.docLabel ?? agendaItem?.title ?? 'Document';
+
+  // If no NOTING resolutions yet under this item, show a prompt
+  if (notingResolutions.length === 0) {
+    return (
+      <div className="max-w-2xl fade-up">
+        <div className="mb-4">
+          <p className="text-zinc-600 text-xs uppercase tracking-widest font-semibold mb-1">
+            {agendaItem?.title ?? 'Document Noting'}
+          </p>
+          <h2 className="text-white text-xl font-bold" style={{fontFamily:"'Playfair Display',serif"}}>
+            Document Noting
+          </h2>
+        </div>
+        <div className="bg-[#191D24] border border-[#232830] rounded-xl px-5 py-6 text-center">
+          <p className="text-zinc-500 text-sm mb-1">No noting item yet for this agenda.</p>
+          <p className="text-zinc-600 text-xs">This was not auto-created — the document may not have been in the vault when the meeting was set up.</p>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="max-w-2xl fade-up space-y-4">
+      <div>
+        <p className="text-zinc-600 text-xs uppercase tracking-widest font-semibold mb-1">
+          {agendaItem?.title ?? 'Document Noting'}
+        </p>
+        <h2 className="text-white text-xl font-bold mb-1" style={{fontFamily:"'Playfair Display',serif"}}>
+          Document Noting
+        </h2>
+        <p className="text-zinc-500 text-xs">
+          Chairperson must confirm document evidence before placing on record.
+        </p>
+      </div>
+      <div className="space-y-4">
+        {notingResolutions.map((res: Resolution, idx: number) => (
+          <ResolutionCard key={res.id} resolution={res} index={idx + 1}
+            companyId={companyId} jwt={jwt} currentUserId=""
+            meeting={meeting} isAdmin={false} isChairperson={isChairperson} onRefresh={onRefresh} />
+        ))}
+      </div>
+    </div>
+  );
+}
 
 // ── Resolution Card ───────────────────────────────────────────────────────────
 //
