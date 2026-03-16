@@ -46,6 +46,28 @@ export class MeetingController {
     return this.meetingService.addAgendaItem(companyId, meetingId, dto);
   }
 
+  @Post(':id/agenda/propose-aob')
+  @RequireRole('DIRECTOR')
+  proposeAobItem(
+    @Param('companyId') companyId: string,
+    @Param('id') meetingId: string,
+    @Body() dto: { title: string; description?: string },
+    @Req() req: any,
+  ) {
+    return this.meetingService.proposeAobItem(companyId, meetingId, dto, req.user.userId);
+  }
+
+  @Patch(':id/agenda/:itemId/admit')
+  @RequireRole('DIRECTOR')
+  admitAobItem(
+    @Param('companyId') companyId: string,
+    @Param('id') meetingId: string,
+    @Param('itemId') itemId: string,
+    @Req() req: any,
+  ) {
+    return this.meetingService.admitAobItem(companyId, meetingId, itemId, req.user.userId);
+  }
+
   @Patch(':id/status/:status')
   @RequireRole('DIRECTOR')
   transition(@Param('companyId') companyId: string, @Param('id') id: string, @Param('status') status: string, @Req() req: any) {

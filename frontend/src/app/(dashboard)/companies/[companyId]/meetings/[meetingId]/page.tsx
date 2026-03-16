@@ -13,13 +13,12 @@ import type {
 import { StatusBadge, VoteBar, Spinner, Button, Textarea } from '@/components/ui';
 
 const STATUS_ORDER: MeetingStatus[] = [
-  'DRAFT','SCHEDULED','IN_PROGRESS','VOTING','MINUTES_DRAFT','MINUTES_CIRCULATED','SIGNED','LOCKED',
+  'DRAFT','SCHEDULED','IN_PROGRESS','MINUTES_DRAFT','MINUTES_CIRCULATED','SIGNED','LOCKED',
 ];
 const NEXT_STATUS_LABEL: Partial<Record<MeetingStatus, string>> = {
   DRAFT:               'Mark Scheduled',
   SCHEDULED:           'Start Meeting',
-  IN_PROGRESS:         'Open Voting',
-  VOTING:              'Close Voting',
+  IN_PROGRESS:         'Generate Draft Minutes',
   MINUTES_DRAFT:       'Circulate Draft Minutes',
   MINUTES_CIRCULATED:  'Sign Minutes',
 };
@@ -106,10 +105,6 @@ export default function MeetingWorkspacePage() {
         await minutesApi.sign(companyId, meetingId, jwt);
       } else {
         await meetings.advance(companyId, meetingId, target, jwt);
-        if (target === 'VOTING') {
-          try { await resApi.bulkOpenVoting(companyId, meetingId, jwt); } catch {}
-          setPanel('resolutions');
-        }
         if (target === 'MINUTES_DRAFT') {
           await minutesApi.generate(companyId, meetingId, jwt);
           setPanel('minutes');
@@ -314,9 +309,65 @@ export default function MeetingWorkspacePage() {
             })()}
           </nav>
 
-          {isAdmin && !['VOTING','MINUTES_DRAFT','MINUTES_CIRCULATED','SIGNED','LOCKED'].includes(meeting.status) && (
+          {/* ── Pending AOB items — awaiting chairperson admission ─────── */}
+          {(() => {
+            const pending = meeting.agendaItems.filter(
+              (a: any) => a.isAob && (a as any).guidanceNote === '__PENDING_ADMISSION__'
+            );
+            if (pending.length === 0) return null;
+            return (
+              <div className="px-3 pb-3 border-t border-[#232830] pt-2">
+                <p className="text-zinc-600 text-[10px] uppercase tracking-widest font-semibold mb-2">
+                  Pending Admission ({pending.length})
+                </p>
+                <div className="space-y-1.5">
+                  {pending.map((item: any) => (
+                    <div key={item.id} className="bg-amber-950/20 border border-amber-800/30 rounded-lg px-3 py-2">
+                      <p className="text-amber-300 text-[11px] font-medium leading-tight">{item.title}</p>
+                      {item.description && (
+                        <p className="text-zinc-600 text-[10px] mt-0.5">{item.description}</p>
+                      )}
+                      {isChairpersonUser && (
+                        <div className="flex gap-2 mt-2">
+                          <button
+                            onClick={async () => {
+                              try { await meetings.admitAob(companyId, meetingId, item.id, jwt); await reload(); }
+                              catch (e: any) { alert(e?.body?.message ?? 'Could not admit item'); }
+                            }}
+                            className="text-[10px] font-bold text-green-400 bg-green-950/30 border border-green-800/30 px-2 py-0.5 rounded hover:bg-green-950/50 transition-colors">
+                            ✓ Admit for Discussion
+                          </button>
+                          <button
+                            onClick={async () => {
+                              // Dismiss by removing the marker — treated as not admitted
+                              try {
+                                await meetings.addAgendaItem(companyId, meetingId,
+                                  { title: item.title, description: 'Not admitted by Chairperson.' }, jwt);
+                                await reload();
+                              } catch {}
+                            }}
+                            className="text-[10px] text-zinc-600 hover:text-zinc-400">
+                            ✕ Decline
+                          </button>
+                        </div>
+                      )}
+                      {!isChairpersonUser && (
+                        <p className="text-zinc-600 text-[10px] mt-1 italic">Awaiting Chairperson</p>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            );
+          })()}
+
+          {isAdmin && !['MINUTES_DRAFT','MINUTES_CIRCULATED','SIGNED','LOCKED'].includes(meeting.status) && (
             <div className="px-3 pb-4 pt-2 border-t border-[#232830]">
-              <AddAgendaForm companyId={companyId} meetingId={meetingId} jwt={jwt} onAdded={reload} />
+              <ProposeAgendaForm
+                companyId={companyId} meetingId={meetingId} jwt={jwt}
+                isChairperson={isChairpersonUser} meetingStatus={meeting.status}
+                onAdded={reload}
+              />
             </div>
           )}
 
@@ -339,7 +390,7 @@ export default function MeetingWorkspacePage() {
               // Declarations panel removed — DocNotesPanel (Compliance Docs) is the single source
 
               { key: 'attendance', label: '◎ Attendance', show: !['DRAFT'].includes(meeting.status),
-                badge: meeting.status === 'IN_PROGRESS' ? 'Required' : undefined, badgeColor: 'amber' },
+                badge: meeting.status === 'IN_PROGRESS' && attendance.length === 0 ? 'Required' : undefined, badgeColor: 'amber' },
               // Compliance docs noted inline within agenda items (COMPLIANCE_NOTING itemType)
 
               { key: 'documents', label: '📎 Meeting Papers', always: true },
@@ -542,7 +593,6 @@ function ChairpersonModal({ companyId, meetingId, jwt, currentUserId, onElected,
 
   async function elect() {
     if (!nomination?.nomineeId || !nomination.isMajority) return;
-    // Stop polling immediately before any async work to prevent stale updates
     if (intervalRef.current) {
       clearInterval(intervalRef.current);
       intervalRef.current = null;
@@ -550,7 +600,9 @@ function ChairpersonModal({ companyId, meetingId, jwt, currentUserId, onElected,
     setSaving(true);
     try {
       await meetings.electChairperson(companyId, meetingId, nomination.nomineeId, jwt);
-      if (recId) await meetings.setRecorder(companyId, meetingId, recId, jwt);
+      // Default recorder to chairperson if none selected — CS can change later
+      const effectiveRecId = recId || nomination.nomineeId;
+      await meetings.setRecorder(companyId, meetingId, effectiveRecId, jwt);
       await onElected();
     } catch (err: any) {
       alert(err?.body?.message ?? 'Could not elect chairperson.');
@@ -780,12 +832,21 @@ function RoleAssignmentMini({ meeting, directors, companyId, meetingId, jwt, onU
             className="w-full bg-[#0D0F12] border border-[#232830] rounded-lg px-2 py-1 text-[11px] text-zinc-300 focus:outline-none focus:border-blue-600 cursor-pointer disabled:opacity-50"
           >
             <option value="">— Designate recorder</option>
-            {directors.map((d: any) => (
+            <option value={meeting.chairpersonId ?? ''}>
+              {chairName ? `${chairName} (Chairperson)` : 'Same as Chairperson'}
+            </option>
+            {directors.filter((d: any) => d.user.id !== meeting.chairpersonId).map((d: any) => (
               <option key={d.user.id} value={d.user.id}>{d.user.name}</option>
             ))}
           </select>
         ) : (
-          <p className="text-zinc-400 text-[10px] px-1">{recorderName ?? '— Not designated'}</p>
+          <p className="text-zinc-400 text-[10px] px-1">
+            {recorderName
+              ? meeting.minutesRecorderId === meeting.chairpersonId
+                ? `${recorderName} (Chairperson)`
+                : recorderName
+              : '— Not designated'}
+          </p>
         )}
       </div>
     </div>
@@ -1931,25 +1992,64 @@ function MinutesPanel({ minutes, companyId, meetingId, jwt }: any) {
 
 // ── Forms ─────────────────────────────────────────────────────────────────────
 
-function AddAgendaForm({ companyId, meetingId, jwt, onAdded }: any) {
-  const [open, setOpen] = useState(false);
-  const [title, setTitle] = useState('');
+// ProposeAgendaForm — used during IN_PROGRESS meetings
+// Any director can propose an AOB item (pending chairperson admission).
+// Before meeting starts, chairperson/admin can add agenda items directly.
+function ProposeAgendaForm({ companyId, meetingId, jwt, isChairperson, meetingStatus, onAdded }: any) {
+  const [open,    setOpen]    = useState(false);
+  const [title,   setTitle]   = useState('');
+  const [desc,    setDesc]    = useState('');
   const [loading, setLoading] = useState(false);
+  const [err,     setErr]     = useState('');
+
+  const isLive = meetingStatus === 'IN_PROGRESS';
+
   async function submit(e: React.FormEvent) {
     (e as any).preventDefault();
     if (!title.trim()) return;
-    setLoading(true);
-    try { await meetings.addAgendaItem(companyId, meetingId, { title }, jwt); setTitle(''); setOpen(false); onAdded(); }
-    finally { setLoading(false); }
+    setLoading(true); setErr('');
+    try {
+      if (isLive) {
+        // During meeting — propose as AOB (chairperson admission required)
+        await meetings.proposeAob(companyId, meetingId, { title: title.trim(), description: desc.trim() || undefined }, jwt);
+      } else {
+        // Before meeting — add directly
+        await meetings.addAgendaItem(companyId, meetingId, { title: title.trim(), description: desc.trim() || undefined }, jwt);
+      }
+      setTitle(''); setDesc(''); setOpen(false); onAdded();
+    } catch (e: any) {
+      setErr(e?.body?.message ?? 'Could not add item');
+    } finally { setLoading(false); }
   }
-  if (!open) return <button onClick={() => setOpen(true)} className="text-zinc-600 text-xs hover:text-zinc-400 w-full text-left">+ Add agenda item</button>;
+
+  if (!open) return (
+    <button onClick={() => setOpen(true)}
+      className="text-zinc-600 text-xs hover:text-zinc-400 w-full text-left">
+      {isLive ? '+ Propose AOB item' : '+ Add agenda item'}
+    </button>
+  );
+
   return (
     <form onSubmit={submit} className="space-y-2 fade-up">
-      <input autoFocus value={title} onChange={e => setTitle((e as any).target.value)} placeholder="Agenda item title"
+      {isLive && (
+        <p className="text-zinc-600 text-[10px] leading-tight">
+          Proposed as AOB — Chairperson must admit before discussion.
+        </p>
+      )}
+      <input autoFocus value={title} onChange={e => setTitle(e.target.value)}
+        placeholder="Item title"
         className="w-full bg-[#0D0F12] border border-[#232830] rounded-lg px-3 py-1.5 text-xs text-zinc-200 placeholder:text-zinc-700 focus:outline-none focus:border-blue-600"/>
+      <textarea value={desc} onChange={e => setDesc(e.target.value)} rows={2}
+        placeholder="Brief description (optional)"
+        className="w-full bg-[#0D0F12] border border-[#232830] rounded-lg px-3 py-1.5 text-xs text-zinc-200 placeholder:text-zinc-700 focus:outline-none focus:border-blue-600 resize-none"/>
+      {err && <p className="text-red-400 text-[10px]">{err}</p>}
       <div className="flex gap-2">
-        <button type="submit" disabled={loading} className="text-[11px] text-blue-400 font-medium disabled:opacity-50">{loading ? '…' : 'Add'}</button>
-        <button type="button" onClick={() => setOpen(false)} className="text-[11px] text-zinc-600">Cancel</button>
+        <button type="submit" disabled={loading}
+          className="text-[11px] text-blue-400 font-medium disabled:opacity-50">
+          {loading ? '…' : isLive ? 'Propose' : 'Add'}
+        </button>
+        <button type="button" onClick={() => { setOpen(false); setErr(''); }}
+          className="text-[11px] text-zinc-600">Cancel</button>
       </div>
     </form>
   );

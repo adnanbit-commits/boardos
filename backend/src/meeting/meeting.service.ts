@@ -10,8 +10,8 @@ import { AddAgendaItemDto } from './dto/add-agenda-item.dto';
 const ALLOWED_TRANSITIONS: Record<MeetingStatus, MeetingStatus[]> = {
   DRAFT:              ['SCHEDULED'],
   SCHEDULED:          ['IN_PROGRESS', 'DRAFT'],
-  IN_PROGRESS:        ['VOTING'],
-  VOTING:             ['MINUTES_DRAFT'],
+  IN_PROGRESS:        ['MINUTES_DRAFT'],   // VOTING status removed — motions voted individually per-item
+  VOTING:             ['MINUTES_DRAFT'],   // kept for backward compat with existing meetings
   MINUTES_DRAFT:      ['MINUTES_CIRCULATED'],
   MINUTES_CIRCULATED: ['SIGNED'],
   SIGNED:             ['LOCKED'],
@@ -82,7 +82,7 @@ export class MeetingService {
     const meeting = await this.prisma.meeting.findFirst({ where: { id: meetingId, companyId } });
     if (!meeting) throw new NotFoundException('Meeting not found');
     const count = await this.prisma.agendaItem.count({ where: { meetingId } });
-    const isAob = ['IN_PROGRESS', 'VOTING'].includes(meeting.status);
+    const isAob = meeting.status === 'IN_PROGRESS';
     return this.prisma.agendaItem.create({
       data: {
         meetingId,
@@ -96,6 +96,54 @@ export class MeetingService {
         ...(dto.guidanceNote? { guidanceNote:dto.guidanceNote} : {}),
       } as any,
     });
+  }
+
+  // ── AOB Admission ─────────────────────────────────────────────────────────
+  // Director proposes AOB item → it sits with admitted=false until chairperson
+  // explicitly admits it. Once admitted it becomes a standard agenda item.
+
+  async proposeAobItem(companyId: string, meetingId: string, dto: { title: string; description?: string }, userId: string) {
+    const meeting = await this.prisma.meeting.findFirst({ where: { id: meetingId, companyId } });
+    if (!meeting) throw new NotFoundException('Meeting not found');
+    if (meeting.status !== 'IN_PROGRESS') throw new BadRequestException('AOB items can only be proposed during an in-progress meeting');
+
+    const count = await this.prisma.agendaItem.count({ where: { meetingId } });
+    const item = await this.prisma.agendaItem.create({
+      data: {
+        meetingId,
+        title:       dto.title,
+        description: dto.description,
+        order:       count + 1,
+        isAob:       true,
+        itemType:    'STANDARD',
+      } as any,
+    });
+
+    // Mark as pending admission via guidanceNote field (no schema change needed)
+    await this.prisma.agendaItem.update({
+      where: { id: item.id },
+      data: { guidanceNote: '__PENDING_ADMISSION__' } as any,
+    });
+
+    await this.audit.log({ companyId, userId, action: 'AOB_ITEM_PROPOSED', entity: 'AgendaItem', entityId: item.id, metadata: { title: dto.title } });
+    return item;
+  }
+
+  async admitAobItem(companyId: string, meetingId: string, itemId: string, userId: string) {
+    const meeting = await this.prisma.meeting.findFirst({ where: { id: meetingId, companyId } });
+    if (!meeting) throw new NotFoundException('Meeting not found');
+    if (meeting.chairpersonId !== userId) throw new ForbiddenException('Only the Chairperson can admit AOB items');
+
+    const item = await this.prisma.agendaItem.findFirst({ where: { id: itemId, meetingId } });
+    if (!item) throw new NotFoundException('Agenda item not found');
+
+    await this.prisma.agendaItem.update({
+      where: { id: itemId },
+      data: { guidanceNote: null } as any,  // clear __PENDING_ADMISSION__ marker
+    });
+
+    await this.audit.log({ companyId, userId, action: 'AOB_ITEM_ADMITTED', entity: 'AgendaItem', entityId: itemId, metadata: { title: item.title } });
+    return item;
   }
 
   // ── Chairperson nomination flow ──────────────────────────────────────────────

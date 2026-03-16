@@ -287,6 +287,10 @@ export const meetings = {
     patch<Meeting>(`/companies/${companyId}/meetings/${meetingId}/status/${status}`, undefined, token),
   addAgendaItem: (companyId: string, meetingId: string, body: { title: string; description?: string; itemType?: string; legalBasis?: string; guidanceNote?: string }, token: string) =>
     post<AgendaItem>(`/companies/${companyId}/meetings/${meetingId}/agenda`, body, token),
+  proposeAob: (companyId: string, meetingId: string, body: { title: string; description?: string }, token: string) =>
+    post<AgendaItem>(`/companies/${companyId}/meetings/${meetingId}/agenda/propose-aob`, body, token),
+  admitAob: (companyId: string, meetingId: string, itemId: string, token: string) =>
+    patch<AgendaItem>(`/companies/${companyId}/meetings/${meetingId}/agenda/${itemId}/admit`, undefined, token),
   getAttendance: (companyId: string, meetingId: string, token: string) =>
     get<AttendanceRecord[]>(`/companies/${companyId}/meetings/${meetingId}/attendance`, token),
   recordAttendance: (companyId: string, meetingId: string, body: { userId: string; mode: AttendanceMode; location?: string; noThirdParty?: boolean }, token: string) =>
