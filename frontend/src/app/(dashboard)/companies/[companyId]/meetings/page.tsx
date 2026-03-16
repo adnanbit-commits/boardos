@@ -22,7 +22,7 @@ import { getToken } from '@/lib/auth';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
-interface AgendaDraft { id: string; title: string; goal: string; }
+interface AgendaDraft { id: string; title: string; goal: string; itemType?: string; workItems?: any[]; }
 type CreateStep = 'pick' | 'form';
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -128,14 +128,16 @@ export default function MeetingsPage() {
     if (items.length > 0 && 'itemType' in items[0]) {
       const richItems = items as TemplateAgendaItem[];
       setAgendaItems(richItems.map(a => ({
-        id:    uid(),
-        title: a.title,
-        goal:  a.legalBasis ?? '',
+        id:       uid(),
+        title:    a.title,
+        goal:     a.legalBasis ?? '',
+        itemType: a.itemType,
+        workItems: a.workItems ?? [],
       })));
     } else {
       // Flat items from custom templates
-      setAgendaItems((items as { title: string; description?: string }[])
-        .map(a => ({ id: uid(), title: a.title, goal: a.description ?? '' })));
+      setAgendaItems((items as { title: string; description?: string; itemType?: string; workItems?: any[] }[])
+        .map(a => ({ id: uid(), title: a.title, goal: a.description ?? '', itemType: a.itemType, workItems: a.workItems ?? [] })));
     }
     setSelectedTplId(tplId ?? null);
     setCreateStep('form');
@@ -215,18 +217,19 @@ export default function MeetingsPage() {
         const agendaItem = await meetingsApi.addAgendaItem(companyId, meeting.id, {
           title:       item.title.trim(),
           description: item.goal.trim() || undefined,
-          ...(tplItem ? {
-            itemType:    tplItem.itemType,
-            legalBasis:  tplItem.legalBasis,
-            guidanceNote:tplItem.guidanceNote,
-          } : {}),
+          // itemType from draft (covers both system and custom templates)
+          // tplItem overrides with full legalBasis/guidanceNote if available
+          itemType:    tplItem?.itemType    ?? item.itemType,
+          legalBasis:  tplItem?.legalBasis  ?? undefined,
+          guidanceNote:tplItem?.guidanceNote ?? undefined,
         }, token);
 
-        // Collect workItems from either the system template match OR the custom template item directly
+        // Collect workItems: tplItem (system template) takes priority;
+        // fall back to draft item.workItems (custom template or system template stored on draft)
         const sourceWorkItems: any[] = tplItem?.workItems?.length
-          ? tplItem.workItems                           // system template — full TemplateWorkItem shape
-          : (item as any).workItems?.length
-          ? (item as any).workItems                    // custom template — WorkItemDraft shape
+          ? tplItem.workItems
+          : item.workItems?.length
+          ? item.workItems
           : [];
 
         if (!sourceWorkItems.length) continue;
