@@ -96,6 +96,7 @@ export interface Meeting {
   chairpersonId?: string | null;
   minutesRecorderId?: string | null;
   minutesCirculatedAt?: string | null;
+  calledBy?: string | null;  // userId of director who created this meeting
 }
 
 
@@ -133,8 +134,26 @@ export interface Resolution {
   createdAt: string;
   vaultDocId?:   string | null;
   meetingDocId?: string | null;
-  // Exhibit document — returned by findByMeeting, must be opened before noting
-  exhibitDoc?: { fileName: string; downloadUrl: string } | null;
+  // Evidence fields for NOTING resolutions
+  externalDocUrl?:      string | null;
+  externalDocPlatform?: string | null;
+  physicallyPresent?:   boolean | null;
+  physicalEvidence?:    string | null;
+  // Exhibit doc — full evidence payload returned by findByMeeting
+  exhibitDoc?: {
+    // Path A — vault/meeting document
+    fileName?:      string;
+    downloadUrl?:   string;
+    vaultDocType?:  string;
+    vaultDocLabel?: string;
+    vaultDocId?:    string;
+    // Path B — external platform
+    externalDocUrl?:      string;
+    externalDocPlatform?: string;
+    // Path C — physical presence
+    physicallyPresent?: boolean;
+    physicalEvidence?:  string;
+  } | null;
 }
 
 export type ResolutionWithTally = Resolution & {
@@ -337,6 +356,17 @@ export const resolutions = {
     del<{ message: string }>(`/companies/${companyId}/resolutions/${resolutionId}`, token),
   propose: (companyId: string, resolutionId: string, token: string) =>
     patch<Resolution>(`/companies/${companyId}/resolutions/${resolutionId}/propose`, undefined, token),
+  setEvidence: (
+    companyId: string, resolutionId: string,
+    body: {
+      externalDocUrl?: string;
+      externalDocPlatform?: string;
+      physicallyPresent?: boolean;
+      physicalEvidence?: string;
+    },
+    token: string
+  ) =>
+    patch<Resolution>(`/companies/${companyId}/resolutions/${resolutionId}/set-evidence`, body, token),
   note: (companyId: string, resolutionId: string, token: string) =>
     patch<Resolution>(`/companies/${companyId}/resolutions/${resolutionId}/note`, undefined, token),
   openVoting: (companyId: string, resolutionId: string, token: string) =>

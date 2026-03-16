@@ -14,12 +14,14 @@ export type AgendaItemType =
   | 'QUORUM_CONFIRMATION'
   | 'CHAIRPERSON_ELECTION'
   | 'COMPLIANCE_NOTING'
-  | 'VAULT_DOC_NOTING'
+  | 'DOCUMENT_NOTING'       // canonical type for all document noting agenda items
+  | 'VAULT_DOC_NOTING'      // alias kept for backward compat
   | 'ELECTRONIC_CONSENT';
 
 export type WorkItemType =
   | 'RESOLUTION_VOTING'
-  | 'NOTING_VAULT_DOC'
+  | 'DOCUMENT_NOTING'       // canonical: note any document — vault, external, or physical
+  | 'NOTING_VAULT_DOC'      // alias kept for backward compat
   | 'NOTING_COMPLIANCE_FORM'
   | 'SYSTEM_ACTION';
 
@@ -33,8 +35,11 @@ export interface TemplateWorkItem {
   type:             WorkItemType;
   title:            string;
   textTemplate:     string;   // {{company_name}}, {{director_name}}, {{date}} substituted at apply time
-  vaultDocType?:    string;   // for NOTING_VAULT_DOC — matches VaultDocType enum
-  complianceForm?:  string;   // for NOTING_COMPLIANCE_FORM — 'DIR_2' | 'DIR_8' | 'MBP_1'
+  // Document noting fields (DOCUMENT_NOTING / NOTING_VAULT_DOC)
+  vaultDocType?:    string;   // if set, auto-links vault slot by docType (INCORPORATION_CERT, MOA, etc.)
+  docLabel?:        string;   // human label for the document — shown in evidence UI
+  // Compliance form (NOTING_COMPLIANCE_FORM)
+  complianceForm?:  string;   // 'DIR_2' | 'DIR_8' | 'MBP_1'
   isDynamic?:       boolean;  // true = generate one item per director at apply time
   isEditable:       boolean;  // can CS edit text before meeting starts?
   hasPlaceholders:  boolean;  // true = text has [PLACEHOLDER] markers that must be filled
@@ -163,14 +168,14 @@ export const SYSTEM_TEMPLATES: SystemTemplate[] = [
       {
         order:       4,
         title:       'Noting of Certificate of Incorporation',
-        itemType:    'VAULT_DOC_NOTING',
+        itemType:    'DOCUMENT_NOTING',
         legalBasis:  'SS-1 Annexure B — first board meeting only. The Board acknowledges the Company\'s formal establishment.',
         guidanceNote:'Upload the COI to the Document Vault before the meeting. The Chairperson must open and review the document before placing it on record. Once noted at this meeting and the meeting is locked, this item will not appear in future meetings.',
         isOptional:  false,
         requiredFor: 'FIRST_MEETING',
         workItems: [
           {
-            type:            'NOTING_VAULT_DOC',
+            type:            'DOCUMENT_NOTING',
             title:           'Noting of Certificate of Incorporation',
             textTemplate:    'The Board took note of the Certificate of Incorporation dated {{inc_date}} bearing Corporate Identity Number (CIN) {{cin}} issued by the Registrar of Companies, {{roc_city}}, confirming that the Company has been duly incorporated under the Companies Act, 2013. The Certificate is placed on record.',
             vaultDocType:    'INCORPORATION_CERT',
@@ -184,14 +189,14 @@ export const SYSTEM_TEMPLATES: SystemTemplate[] = [
       {
         order:       5,
         title:       'Noting of Memorandum of Association',
-        itemType:    'VAULT_DOC_NOTING',
+        itemType:    'DOCUMENT_NOTING',
         legalBasis:  'SS-1 Annexure B — first board meeting only.',
         guidanceNote:'Upload the MOA to the Document Vault before the meeting.',
         isOptional:  false,
         requiredFor: 'FIRST_MEETING',
         workItems: [
           {
-            type:            'NOTING_VAULT_DOC',
+            type:            'DOCUMENT_NOTING',
             title:           'Noting of Memorandum of Association',
             textTemplate:    'The Board took note of the Memorandum of Association of {{company_name}} as registered with the Registrar of Companies. The Memorandum of Association is placed on record as the constitutional document governing the Company\'s objects and capital.',
             vaultDocType:    'MOA',
@@ -205,14 +210,14 @@ export const SYSTEM_TEMPLATES: SystemTemplate[] = [
       {
         order:       6,
         title:       'Noting of Articles of Association',
-        itemType:    'VAULT_DOC_NOTING',
+        itemType:    'DOCUMENT_NOTING',
         legalBasis:  'SS-1 Annexure B — first board meeting only.',
         guidanceNote:'Upload the AOA to the Document Vault before the meeting.',
         isOptional:  false,
         requiredFor: 'FIRST_MEETING',
         workItems: [
           {
-            type:            'NOTING_VAULT_DOC',
+            type:            'DOCUMENT_NOTING',
             title:           'Noting of Articles of Association',
             textTemplate:    'The Board took note of the Articles of Association of {{company_name}} as registered with the Registrar of Companies. The Articles of Association are placed on record as the document governing the internal management and governance of the Company.',
             vaultDocType:    'AOA',
@@ -346,14 +351,14 @@ export const SYSTEM_TEMPLATES: SystemTemplate[] = [
       {
         order:       13,
         title:       'Adoption of Common Seal',
-        itemType:    'VAULT_DOC_NOTING',
+        itemType:    'DOCUMENT_NOTING',
         legalBasis:  'Common seal is optional post-2015 (Companies Amendment Act 2015). If adopted, a specimen must be placed on record.',
         guidanceNote:'Optional. If the company has adopted a common seal, upload a scan/impression to the vault and this item will auto-link it. Skip if no common seal.',
         isOptional:  true,
         requiredFor: 'FIRST_MEETING',
         workItems: [
           {
-            type:            'NOTING_VAULT_DOC',
+            type:            'DOCUMENT_NOTING',
             title:           'Adoption of Common Seal',
             textTemplate:    'RESOLVED THAT the Board adopts the Common Seal of the Company, an impression of which is placed on record. The {{custodian_name}} is authorised to have custody of the Common Seal.',
             vaultDocType:    'COMMON_SEAL',

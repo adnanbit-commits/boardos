@@ -241,10 +241,11 @@ export default function MeetingsPage() {
             }
           } else {
             // Single resolution for this work item
-            const resType = wi.type === 'RESOLUTION_VOTING' ? 'MEETING' : 'NOTING';
-            // For vault doc noting items — find the matching vault document by docType
+            const resType = wi.type === 'RESOLUTION_VOTING' ? 'MEETING' : 'NOTING'; // DOCUMENT_NOTING and NOTING_VAULT_DOC both → NOTING
+            // For document noting items — auto-link vault slot if vaultDocType is set
             let vaultDocId: string | undefined;
-            if (wi.type === 'NOTING_VAULT_DOC' && wi.vaultDocType) {
+            const isDocNoting = wi.type === 'DOCUMENT_NOTING' || wi.type === 'NOTING_VAULT_DOC';
+            if (isDocNoting && wi.vaultDocType) {
               const match = vaultDocList.find((d: any) =>
                 d.docType === wi.vaultDocType && d.fileUrl
               );

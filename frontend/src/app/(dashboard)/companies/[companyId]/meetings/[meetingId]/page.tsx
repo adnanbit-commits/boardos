@@ -130,9 +130,18 @@ export default function MeetingWorkspacePage() {
   const next    = nextStatus(meeting.status as MeetingStatus);
   const myMembership  = members.find((m: any) => m.user?.id === me?.id);
   const isWorkspaceAdmin = myMembership?.isWorkspaceAdmin === true;
-  const isDirector = myRole === 'DIRECTOR';
-  const isParticipant = myRole === 'DIRECTOR' || myRole === 'COMPANY_SECRETARY';
-  const isAdmin = isWorkspaceAdmin || isDirector; // legacy alias — use specific flags below
+  const isDirector   = myRole === 'DIRECTOR';
+  const isChairpersonUser = meeting.chairpersonId === me?.id;
+  const isCS         = myRole === 'COMPANY_SECRETARY';
+  const isParticipant = isDirector || isCS;
+  // canAdvance: before chairperson elected → meeting caller or workspace admin only
+  //             after chairperson elected  → chairperson only
+  const isCalledByMe = (meeting as any).calledBy === me?.id;
+  const canAdvance = meeting.chairpersonId
+    ? isChairpersonUser
+    : (isCalledByMe || isWorkspaceAdmin);
+  // isAdmin kept as alias for legacy guards (e.g. add agenda item, manage docs)
+  const isAdmin = isWorkspaceAdmin || isDirector;
 
   const visibleResolutions = activeAgenda
     ? resolutions.filter(r => r.agendaItemId === activeAgenda)
@@ -215,7 +224,7 @@ export default function MeetingWorkspacePage() {
                 ◎ {(meeting as any).deemedVenue}
               </span>
             )}
-            {isAdmin && next && (
+            {canAdvance && next && (
               <Button onClick={advanceMeeting} loading={advancing} size="sm"
                 variant={next === 'SIGNED' ? 'outline' : 'primary'}>
                 {NEXT_STATUS_LABEL[meeting.status as MeetingStatus] ?? `→ ${next}`}
@@ -347,6 +356,7 @@ export default function MeetingWorkspacePage() {
               meeting={meeting} resolutions={visibleResolutions}
               activeAgendaItem={meeting.agendaItems.find(a => a.id === activeAgenda)}
               currentUserId={me?.id ?? ''} onRefresh={reload} isAdmin={isAdmin}
+              isChairperson={isChairpersonUser}
               vaultDocs={vaultDocs}
             />
           )}
@@ -1105,7 +1115,7 @@ function AttendancePanel({ companyId, meetingId, jwt, meeting, attendance, curre
 }
 // ── Resolutions Panel ─────────────────────────────────────────────────────────
 
-function ResolutionsPanel({ companyId, meetingId, jwt, meeting, resolutions, activeAgendaItem, currentUserId, onRefresh, isAdmin, vaultDocs }: any) {
+function ResolutionsPanel({ companyId, meetingId, jwt, meeting, resolutions, activeAgendaItem, currentUserId, onRefresh, isAdmin, isChairperson, vaultDocs }: any) {
   const [showAdd, setShowAdd] = useState(false);
   const canAdd = !['VOTING','MINUTES_DRAFT','MINUTES_CIRCULATED','SIGNED','LOCKED'].includes(meeting.status);
   return (
@@ -1138,7 +1148,7 @@ function ResolutionsPanel({ companyId, meetingId, jwt, meeting, resolutions, act
         {resolutions.map((res: Resolution, idx: number) => (
           <ResolutionCard key={res.id} resolution={res} index={idx + 1}
             companyId={companyId} jwt={jwt} currentUserId={currentUserId}
-            meeting={meeting} isAdmin={isAdmin} onRefresh={onRefresh} />
+            meeting={meeting} isAdmin={isAdmin} isChairperson={isChairperson} onRefresh={onRefresh} />
         ))}
       </div>
     </div>
@@ -1147,21 +1157,57 @@ function ResolutionsPanel({ companyId, meetingId, jwt, meeting, resolutions, act
 
 // ── Resolution Card ───────────────────────────────────────────────────────────
 
-function ResolutionCard({ resolution, index, companyId, jwt, currentUserId, meeting, isAdmin, onRefresh }: any) {
-  const [expanded,        setExpanded]        = useState(resolution.status === 'VOTING');
-  const [isVoting,        setIsVoting]        = useState(false);
-  const [myVote,          setMyVote]          = useState<string | null>(null);
-  const [castError,       setCastError]       = useState('');
-  const [proposing,       setProposing]       = useState(false);
-  const [noting,          setNoting]          = useState(false);
-  // Exhibit doc: chairperson must open before Place on Record is enabled
-  const [hasOpenedExhibit, setHasOpenedExhibit] = useState(false);
+// ── Resolution Card ───────────────────────────────────────────────────────────
+//
+// Renders one resolution. For NOTING type it shows the document evidence UI —
+// the chairperson must confirm at least one of three evidence paths before
+// "Place on Record" is enabled.
 
-  const isNoting     = resolution.type === 'NOTING';
-  const hasExhibit   = !!(resolution.exhibitDoc?.downloadUrl);
-  const canPlaceOnRecord = isNoting && (!hasExhibit || hasOpenedExhibit);
+const PLATFORM_META: Record<string, { label: string; icon: string; urlHint: string }> = {
+  'MCA21':        { label: 'MCA21 Portal',  icon: '🏛', urlHint: 'https://www.mca.gov.in/...' },
+  'Google Drive': { label: 'Google Drive',  icon: '📁', urlHint: 'https://drive.google.com/...' },
+  'Dropbox':      { label: 'Dropbox',       icon: '📦', urlHint: 'https://www.dropbox.com/...' },
+  'OneDrive':     { label: 'OneDrive',      icon: '☁',  urlHint: 'https://onedrive.live.com/...' },
+  'Other':        { label: 'Other URL',     icon: '🔗', urlHint: 'https://...' },
+};
+const PLATFORMS = Object.keys(PLATFORM_META);
+
+function ResolutionCard({ resolution, index, companyId, jwt, currentUserId, meeting, isAdmin, isChairperson, onRefresh }: any) {
+  const [expanded,  setExpanded]  = useState(resolution.status === 'VOTING');
+  const [isVoting,  setIsVoting]  = useState(false);
+  const [myVote,    setMyVote]    = useState<string | null>(null);
+  const [castError, setCastError] = useState('');
+  const [proposing, setProposing] = useState(false);
+  const [noting,    setNoting]    = useState(false);
+  const [evidErr,   setEvidErr]   = useState('');
+
+  // Evidence path selection state (Path B / C — Path A is already on resolution)
+  const [evidPath,    setEvidPath]    = useState<'A'|'B'|'C'|null>(null);
+  const [extPlatform, setExtPlatform] = useState('MCA21');
+  const [extUrl,      setExtUrl]      = useState('');
+  const [savingEvid,  setSavingEvid]  = useState(false);
+  // Path A: track if chairperson opened the vault doc this session
+  const [openedVault, setOpenedVault] = useState(false);
+
+  const isNoting = resolution.type === 'NOTING';
+  const ed       = resolution.exhibitDoc;
+
+  // Determine confirmed evidence state from what's persisted on the resolution
+  const hasVaultDoc       = !!(ed?.downloadUrl);
+  const hasExternalEvid   = !!(ed?.externalDocUrl || resolution.externalDocUrl);
+  const hasPhysicalEvid   = !!(ed?.physicallyPresent || resolution.physicallyPresent);
+  const evidenceConfirmed = hasVaultDoc || hasExternalEvid || hasPhysicalEvid;
+
+  // Chairperson can place on record once evidence is confirmed
+  // Path A additionally needs the vault doc to be opened this session
+  const canPlaceOnRecord = isNoting && (
+    (hasVaultDoc    && openedVault)  ||
+    hasExternalEvid                  ||
+    hasPhysicalEvid
+  );
+
   const existingVote = resolution.votes?.find((v: any) => v.user.id === currentUserId);
-  const hasVoted = !!existingVote;
+  const hasVoted     = !!existingVote;
 
   const borderColor = resolution.status === 'APPROVED' ? 'border-green-800/50'
     : resolution.status === 'REJECTED' ? 'border-red-800/50'
@@ -1173,8 +1219,7 @@ function ResolutionCard({ resolution, index, companyId, jwt, currentUserId, meet
     : resolution.status === 'REJECTED' ? 'bg-red-500'
     : resolution.status === 'NOTED'    ? 'bg-zinc-600'
     : resolution.status === 'VOTING'   ? 'bg-amber-500'
-    : isNoting ? 'bg-zinc-700'
-    : 'bg-blue-600';
+    : isNoting ? 'bg-zinc-700' : 'bg-blue-600';
 
   async function propose() {
     setProposing(true);
@@ -1184,15 +1229,39 @@ function ResolutionCard({ resolution, index, companyId, jwt, currentUserId, meet
   }
 
   async function placeOnRecord() {
-    setNoting(true);
+    setNoting(true); setEvidErr('');
     try { await resApi.note(companyId, resolution.id, jwt); onRefresh(); }
-    catch (e: any) { setCastError((e as any).body?.message ?? 'Could not place on record'); }
+    catch (e: any) { setEvidErr((e as any).body?.message ?? 'Could not place on record'); }
     finally { setNoting(false); }
+  }
+
+  async function saveEvidence() {
+    setSavingEvid(true); setEvidErr('');
+    try {
+      if (evidPath === 'B') {
+        if (!extUrl.trim()) { setEvidErr('Please enter the document URL.'); return; }
+        await resApi.setEvidence(companyId, resolution.id, {
+          externalDocUrl: extUrl.trim(),
+          externalDocPlatform: extPlatform,
+        }, jwt);
+      } else if (evidPath === 'C') {
+        const venue = (meeting as any).deemedVenue ?? (meeting as any).location ?? 'deemed venue';
+        const date  = new Date().toLocaleDateString('en-IN', { day: '2-digit', month: 'long', year: 'numeric' });
+        await resApi.setEvidence(companyId, resolution.id, {
+          physicallyPresent: true,
+          physicalEvidence: `Physically present at ${venue} on ${date}`,
+        }, jwt);
+      }
+      await onRefresh();
+      setEvidPath(null);
+    } catch (e: any) {
+      setEvidErr((e as any).body?.message ?? 'Could not save evidence');
+    } finally { setSavingEvid(false); }
   }
 
   async function castVote(value: string) {
     setMyVote(value); setIsVoting(true); setCastError('');
-    try { await voting.castVote(companyId, resolution.id, { value: value as 'APPROVE' | 'REJECT' | 'ABSTAIN' }, jwt); onRefresh(); }
+    try { await voting.castVote(companyId, resolution.id, { value: value as any }, jwt); onRefresh(); }
     catch (e: any) { setCastError((e as any).body?.message ?? 'Could not cast vote'); setMyVote(null); }
     finally { setIsVoting(false); }
   }
@@ -1209,9 +1278,9 @@ function ResolutionCard({ resolution, index, companyId, jwt, currentUserId, meet
             {index}
           </span>
           <div className="min-w-0">
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 flex-wrap">
               <p className="text-white font-semibold text-sm leading-snug">{resolution.title}</p>
-              {isNoting && <span className="text-[9px] bg-zinc-800 border border-zinc-700 text-zinc-500 px-1.5 py-0.5 rounded-full">On Record</span>}
+              {isNoting && <span className="text-[9px] bg-zinc-800 border border-zinc-700 text-zinc-500 px-1.5 py-0.5 rounded-full">Document Noting</span>}
             </div>
             {resolution.status === 'VOTING' && (
               <p className="text-amber-400 text-[11px] mt-0.5">{totalVotes} of {resolution.directorCount ?? '?'} voted</p>
@@ -1233,61 +1302,202 @@ function ResolutionCard({ resolution, index, companyId, jwt, currentUserId, meet
 
       {expanded && (
         <div className="px-6 pb-5 fade-up space-y-4 border-t border-[#232830] pt-4">
+          {/* Resolution text */}
           <div className="bg-[#13161B] border-l-2 border-zinc-700 pl-4 py-3 pr-3 rounded-r-xl">
             <p className="text-zinc-400 text-xs leading-relaxed whitespace-pre-wrap">{resolution.text}</p>
           </div>
 
-          {/* NOTING type — exhibit document preview */}
-          {isNoting && hasExhibit && (
-            <div className={`rounded-xl border p-3.5 flex items-center gap-3 transition-colors ${
-              hasOpenedExhibit
-                ? 'bg-green-950/20 border-green-800/30'
-                : 'bg-[#13161B] border-amber-800/30'
-            }`}>
-              <span className="text-lg flex-shrink-0">{hasOpenedExhibit ? '✓' : '📄'}</span>
-              <div className="flex-1 min-w-0">
-                <p className="text-xs font-semibold text-zinc-300 truncate">{resolution.exhibitDoc!.fileName}</p>
-                <p className="text-[10px] text-zinc-500 mt-0.5">
-                  {hasOpenedExhibit ? 'Document reviewed' : 'Must be opened before noting'}
-                </p>
-              </div>
-              <a
-                href={resolveDownloadUrl(resolution.exhibitDoc!.downloadUrl, jwt)}
-                target="_blank" rel="noopener noreferrer"
-                onClick={() => setHasOpenedExhibit(true)}
-                className={`text-xs font-semibold px-3 py-1.5 rounded-lg border transition-colors flex-shrink-0 ${
-                  hasOpenedExhibit
-                    ? 'text-green-400 border-green-700/40 bg-green-950/30'
-                    : 'text-blue-400 border-blue-700/40 bg-blue-950/30 hover:bg-blue-950/50'
-                }`}
-              >
-                {hasOpenedExhibit ? '↗ Re-open' : '↗ Open'}
-              </a>
-            </div>
-          )}
+          {/* ── Document Evidence Section (NOTING type only) ──────────────── */}
+          {isNoting && resolution.status === 'DRAFT' && (
+            <div className="space-y-3">
+              <p className="text-zinc-500 text-[10px] uppercase tracking-widest font-semibold">Document Evidence</p>
 
-          {/* NOTING type — place on record button */}
-          {isNoting && resolution.status === 'DRAFT' && isAdmin && meeting.status === 'IN_PROGRESS' && (
-            <div>
-              <Button
-                size="sm" onClick={placeOnRecord} loading={noting}
-                disabled={!canPlaceOnRecord}
-              >
-                ✓ Place on Record
-              </Button>
-              {hasExhibit && !hasOpenedExhibit && (
-                <p className="text-amber-400 text-[10px] mt-2">
-                  ↑ Open the exhibit document above before placing on record
-                </p>
+              {/* Path A — BoardOS Vault */}
+              {hasVaultDoc && (
+                <div className={`rounded-xl border p-3.5 flex items-center gap-3 transition-colors ${
+                  openedVault ? 'bg-green-950/20 border-green-800/30' : 'bg-[#13161B] border-amber-800/30'
+                }`}>
+                  <span className="text-lg flex-shrink-0">{openedVault ? '✓' : '📁'}</span>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-xs font-semibold text-zinc-300 truncate">
+                      {ed?.vaultDocLabel ?? ed?.fileName ?? 'Vault document'}
+                    </p>
+                    <p className="text-[10px] text-zinc-500 mt-0.5">
+                      {openedVault ? 'Reviewed from BoardOS vault' : 'Open to review before placing on record'}
+                    </p>
+                  </div>
+                  <a href={resolveDownloadUrl(ed!.downloadUrl!, jwt)} target="_blank" rel="noopener noreferrer"
+                    onClick={() => setOpenedVault(true)}
+                    className={`text-xs font-semibold px-3 py-1.5 rounded-lg border transition-colors flex-shrink-0 ${
+                      openedVault
+                        ? 'text-green-400 border-green-700/40 bg-green-950/30'
+                        : 'text-blue-400 border-blue-700/40 bg-blue-950/30 hover:bg-blue-950/50'
+                    }`}>
+                    {openedVault ? '↗ Re-open' : '↗ Open'}
+                  </a>
+                </div>
+              )}
+
+              {/* Path B — External platform (confirmed) */}
+              {hasExternalEvid && (
+                <div className="rounded-xl border border-blue-800/30 bg-blue-950/10 p-3.5 flex items-center gap-3">
+                  <span className="text-lg">{PLATFORM_META[ed?.externalDocPlatform ?? resolution.externalDocPlatform ?? 'Other']?.icon ?? '🔗'}</span>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-xs font-semibold text-zinc-300">
+                      {PLATFORM_META[ed?.externalDocPlatform ?? resolution.externalDocPlatform ?? 'Other']?.label ?? 'External'}
+                    </p>
+                    <a href={ed?.externalDocUrl ?? resolution.externalDocUrl ?? '#'} target="_blank" rel="noopener noreferrer"
+                      className="text-[10px] text-blue-400 hover:underline truncate block max-w-xs">
+                      {ed?.externalDocUrl ?? resolution.externalDocUrl}
+                    </a>
+                  </div>
+                  <span className="text-[9px] font-bold text-blue-400 bg-blue-950 border border-blue-800/40 px-2 py-0.5 rounded-full">Confirmed</span>
+                </div>
+              )}
+
+              {/* Path C — Physical presence (confirmed) */}
+              {hasPhysicalEvid && (
+                <div className="rounded-xl border border-zinc-700/40 bg-zinc-900/30 p-3.5 flex items-center gap-3">
+                  <span className="text-lg">📄</span>
+                  <div className="flex-1">
+                    <p className="text-xs font-semibold text-zinc-300">Physical copy confirmed</p>
+                    <p className="text-[10px] text-zinc-500 mt-0.5">
+                      {ed?.physicalEvidence ?? resolution.physicalEvidence ?? 'Present at deemed venue'}
+                    </p>
+                  </div>
+                  <span className="text-[9px] font-bold text-zinc-400 bg-zinc-800 border border-zinc-700 px-2 py-0.5 rounded-full">Confirmed</span>
+                </div>
+              )}
+
+              {/* Evidence path selector — shown when no evidence confirmed yet */}
+              {isChairperson && !evidenceConfirmed && !hasVaultDoc && evidPath === null && (
+                <div className="bg-[#0D0F12] border border-[#232830] rounded-xl p-4 space-y-2">
+                  <p className="text-zinc-400 text-xs font-semibold mb-3">How was this document reviewed?</p>
+                  {[
+                    { path: 'B' as const, icon: '🔗', label: 'External platform', sub: 'MCA21, Google Drive, Dropbox, etc.' },
+                    { path: 'C' as const, icon: '📄', label: 'Physical copy',      sub: `Present at ${(meeting as any).deemedVenue ?? 'deemed venue'}` },
+                  ].map(opt => (
+                    <button key={opt.path} onClick={() => setEvidPath(opt.path)}
+                      className="w-full flex items-center gap-3 px-4 py-3 bg-[#13161B] border border-[#232830] rounded-xl hover:border-zinc-600 transition-all text-left">
+                      <span className="text-xl flex-shrink-0">{opt.icon}</span>
+                      <div>
+                        <p className="text-sm font-semibold text-zinc-200">{opt.label}</p>
+                        <p className="text-[10px] text-zinc-600 mt-0.5">{opt.sub}</p>
+                      </div>
+                      <span className="ml-auto text-zinc-700 text-xs">→</span>
+                    </button>
+                  ))}
+                </div>
+              )}
+
+              {/* No vault + not chairperson: show guidance */}
+              {!isChairperson && !evidenceConfirmed && !hasVaultDoc && (
+                <div className="bg-[#0D0F12] border border-[#232830] rounded-xl px-4 py-3">
+                  <p className="text-zinc-600 text-xs">Waiting for Chairperson to confirm document evidence.</p>
+                </div>
+              )}
+
+              {/* Link to vault if vault doc not uploaded yet */}
+              {isChairperson && !hasVaultDoc && (
+                <a href={`/companies/${companyId}/vault`} target="_blank" rel="noopener noreferrer"
+                  className="flex items-center gap-2 text-[11px] text-zinc-500 hover:text-blue-400 transition-colors">
+                  <span>📁</span>
+                  <span>Upload to BoardOS vault instead →</span>
+                </a>
+              )}
+
+              {/* Path B — External URL form */}
+              {evidPath === 'B' && (
+                <div className="bg-[#0D0F12] border border-blue-800/30 rounded-xl p-4 space-y-3">
+                  <p className="text-blue-400 text-xs font-semibold">External Platform</p>
+                  <div className="grid grid-cols-2 gap-2">
+                    {PLATFORMS.map(p => (
+                      <button key={p} type="button" onClick={() => setExtPlatform(p)}
+                        className={`flex items-center gap-2 px-3 py-2 rounded-lg border text-xs font-medium transition-all ${
+                          extPlatform === p
+                            ? 'bg-blue-950/60 border-blue-700 text-blue-300'
+                            : 'bg-[#13161B] border-[#232830] text-zinc-500 hover:border-zinc-600'
+                        }`}>
+                        <span>{PLATFORM_META[p].icon}</span>
+                        <span>{PLATFORM_META[p].label}</span>
+                      </button>
+                    ))}
+                  </div>
+                  <input
+                    value={extUrl}
+                    onChange={e => setExtUrl(e.target.value)}
+                    placeholder={PLATFORM_META[extPlatform]?.urlHint ?? 'https://...'}
+                    className="w-full bg-[#13161B] border border-[#232830] rounded-lg px-3 py-2 text-xs text-zinc-200 placeholder:text-zinc-700 focus:outline-none focus:border-blue-600"
+                  />
+                  {evidErr && <p className="text-red-400 text-[11px]">{evidErr}</p>}
+                  <div className="flex gap-2">
+                    <Button size="sm" loading={savingEvid} onClick={saveEvidence} disabled={!extUrl.trim()}>
+                      Confirm Link
+                    </Button>
+                    <button onClick={() => { setEvidPath(null); setEvidErr(''); }} className="text-zinc-600 text-xs hover:text-zinc-400">Cancel</button>
+                  </div>
+                </div>
+              )}
+
+              {/* Path C — Physical presence form */}
+              {evidPath === 'C' && (
+                <div className="bg-[#0D0F12] border border-zinc-700/40 rounded-xl p-4 space-y-3">
+                  <p className="text-zinc-300 text-xs font-semibold">Confirm Physical Copy</p>
+                  <p className="text-zinc-500 text-xs leading-relaxed">
+                    I confirm that this document was physically present at{' '}
+                    <strong className="text-zinc-300">{(meeting as any).deemedVenue ?? 'the deemed venue'}</strong>{' '}
+                    and placed before the Board for noting.
+                  </p>
+                  {evidErr && <p className="text-red-400 text-[11px]">{evidErr}</p>}
+                  <div className="flex gap-2">
+                    <Button size="sm" loading={savingEvid} onClick={saveEvidence}>
+                      ✓ Confirm Physical Presence
+                    </Button>
+                    <button onClick={() => { setEvidPath(null); setEvidErr(''); }} className="text-zinc-600 text-xs hover:text-zinc-400">Cancel</button>
+                  </div>
+                </div>
               )}
             </div>
           )}
+
+          {/* ── NOTING: Place on Record ───────────────────────────────────── */}
+          {isNoting && resolution.status === 'DRAFT' && isChairperson && meeting.status === 'IN_PROGRESS' && (
+            <div>
+              <Button size="sm" onClick={placeOnRecord} loading={noting} disabled={!canPlaceOnRecord}>
+                ✓ Place on Record
+              </Button>
+              {!canPlaceOnRecord && (
+                <p className="text-amber-400 text-[10px] mt-2">
+                  {hasVaultDoc && !openedVault
+                    ? '↑ Open the vault document above first'
+                    : !evidenceConfirmed
+                    ? '↑ Confirm document evidence above first'
+                    : ''}
+                </p>
+              )}
+              {evidErr && <p className="text-red-400 text-xs mt-1">{evidErr}</p>}
+            </div>
+          )}
           {isNoting && resolution.status === 'NOTED' && (
-            <p className="text-zinc-500 text-xs">Placed on record during this meeting.</p>
+            <div className="flex items-center gap-2 text-zinc-500 text-xs">
+              <span className="text-green-400">✓</span>
+              <span>Placed on record during this meeting.</span>
+              {(hasExternalEvid || hasPhysicalEvid) && (
+                <span className="text-zinc-600">·</span>
+              )}
+              {hasExternalEvid && (
+                <span className="text-zinc-600">
+                  Via {ed?.externalDocPlatform ?? resolution.externalDocPlatform}
+                </span>
+              )}
+              {hasPhysicalEvid && (
+                <span className="text-zinc-600">Physical copy</span>
+              )}
+            </div>
           )}
 
-          {/* Regular resolution — propose */}
-          {!isNoting && isAdmin && resolution.status === 'DRAFT' && meeting.status === 'IN_PROGRESS' && (
+          {/* ── Regular resolution actions ────────────────────────────────── */}
+          {!isNoting && isChairperson && resolution.status === 'DRAFT' && meeting.status === 'IN_PROGRESS' && (
             <Button size="sm" onClick={propose} loading={proposing}>Propose Resolution</Button>
           )}
 
@@ -1321,7 +1531,6 @@ function ResolutionCard({ resolution, index, companyId, jwt, currentUserId, meet
     </div>
   );
 }
-
 // ── Minutes Panel ─────────────────────────────────────────────────────────────
 
 function MinutesPanel({ minutes, companyId, meetingId, jwt }: any) {
