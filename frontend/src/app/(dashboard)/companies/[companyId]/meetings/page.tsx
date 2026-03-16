@@ -78,6 +78,7 @@ export default function MeetingsPage() {
   // Modal step
   const [createStep,     setCreateStep]     = useState<CreateStep>('pick');
   const [selectedTplId,  setSelectedTplId]  = useState<string | null>(null);
+  const [selectedTplItems, setSelectedTplItems] = useState<any[]>([]); // filtered TemplateAgendaItem[]
 
   // Create form
   const [title,       setTitle]       = useState('');
@@ -123,21 +124,32 @@ export default function MeetingsPage() {
   useEffect(() => { load(); }, [load]);
 
   // ── Template picker ─────────────────────────────────────────────────────────
-  function applyTemplate(items: TemplateAgendaItem[] | { title: string; description?: string }[], tplId?: string) {
-    // Rich TemplateAgendaItem[] from system templates — use title + legalBasis as goal
-    if (items.length > 0 && 'itemType' in items[0]) {
+  function applyTemplate(items: TemplateAgendaItem[] | { title: string; description?: string; order?: number; itemType?: string; workItems?: any[] }[], tplId?: string) {
+    // Detect system TemplateAgendaItem by presence of 'legalBasis' field
+    const isSystemTemplate = items.length > 0 && 'legalBasis' in items[0];
+
+    if (isSystemTemplate) {
+      // System template — TemplateAgendaItem shape with legalBasis, workItems[]
       const richItems = items as TemplateAgendaItem[];
+      setSelectedTplItems(richItems); // store for handleCreate to use by index
       setAgendaItems(richItems.map(a => ({
-        id:       uid(),
-        title:    a.title,
-        goal:     a.legalBasis ?? '',
-        itemType: a.itemType,
+        id:        uid(),
+        title:     a.title,
+        goal:      a.legalBasis ?? '',
+        itemType:  a.itemType,
         workItems: a.workItems ?? [],
       })));
     } else {
-      // Flat items from custom templates
+      // Custom template — MeetingTemplate.agendaItems shape
+      // workItems are already in the correct TemplateWorkItem shape (saved by builder)
       setAgendaItems((items as { title: string; description?: string; itemType?: string; workItems?: any[] }[])
-        .map(a => ({ id: uid(), title: a.title, goal: a.description ?? '', itemType: a.itemType, workItems: a.workItems ?? [] })));
+        .map(a => ({
+          id:        uid(),
+          title:     a.title,
+          goal:      a.description ?? '',
+          itemType:  a.itemType,
+          workItems: a.workItems ?? [],
+        })));
     }
     setSelectedTplId(tplId ?? null);
     setCreateStep('form');
@@ -160,6 +172,7 @@ export default function MeetingsPage() {
   function startBlank() {
     setAgendaItems([{ id: uid(), title: '', goal: '' }]);
     setSelectedTplId(null);
+    setSelectedTplItems([]);
     setCreateStep('form');
   }
 
@@ -189,10 +202,14 @@ export default function MeetingsPage() {
         await meetingsApi.markAsFirstMeeting(companyId, meeting.id, token).catch(() => {});
       }
 
-      // Find the matching system template for work item creation
+      // Use stored filtered template items (set when user picked the template)
+      // For system templates: selectedTplItems[i] matches agendaItems[i] by index
+      // For custom templates: agendaItems[i].workItems has the work items directly
       const sysTpl = selectedTplId?.startsWith('sys_')
         ? SYSTEM_TEMPLATES.find(t => t.id === selectedTplId)
         : null;
+      // Use stored filtered items for index-based lookup (robust to title edits)
+      const tplItemsForCreate = selectedTplItems.length > 0 ? selectedTplItems : sysTpl?.agendaItems ?? [];
 
       // Template vars for substitution
       const templateVars: Record<string, string> = {
@@ -211,8 +228,9 @@ export default function MeetingsPage() {
       for (let i = 0; i < validItems.length; i++) {
         const item = validItems[i];
 
-        // Find matching template agenda item by order index
-        const tplItem = sysTpl?.agendaItems.find(t => t.title === item.title);
+        // Match by position (index) — robust to user editing the title in the form
+        // tplItemsForCreate[i] corresponds to agendaItems[i] (set in applyTemplate)
+        const tplItem = tplItemsForCreate[i] ?? null;
 
         const agendaItem = await meetingsApi.addAgendaItem(companyId, meeting.id, {
           title:       item.title.trim(),
@@ -239,20 +257,35 @@ export default function MeetingsPage() {
           if (wi.type === 'SYSTEM_ACTION') continue;
 
           // Normalise field names — system templates use textTemplate, custom use motionText
-          const motionText     = wi.textTemplate ?? wi.motionText ?? '';
-          const resolutionText = wi.resolutionTextTemplate ?? wi.resolutionText ?? undefined;
+          const rawMotionText  = wi.textTemplate ?? wi.motionText ?? '';
+          const rawResText     = wi.resolutionTextTemplate ?? wi.resolutionText ?? undefined;
+
+          // Guard: skip if motion text is too short after substitution (backend MinLength 10)
+          const motionText     = substituteTemplateVars(rawMotionText, templateVars);
+          const resolutionText = rawResText ? substituteTemplateVars(rawResText, templateVars) : undefined;
+
+          if (!motionText || motionText.trim().length < 5) {
+            console.warn('[applyTemplate] Skipping work item with empty motion text:', wi.title);
+            continue;
+          }
 
           if (wi.isDynamic) {
             // One resolution per director (compliance forms)
             for (const member of directors) {
               const vars = { ...templateVars, director_name: member.user?.name ?? member.name ?? '' };
-              await resApi.create(companyId, meeting.id, {
-                title:         substituteTemplateVars(wi.title, vars),
-                text:          substituteTemplateVars(motionText, vars),
-                resolutionText:resolutionText ? substituteTemplateVars(resolutionText, vars) : undefined,
-                type:          'NOTING',
-                agendaItemId:  agendaItem.id,
-              }, token).catch(() => {});
+              const dynamicMotion = substituteTemplateVars(rawMotionText, vars);
+              const dynamicRes    = rawResText ? substituteTemplateVars(rawResText, vars) : undefined;
+              try {
+                await resApi.create(companyId, meeting.id, {
+                  title:         substituteTemplateVars(wi.title, vars),
+                  text:          dynamicMotion || 'Form noted.',
+                  resolutionText:dynamicRes,
+                  type:          'NOTING',
+                  agendaItemId:  agendaItem.id,
+                }, token);
+              } catch (e) {
+                console.error('[applyTemplate] Failed to create dynamic work item:', wi.title, e);
+              }
             }
           } else {
             const resType = wi.type === 'RESOLUTION_VOTING' ? 'MEETING' : 'NOTING';
@@ -265,14 +298,18 @@ export default function MeetingsPage() {
               );
               if (match) vaultDocId = match.id;
             }
-            await resApi.create(companyId, meeting.id, {
-              title:          substituteTemplateVars(wi.title, templateVars),
-              text:           substituteTemplateVars(motionText, templateVars),
-              resolutionText: resolutionText ? substituteTemplateVars(resolutionText, templateVars) : undefined,
-              type:           resType as 'MEETING' | 'NOTING',
-              agendaItemId:   agendaItem.id,
-              ...(vaultDocId ? { vaultDocId } : {}),
-            }, token).catch(() => {});
+            try {
+              await resApi.create(companyId, meeting.id, {
+                title:          substituteTemplateVars(wi.title, templateVars),
+                text:           motionText,
+                resolutionText: resolutionText,
+                type:           resType as 'MEETING' | 'NOTING',
+                agendaItemId:   agendaItem.id,
+                ...(vaultDocId ? { vaultDocId } : {}),
+              }, token);
+            } catch (e) {
+              console.error('[applyTemplate] Failed to create work item:', wi.title, 'type:', wi.type, 'agendaItemId:', agendaItem.id, e);
+            }
           }
         }
       }
@@ -293,6 +330,7 @@ export default function MeetingsPage() {
     setShowModal(false);
     setCreateStep('pick');
     setSelectedTplId(null);
+    setSelectedTplItems([]);
     setTitle(''); setScheduledAt(''); setDeemedVenue(companyData?.registeredAt ?? '');
     setAgendaItems([{ id: uid(), title: '', goal: '' }]);
     setCreateErr('');
