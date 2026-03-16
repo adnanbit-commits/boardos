@@ -154,13 +154,14 @@ export class ResolutionService {
       data: {
         companyId,
         meetingId,
-        agendaItemId:  dto.agendaItemId ?? null,
-        title:         dto.title,
-        text:          dto.text,
-        type:          dto.type ?? 'MEETING',
-        status:        ResolutionStatus.DRAFT,
-        vaultDocId:    dto.vaultDocId    ?? null,
-        meetingDocId:  dto.meetingDocId  ?? null,
+        agendaItemId:   dto.agendaItemId ?? null,
+        title:          dto.title,
+        text:           dto.text,            // motion text
+        resolutionText: (dto as any).resolutionText ?? null,  // enacted text
+        type:           dto.type ?? 'MEETING',
+        status:         ResolutionStatus.DRAFT,
+        vaultDocId:     dto.vaultDocId    ?? null,
+        meetingDocId:   dto.meetingDocId  ?? null,
       } as any,
       include: {
         meeting:   { select: { title: true } },
@@ -249,9 +250,16 @@ export class ResolutionService {
       );
     }
 
+    // When motion passes → store resolutionText as the enacted record
+    // If resolutionText was pre-set (from template), keep it. Otherwise use text field.
+    const extraData: any = { status: targetStatus as ResolutionStatus };
+    if (targetStatus === 'APPROVED' && !(resolution as any).resolutionText) {
+      extraData.resolutionText = resolution.text;
+    }
+
     const updated = await this.prisma.resolution.update({
       where: { id },
-      data: { status: targetStatus as ResolutionStatus },
+      data: extraData,
     });
 
     await this.audit.log({

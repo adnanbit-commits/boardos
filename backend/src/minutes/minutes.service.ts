@@ -195,12 +195,18 @@ export class MinutesService {
       const abstainLine  = abstentions.length > 0
         ? `<p><strong>Directors who abstained:</strong> ${abstentions.join(', ')}</p>` : '';
 
+      // Use resolutionText (enacted "RESOLVED THAT..." form) for approved items;
+      // fall back to text (motion text) if resolutionText not stored
+      const minutesText = res.status === 'APPROVED'
+        ? (res.resolutionText || res.text)
+        : res.text;
+
       return `
         <div class="resolution">
-          <h3>Resolution ${idx + 1}: ${res.title}</h3>
-          <div class="resolution-text">${res.text}</div>
+          <h3>${res.status === 'APPROVED' ? 'Resolution' : 'Motion'} ${idx + 1}: ${res.title}</h3>
+          <div class="resolution-text">${minutesText}</div>
           <div class="vote-summary">
-            <strong>Result: ${res.status}</strong><br/>
+            <strong>Result: ${res.status === 'APPROVED' ? 'Passed — Resolution carried' : res.status}</strong><br/>
             <p><strong>In favour (${approvals.length}):</strong> ${approvals.join(', ') || 'None'}</p>
             ${dissentLine}${abstainLine}
           </div>

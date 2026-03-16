@@ -41,17 +41,20 @@ export type RequiredFor =
   | 'FIRST_APPOINTMENT'; // once per director on first appointment
 
 export interface TemplateWorkItem {
-  type:             WorkItemType;
-  title:            string;
-  textTemplate:     string;   // {{company_name}}, {{director_name}}, {{date}} substituted at apply time
+  type:                     WorkItemType;
+  title:                    string;
+  textTemplate:             string;   // Motion text — shown to directors during discussion/voting
+                                      // Uses natural language: "The Board is moved to..."
+  resolutionTextTemplate?:  string;   // Enacted text — "RESOLVED THAT..." stored only after vote passes
+                                      // Printed in minutes and certified copies
   // Document noting fields (DOCUMENT_NOTING / NOTING_VAULT_DOC)
-  vaultDocType?:    string;   // if set, auto-links vault slot by docType (INCORPORATION_CERT, MOA, etc.)
-  docLabel?:        string;   // human label shown in evidence UI and minutes
+  vaultDocType?:    string;
+  docLabel?:        string;
   // Compliance form (NOTING_COMPLIANCE_FORM)
   complianceForm?:  string;   // 'DIR_2' | 'DIR_8' | 'MBP_1'
-  isDynamic?:       boolean;  // true = generate one item per director at apply time
-  isEditable:       boolean;  // can CS edit text before meeting starts?
-  hasPlaceholders:  boolean;  // true = text has [PLACEHOLDER] markers that must be filled
+  isDynamic?:       boolean;
+  isEditable:       boolean;
+  hasPlaceholders:  boolean;
   requiredFor:      RequiredFor;
 }
 
@@ -192,7 +195,7 @@ export const SYSTEM_TEMPLATES: SystemTemplate[] = [
           {
             type:            'DOCUMENT_NOTING',
             title:           'To take note of the Certificate of Incorporation',
-            textTemplate:    'RESOLVED THAT the Certificate of Incorporation bearing Corporate Identity Number (CIN) {{cin}} dated {{inc_date}}, issued by the Registrar of Companies, {{roc_city}}, be and is hereby noted and placed on record, confirming that the Company has been duly incorporated under the Companies Act, 2013.',
+            textTemplate:    'The Board took note of the Certificate of Incorporation bearing Corporate Identity Number (CIN) {{cin}} dated {{inc_date}}, issued by the Registrar of Companies, {{roc_city}}, confirming that the Company has been duly incorporated under the Companies Act, 2013. The Certificate of Incorporation is placed on record.',
             vaultDocType:    'INCORPORATION_CERT',
             docLabel:        'Certificate of Incorporation',
             isEditable:      false,
@@ -215,7 +218,7 @@ export const SYSTEM_TEMPLATES: SystemTemplate[] = [
           {
             type:            'DOCUMENT_NOTING',
             title:           'To take note of the Memorandum of Association',
-            textTemplate:    'RESOLVED THAT the Memorandum of Association of {{company_name}} as registered with the Registrar of Companies be and is hereby noted and placed on record as the constitutional document governing the Company\'s objects, powers, and share capital.',
+            textTemplate:    'The Board took note of the Memorandum of Association of {{company_name}} as registered with the Registrar of Companies. The Memorandum of Association, being the constitutional document governing the Company\'s objects, powers, and share capital, is placed on record.',
             vaultDocType:    'MOA',
             docLabel:        'Memorandum of Association',
             isEditable:      false,
@@ -238,7 +241,7 @@ export const SYSTEM_TEMPLATES: SystemTemplate[] = [
           {
             type:            'DOCUMENT_NOTING',
             title:           'To take note of the Articles of Association',
-            textTemplate:    'RESOLVED THAT the Articles of Association of {{company_name}} as registered with the Registrar of Companies be and is hereby noted and placed on record as the document governing the internal management and administration of the Company.',
+            textTemplate:    'The Board took note of the Articles of Association of {{company_name}} as registered with the Registrar of Companies. The Articles of Association, being the document governing the internal management and administration of the Company, are placed on record.',
             vaultDocType:    'AOA',
             docLabel:        'Articles of Association',
             isEditable:      false,
@@ -261,7 +264,8 @@ export const SYSTEM_TEMPLATES: SystemTemplate[] = [
           {
             type:            'RESOLUTION_VOTING',
             title:           'Registered Office Confirmation',
-            textTemplate:    'RESOLVED THAT the registered office of the Company be and is hereby confirmed to be situated at {{registered_address}}, and that the said premises are capable of receiving and acknowledging all communications and notices addressed to the Company, as required under Section 12 of the Companies Act, 2013.',
+            textTemplate:    'The Board is moved to confirm that the registered office of the Company is situated at {{registered_address}}, and that the said premises are capable of receiving and acknowledging communications and notices as required under Section 12 of the Companies Act, 2013.',
+            resolutionTextTemplate: 'RESOLVED THAT the registered office of the Company be and is hereby confirmed to be situated at {{registered_address}}, and that the said premises are capable of receiving and acknowledging all communications and notices addressed to the Company, as required under Section 12 of the Companies Act, 2013.',
             isEditable:      true,
             hasPlaceholders: false,
             requiredFor:     'FIRST_MEETING',
@@ -282,7 +286,8 @@ export const SYSTEM_TEMPLATES: SystemTemplate[] = [
           {
             type:            'RESOLUTION_VOTING',
             title:           'Authorisation of Electronic Records and Custodian Appointment',
-            textTemplate:    'RESOLVED THAT pursuant to Rule 3(7) of the Companies (Meetings of Board and its Powers) Rules, 2014, and Rule 28 of the Companies (Management and Administration) Rules, 2014, the Board hereby resolves that:\n\n(a) All statutory registers, minutes books, and records of the Company shall be maintained in electronic form on a compliant digital governance platform;\n\n(b) {{custodian_name}}, {{custodian_designation}}, be and is hereby designated as the person responsible for the maintenance, security, and authentication of all electronic statutory records of the Company under Rule 28;\n\n(c) The consent of all directors participating in this meeting through video conferencing to authenticate the statutory registers electronically is hereby placed on record as required under Rule 3(7);\n\n(d) The attendance register for this meeting shall be deemed to have been signed by all directors participating through video conferencing, their attendance having been recorded by the Chairperson.',
+            textTemplate:    'The Board is moved to authorise the maintenance of all statutory registers and records in electronic form, and to designate {{custodian_name}}, {{custodian_designation}}, as the person responsible for maintaining and authenticating all electronic statutory records under Rule 28 of the Companies (Management and Administration) Rules, 2014.',
+            resolutionTextTemplate: 'RESOLVED THAT pursuant to Rule 3(7) of the Companies (Meetings of Board and its Powers) Rules, 2014, and Rule 28 of the Companies (Management and Administration) Rules, 2014, the Board hereby resolves that:\n\n(a) All statutory registers, minutes books, and records of the Company shall be maintained in electronic form on a compliant digital governance platform;\n\n(b) {{custodian_name}}, {{custodian_designation}}, be and is hereby designated as the person responsible for the maintenance, security, and authentication of all electronic statutory records of the Company under Rule 28;\n\n(c) The consent of all directors participating in this meeting through video conferencing to authenticate the statutory registers electronically is hereby placed on record as required under Rule 3(7);\n\n(d) The attendance register for this meeting shall be deemed to have been signed by all directors participating through video conferencing, their attendance having been recorded by the Chairperson.',
             isEditable:      true,
             hasPlaceholders: true,
             requiredFor:     'FIRST_MEETING',
@@ -303,7 +308,8 @@ export const SYSTEM_TEMPLATES: SystemTemplate[] = [
           {
             type:            'RESOLUTION_VOTING',
             title:           'Maintenance of Statutory Registers',
-            textTemplate:    'RESOLVED THAT the {{custodian_name}} be and is hereby directed to procure and maintain all statutory registers and books required under the Companies Act, 2013 in electronic form, including the Register of Members, Register of Directors and Key Managerial Personnel, Minutes Books, Attendance Register, Register of Charges, and all other registers as applicable.',
+            textTemplate:    'The Board is moved to direct {{custodian_name}} to procure and maintain all statutory registers and books required under the Companies Act, 2013 in electronic form.',
+            resolutionTextTemplate: 'RESOLVED THAT the {{custodian_name}} be and is hereby directed to procure and maintain all statutory registers and books required under the Companies Act, 2013 in electronic form, including the Register of Members, Register of Directors and Key Managerial Personnel, Minutes Books, Attendance Register, Register of Charges, and all other registers as applicable.',
             isEditable:      true,
             hasPlaceholders: true,
             requiredFor:     'FIRST_MEETING',
@@ -324,7 +330,8 @@ export const SYSTEM_TEMPLATES: SystemTemplate[] = [
           {
             type:            'RESOLUTION_VOTING',
             title:           'Appointment of Chairman of the Board',
-            textTemplate:    'RESOLVED THAT {{director_name}} be and is hereby appointed as the Chairman of the Board of Directors of the Company and shall preside over all future meetings of the Board.',
+            textTemplate:    'The Board is moved to appoint {{director_name}} as the Chairman of the Board of Directors of the Company to preside over all future meetings of the Board.',
+            resolutionTextTemplate: 'RESOLVED THAT {{director_name}} be and is hereby appointed as the Chairman of the Board of Directors of the Company and shall preside over all future meetings of the Board.',
             isEditable:      true,
             hasPlaceholders: true,
             requiredFor:     'FIRST_MEETING',
@@ -345,7 +352,8 @@ export const SYSTEM_TEMPLATES: SystemTemplate[] = [
           {
             type:            'RESOLUTION_VOTING',
             title:           'Appointment of First Statutory Auditor',
-            textTemplate:    'RESOLVED THAT pursuant to Section 139(6) of the Companies Act, 2013, [AUDITOR_FIRM_NAME], Chartered Accountants, bearing ICAI Firm Registration Number [FRN], be and are hereby appointed as the First Statutory Auditors of the Company to hold office from the conclusion of this Meeting until the conclusion of the First Annual General Meeting of the Company, at a remuneration to be mutually agreed.\n\nFURTHER RESOLVED THAT the {{custodian_name}} be authorised to file Form ADT-1 with the Registrar of Companies within 15 days of this appointment.',
+            textTemplate:    'The Board is moved to appoint [AUDITOR_FIRM_NAME], Chartered Accountants (FRN: [FRN]), as the First Statutory Auditors of the Company to hold office until the conclusion of the First Annual General Meeting, at a remuneration to be mutually agreed, and to authorise {{custodian_name}} to file Form ADT-1 within 15 days.',
+            resolutionTextTemplate: 'RESOLVED THAT pursuant to Section 139(6) of the Companies Act, 2013, [AUDITOR_FIRM_NAME], Chartered Accountants, bearing ICAI Firm Registration Number [FRN], be and are hereby appointed as the First Statutory Auditors of the Company to hold office from the conclusion of this Meeting until the conclusion of the First Annual General Meeting of the Company, at a remuneration to be mutually agreed.\n\nFURTHER RESOLVED THAT the {{custodian_name}} be authorised to file Form ADT-1 with the Registrar of Companies within 15 days of this appointment.',
             isEditable:      true,
             hasPlaceholders: true,
             requiredFor:     'FIRST_MEETING',
@@ -366,7 +374,9 @@ export const SYSTEM_TEMPLATES: SystemTemplate[] = [
           {
             type:            'RESOLUTION_VOTING',
             title:           'Opening of Bank Account',
-            textTemplate:    'RESOLVED THAT the Company be and is hereby authorised to open a current account with [BANK_NAME], [BRANCH_NAME] Branch.\n\nFURTHER RESOLVED THAT [AUTHORISED_SIGNATORIES] be and are hereby authorised to operate the said account, and that the bank be informed of this resolution.',
+            textTemplate:    'The Board is moved to authorise the opening of a current account with [BANK_NAME], [BRANCH_NAME] Branch, and to designate [AUTHORISED_SIGNATORIES] as authorised signatories for the said account.',
+            resolutionTextTemplate: 'RESOLVED THAT the Company be and is hereby authorised to open a current account with [BANK_NAME], [BRANCH_NAME] Branch.\n\nFURTHER RESOLVED THAT [AUTHORISED_SIGNATORIES] be and are hereby authorised to sign cheques, drafts, or other orders for the payment of money on behalf of the Company, and to operate the said account.\n\nFURTHER RESOLVED THAT the officers of the Company are authorised to execute any bank-provided signature cards or documents required to give effect to this resolution.',
+            resolutionTextTemplate: 'RESOLVED THAT the Company be and is hereby authorised to open a current account with [BANK_NAME], [BRANCH_NAME] Branch.\n\nFURTHER RESOLVED THAT [AUTHORISED_SIGNATORIES] be and are hereby authorised to operate the said account, and that the bank be informed of this resolution.\n\nFURTHER RESOLVED THAT the officers of the Company are authorised to execute any bank-provided signature cards or documents required to give effect to this resolution.',
             isEditable:      true,
             hasPlaceholders: true,
             requiredFor:     'FIRST_MEETING',
@@ -388,7 +398,9 @@ export const SYSTEM_TEMPLATES: SystemTemplate[] = [
           {
             type:            'DOCUMENT_NOTING',
             title:           'Adoption of Common Seal',
-            textTemplate:    'RESOLVED THAT the Common Seal of the Company, an impression of which is placed before the Board, be and is hereby adopted as the Common Seal of the Company. The {{custodian_name}} is authorised to have custody of the Common Seal and to affix the same on documents as authorised by the Board.',
+            textTemplate:    'The Board is moved to adopt the Common Seal of the Company, an impression of which is placed before the Board, and to authorise {{custodian_name}} to have custody of the Common Seal.',
+            resolutionTextTemplate: 'RESOLVED THAT the Common Seal of the Company, an impression of which is placed on record, be and is hereby adopted as the Common Seal of the Company. The {{custodian_name}} is authorised to have custody of the Common Seal and to affix the same on documents as authorised by the Board.',
+            resolutionTextTemplate: 'RESOLVED THAT the Common Seal of the Company, an impression of which is placed before the Board, be and is hereby adopted as the Common Seal of the Company. The {{custodian_name}} is authorised to have custody of the Common Seal and to affix the same on documents as authorised by the Board.',
             vaultDocType:    'COMMON_SEAL',
             docLabel:        'Common Seal',
             isEditable:      true,
@@ -411,7 +423,9 @@ export const SYSTEM_TEMPLATES: SystemTemplate[] = [
           {
             type:            'RESOLUTION_VOTING',
             title:           'Allotment of Shares to MOA Subscribers',
-            textTemplate:    'RESOLVED THAT the following equity shares of ₹[FACE_VALUE]/- each be allotted to the subscribers of the Memorandum of Association of the Company:\n\n[TABLE: Name | Shares | Amount]\n\nFURTHER RESOLVED THAT share certificates be issued to the above allottees and entries be made in the Register of Members.',
+            textTemplate:    'The Board is moved to allot equity shares of ₹[FACE_VALUE]/- each to the subscribers of the Memorandum of Association as per the statement before the Board, and to issue share certificates accordingly.',
+            resolutionTextTemplate: 'RESOLVED THAT the following equity shares of ₹[FACE_VALUE]/- each be allotted to the subscribers of the Memorandum of Association of the Company:\n\n[TABLE: Name | Shares | Amount]\n\nFURTHER RESOLVED THAT share certificates be issued to the above allottees and entries be made in the Register of Members.',
+            resolutionTextTemplate: 'RESOLVED THAT the following equity shares of ₹[FACE_VALUE]/- each be allotted to the subscribers of the Memorandum of Association of the Company:\n\n[TABLE: Name | Shares | Amount]\n\nFURTHER RESOLVED THAT share certificates be issued to the above allottees and entries be made in the Register of Members.',
             isEditable:      true,
             hasPlaceholders: true,
             requiredFor:     'FIRST_MEETING',
@@ -432,7 +446,9 @@ export const SYSTEM_TEMPLATES: SystemTemplate[] = [
           {
             type:            'RESOLUTION_VOTING',
             title:           'Ratification of Preliminary Expenses',
-            textTemplate:    'RESOLVED THAT the preliminary expenses incurred by the promoters in connection with the incorporation of the Company, amounting to ₹[AMOUNT]/-, as detailed in the statement placed before the Board, be and are hereby ratified and approved.',
+            textTemplate:    'The Board is moved to ratify and approve preliminary expenses of ₹[AMOUNT]/- incurred by the promoters in connection with the incorporation of the Company, as detailed in the statement before the Board.',
+            resolutionTextTemplate: 'RESOLVED THAT the preliminary expenses incurred by the promoters in connection with the incorporation of the Company, amounting to ₹[AMOUNT]/-, as detailed in the statement placed before the Board, be and are hereby ratified and approved.',
+            resolutionTextTemplate: 'RESOLVED THAT the preliminary expenses incurred by the promoters in connection with the incorporation of the Company, amounting to ₹[AMOUNT]/-, as detailed in the statement placed before the Board, be and are hereby ratified and approved.',
             isEditable:      true,
             hasPlaceholders: true,
             requiredFor:     'FIRST_MEETING',
@@ -453,7 +469,9 @@ export const SYSTEM_TEMPLATES: SystemTemplate[] = [
           {
             type:            'RESOLUTION_VOTING',
             title:           'Fixing of Financial Year',
-            textTemplate:    'RESOLVED THAT the financial year of the Company shall be from 1st April to 31st March of the succeeding year, in accordance with Section 2(41) of the Companies Act, 2013.',
+            textTemplate:    'The Board is moved to fix the financial year of the Company as 1st April to 31st March of the succeeding year, in accordance with Section 2(41) of the Companies Act, 2013.',
+            resolutionTextTemplate: 'RESOLVED THAT the financial year of the Company shall be from 1st April to 31st March of the succeeding year, in accordance with Section 2(41) of the Companies Act, 2013.',
+            resolutionTextTemplate: 'RESOLVED THAT the financial year of the Company shall be from 1st April to 31st March of the succeeding year, in accordance with Section 2(41) of the Companies Act, 2013.',
             isEditable:      true,
             hasPlaceholders: false,
             requiredFor:     'FIRST_MEETING',
@@ -474,7 +492,9 @@ export const SYSTEM_TEMPLATES: SystemTemplate[] = [
           {
             type:            'RESOLUTION_VOTING',
             title:           'Appointment of Company Secretary',
-            textTemplate:    'RESOLVED THAT [CS_NAME], ACS/FCS No. [MEMBERSHIP_NO], be and is hereby appointed as the Company Secretary of the Company with effect from [DATE], at a remuneration to be mutually agreed.',
+            textTemplate:    'The Board is moved to appoint [CS_NAME], ACS/FCS No. [MEMBERSHIP_NO], as the Company Secretary of the Company with effect from [DATE], at a remuneration to be mutually agreed.',
+            resolutionTextTemplate: 'RESOLVED THAT [CS_NAME], ACS/FCS No. [MEMBERSHIP_NO], be and is hereby appointed as the Company Secretary of the Company with effect from [DATE], at a remuneration to be mutually agreed.',
+            resolutionTextTemplate: 'RESOLVED THAT [CS_NAME], ACS/FCS No. [MEMBERSHIP_NO], be and is hereby appointed as the Company Secretary of the Company with effect from [DATE], at a remuneration to be mutually agreed.',
             isEditable:      true,
             hasPlaceholders: true,
             requiredFor:     'FIRST_MEETING',
@@ -554,7 +574,9 @@ export const SYSTEM_TEMPLATES: SystemTemplate[] = [
         isOptional: false, requiredFor: 'ALL',
         workItems: [{
           type: 'RESOLUTION_VOTING', title: 'Approval of Financial Statements',
-          textTemplate: 'RESOLVED THAT the Financial Statements of the Company for the period ending {{date}}, as placed before the Board, be and are hereby approved and adopted.',
+          textTemplate: 'The Board is moved to approve and adopt the Financial Statements of the Company for the period ending {{date}}, as placed before the Board.',
+          resolutionTextTemplate: 'RESOLVED THAT the Financial Statements of the Company for the period ending {{date}}, as placed before the Board, be and are hereby approved and adopted.',
+          resolutionTextTemplate: 'RESOLVED THAT the Financial Statements of the Company for the period ending {{date}}, as placed before the Board, be and are hereby approved and adopted.',
           isEditable: true, hasPlaceholders: true, requiredFor: 'ALL',
         }],
       },
@@ -593,7 +615,9 @@ export const SYSTEM_TEMPLATES: SystemTemplate[] = [
         guidanceNote: 'Ordinary resolution — requires simple majority.',
         isOptional: false, requiredFor: 'ALL',
         workItems: [{ type: 'RESOLUTION_VOTING', title: 'Adoption of Financial Statements',
-          textTemplate: 'RESOLVED THAT the Audited Financial Statements of the Company for the financial year ended 31st March {{year}}, together with the Reports of the Board of Directors and the Auditors thereon, be and are hereby received, considered, and adopted.',
+          textTemplate: 'The Board is moved to receive, consider, and adopt the Audited Financial Statements of the Company for the financial year ended 31st March {{year}}, together with the Reports of the Board of Directors and the Auditors thereon.',
+          resolutionTextTemplate: 'RESOLVED THAT the Audited Financial Statements of the Company for the financial year ended 31st March {{year}}, together with the Reports of the Board of Directors and the Auditors thereon, be and are hereby received, considered, and adopted.',
+          resolutionTextTemplate: 'RESOLVED THAT the Audited Financial Statements of the Company for the financial year ended 31st March {{year}}, together with the Reports of the Board of Directors and the Auditors thereon, be and are hereby received, considered, and adopted.',
           isEditable: true, hasPlaceholders: true, requiredFor: 'ALL' }],
       },
       {
@@ -603,7 +627,9 @@ export const SYSTEM_TEMPLATES: SystemTemplate[] = [
         guidanceNote: 'One-third of rotational directors retire at each AGM.',
         isOptional: false, requiredFor: 'ALL',
         workItems: [{ type: 'RESOLUTION_VOTING', title: 'Re-appointment of Retiring Director',
-          textTemplate: 'RESOLVED THAT {{director_name}}, who retires by rotation and being eligible, offers himself/herself for re-appointment, be and is hereby re-appointed as a Director of the Company.',
+          textTemplate: 'The Board is moved to re-appoint {{director_name}}, who retires by rotation and being eligible offers himself/herself for re-appointment, as a Director of the Company.',
+          resolutionTextTemplate: 'RESOLVED THAT {{director_name}}, who retires by rotation and being eligible, offers himself/herself for re-appointment, be and is hereby re-appointed as a Director of the Company.',
+          resolutionTextTemplate: 'RESOLVED THAT {{director_name}}, who retires by rotation and being eligible, offers himself/herself for re-appointment, be and is hereby re-appointed as a Director of the Company.',
           isEditable: true, hasPlaceholders: true, requiredFor: 'ALL' }],
       },
       {
@@ -613,7 +639,9 @@ export const SYSTEM_TEMPLATES: SystemTemplate[] = [
         guidanceNote: 'Auditors appointed for 5-year term at AGM.',
         isOptional: false, requiredFor: 'ALL',
         workItems: [{ type: 'RESOLUTION_VOTING', title: 'Appointment of Statutory Auditors',
-          textTemplate: 'RESOLVED THAT pursuant to Section 139 of the Companies Act, 2013, [AUDITOR_FIRM_NAME], Chartered Accountants (FRN: [FRN]), be and are hereby appointed as the Statutory Auditors of the Company for a term of five consecutive years.',
+          textTemplate: 'The Board is moved to appoint [AUDITOR_FIRM_NAME], Chartered Accountants (FRN: [FRN]), as the Statutory Auditors of the Company for a term of five consecutive years.',
+          resolutionTextTemplate: 'RESOLVED THAT pursuant to Section 139 of the Companies Act, 2013, [AUDITOR_FIRM_NAME], Chartered Accountants (FRN: [FRN]), be and are hereby appointed as the Statutory Auditors of the Company for a term of five consecutive years from the conclusion of this meeting.',
+          resolutionTextTemplate: 'RESOLVED THAT pursuant to Section 139 of the Companies Act, 2013, [AUDITOR_FIRM_NAME], Chartered Accountants (FRN: [FRN]), be and are hereby appointed as the Statutory Auditors of the Company for a term of five consecutive years.',
           isEditable: true, hasPlaceholders: true, requiredFor: 'ALL' }],
       },
       {
