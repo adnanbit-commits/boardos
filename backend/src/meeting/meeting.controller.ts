@@ -122,33 +122,6 @@ export class MeetingController {
     return this.meetingService.acknowledgeNotice(companyId, meetingId, req.user.userId);
   }
 
-  // ── Roll call ───────────────────────────────────────────────────────────────
-
-  @Get(':id/roll-call')
-  getRollCall(@Param('companyId') companyId: string, @Param('id') id: string) {
-    return this.meetingService.getRollCall(companyId, id);
-  }
-
-  @Post(':id/roll-call')
-  @HttpCode(200)
-  submitRollCall(
-    @Param('companyId') companyId: string, @Param('id') meetingId: string,
-    @Body() body: { location: string; noThirdParty: boolean; materialsReceived: boolean },
-    @Req() req: any,
-  ) {
-    return this.meetingService.submitRollCall(companyId, meetingId, req.user.userId, body);
-  }
-
-  // ── Quorum confirmation ─────────────────────────────────────────────────────
-
-  @Post(':id/confirm-quorum')
-  @HttpCode(200)
-  confirmQuorum(
-    @Param('companyId') companyId: string, @Param('id') meetingId: string, @Req() req: any,
-  ) {
-    return this.meetingService.confirmQuorum(companyId, meetingId, req.user.userId);
-  }
-
   // ── Declarations (DIR-2, DIR-8, MBP-1) — legacy, kept for data ────────────
 
   @Get(':id/declarations')
@@ -186,12 +159,4 @@ export class MeetingController {
     );
   }
 
-  @Post(':id/attendance/request')
-  @RequireRole('DIRECTOR')
-  requestAttendance(
-    @Param('companyId') companyId: string, @Param('id') id: string,
-    @Req() req: any, @Body() body: { mode: 'VIDEO' | 'PHONE' },
-  ) {
-    return this.meetingService.requestAttendance(companyId, id, req.user.userId, body.mode);
-  }
 }

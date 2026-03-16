@@ -183,7 +183,6 @@ model User {
   meetingDocUploads   MeetingDocument[]      @relation("MeetingDocUploads")
   shareLinkCreated    MeetingShareLink[]     @relation("ShareLinkCreators")
   directorNotes       MeetingDocNote[]       @relation("DirectorNotes")
-  rollCalls           MeetingRollCall[]
   chairNotes          MeetingDocNote[]       @relation("ChairNotes")
 
   @@map("users")
@@ -299,7 +298,6 @@ model Meeting {
   deemedVenue             String?   // SS-1: venue for virtual meetings (usually registered office)
   noticeSentAt            DateTime? // when notice was dispatched
   noticeAcknowledgedBy    String[]  @default([]) @map("notice_acknowledged_by")
-  rollCallCompletedAt     DateTime?
   quorumConfirmedAt       DateTime?
   quorumConfirmedBy       String?   // userId of chairperson who confirmed quorum
 
@@ -315,7 +313,6 @@ model Meeting {
   documents     MeetingDocument[]
   shareLink     MeetingShareLink?
   docNotes      MeetingDocNote[]
-  rollCalls     MeetingRollCall[]
 
   @@map("meetings")
 }
@@ -699,18 +696,4 @@ model MeetingDocNote {
 // must confirm their location and that no third party is present.
 // Recorded in minutes automatically.
 
-model MeetingRollCall {
-  id                 String   @id @default(uuid())
-  meetingId          String
-  userId             String
-  location           String   // city/address director is attending from
-  noThirdParty       Boolean  @default(false) // confirmed no one else present
-  materialsReceived  Boolean  @default(false) // confirmed receipt of notice + agenda
-  respondedAt        DateTime @default(now())
 
-  meeting  Meeting @relation(fields: [meetingId], references: [id], onDelete: Cascade)
-  user     User    @relation(fields: [userId],    references: [id])
-
-  @@unique([meetingId, userId])
-  @@map("meeting_roll_calls")
-}

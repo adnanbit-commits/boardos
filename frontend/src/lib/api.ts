@@ -98,29 +98,6 @@ export interface Meeting {
   minutesCirculatedAt?: string | null;
 }
 
-export interface MeetingRollCallResponse {
-  userId:            string;
-  location:          string;
-  noThirdParty:      boolean;
-  materialsReceived: boolean;
-  respondedAt:       string;
-  user:              { id: string; name: string };
-}
-
-export interface RollCallStatus {
-  responses:           MeetingRollCallResponse[];
-  pendingDirectors:    { userId: string; name: string }[];
-  allResponded:        boolean;
-  rollCallCompletedAt: string | null;
-}
-
-export interface QuorumResult {
-  confirmed:           boolean;
-  presentCount:        number;
-  totalMembers:        number;
-  quorumRequired:      number;
-  quorumConfirmedAt:   string;
-}
 
 export type MeetingDetail = Meeting & {
   agendaItems:             AgendaItem[];
@@ -129,7 +106,6 @@ export type MeetingDetail = Meeting & {
   deemedVenue?:            string | null;
   noticeSentAt?:           string | null;
   noticeAcknowledgedBy?:   string[];
-  rollCallCompletedAt?:    string | null;
   quorumConfirmedAt?:      string | null;
   quorumConfirmedBy?:      string | null;
 };
@@ -296,8 +272,6 @@ export const meetings = {
     get<AttendanceRecord[]>(`/companies/${companyId}/meetings/${meetingId}/attendance`, token),
   recordAttendance: (companyId: string, meetingId: string, body: { userId: string; mode: AttendanceMode; location?: string; noThirdParty?: boolean }, token: string) =>
     post<AttendanceRecord>(`/companies/${companyId}/meetings/${meetingId}/attendance`, body, token),
-  requestAttendance: (companyId: string, meetingId: string, mode: 'VIDEO' | 'PHONE', token: string) =>
-    post<{ message: string }>(`/companies/${companyId}/meetings/${meetingId}/attendance/request`, { mode }, token),
   // ── Chairperson nomination — persisted to DB so all directors see the same state ──
   getNomination: (companyId: string, meetingId: string, token: string) =>
     get<NominationState>(`/companies/${companyId}/meetings/${meetingId}/chairperson/nomination`, token),
@@ -319,12 +293,6 @@ export const meetings = {
     post<Meeting>(`/companies/${companyId}/meetings/${meetingId}/mark-first-meeting`, undefined, token),
   acknowledgeNotice: (companyId: string, meetingId: string, token: string) =>
     post<{ acknowledged: boolean; noticeAcknowledgedBy: string[] }>(`/companies/${companyId}/meetings/${meetingId}/acknowledge-notice`, undefined, token),
-  getRollCall: (companyId: string, meetingId: string, token: string) =>
-    get<RollCallStatus>(`/companies/${companyId}/meetings/${meetingId}/roll-call`, token),
-  submitRollCall: (companyId: string, meetingId: string, body: { location: string; noThirdParty: boolean; materialsReceived: boolean }, token: string) =>
-    post<{ rollCall: MeetingRollCallResponse; allResponded: boolean }>(`/companies/${companyId}/meetings/${meetingId}/roll-call`, body, token),
-  confirmQuorum: (companyId: string, meetingId: string, token: string) =>
-    post<QuorumResult>(`/companies/${companyId}/meetings/${meetingId}/confirm-quorum`, undefined, token),
 };
 
 // ── Meeting Templates ─────────────────────────────────────────────────────────

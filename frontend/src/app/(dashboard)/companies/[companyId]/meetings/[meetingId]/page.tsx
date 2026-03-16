@@ -50,8 +50,6 @@ export default function MeetingWorkspacePage() {
   // Chairperson election modal
   const [showChairModal, setShowChairModal] = useState(false);
 
-  // Notice acknowledgement state
-  const [noticeAcked,  setNoticeAcked]  = useState(false);
 
   const reload = useCallback(async () => {
     try {
@@ -65,8 +63,6 @@ export default function MeetingWorkspacePage() {
       setResolutions(r);
       setMembers(memberList);
       setVaultDocs(vaultDocList ?? []);
-      // Set notice ack state for current user
-      if (m.noticeAcknowledgedBy?.includes(me?.id ?? '')) setNoticeAcked(true);
       const me2 = memberList.find((mem: any) => mem.user.id === (me?.id ?? ''));
       if (me2) setMyRole(me2.role);
       // Always sync activeAgenda — auto-select first item if none selected yet
@@ -90,8 +86,8 @@ export default function MeetingWorkspacePage() {
   useEffect(() => {
     if (!meeting) return;
     if (meeting.status === 'SCHEDULED') {
-      // In SCHEDULED state, show roll call prompt if not yet completed
-      setPanel('attendance');
+      // SCHEDULED: guide to attendance panel so user can see status
+      setPanel('resolutions');
     }
     // IN_PROGRESS: start at resolutions (agenda item execution surface)
     // docnotes/declarations are handled as agenda items now
@@ -324,35 +320,6 @@ export default function MeetingWorkspacePage() {
         {/* ── Main ─────────────────────────────────────────────────────────────── */}
         <main className="flex-1 overflow-y-auto px-8 py-7">
 
-          {/* ── Notice acknowledgement banner (SCHEDULED status) ─────────────── */}
-          {meeting.status === 'SCHEDULED' && !noticeAcked && (
-            <div className="mb-6 bg-amber-950/30 border border-amber-800/30 rounded-2xl p-5 flex items-start gap-4">
-              <span className="text-amber-400 text-xl flex-shrink-0 mt-0.5">📋</span>
-              <div className="flex-1">
-                <p className="text-amber-400 text-sm font-semibold mb-1">Acknowledge Notice Receipt</p>
-                <p className="text-zinc-400 text-xs leading-relaxed mb-3">
-                  SS-1 Rule 3(4) requires each director to confirm receipt of the meeting notice and agenda before participating.
-                  Click below to confirm you have received the notice for this meeting.
-                </p>
-                <button
-                  onClick={async () => {
-                    await meetings.acknowledgeNotice(companyId, meetingId, jwt);
-                    setNoticeAcked(true);
-                    reload();
-                  }}
-                  className="bg-amber-600 hover:bg-amber-500 text-white text-xs font-semibold px-4 py-2 rounded-lg transition-colors"
-                >
-                  ✓ I confirm receipt of notice and agenda
-                </button>
-              </div>
-              <div className="flex-shrink-0 text-right">
-                <p className="text-zinc-600 text-[10px] mb-1">Acknowledged by</p>
-                <p className="text-zinc-400 text-xs font-semibold">
-                  {meeting.noticeAcknowledgedBy?.length ?? 0} of {members.filter((m:any) => ['DIRECTOR','COMPANY_SECRETARY'].includes(m.role)).length} directors
-                </p>
-              </div>
-            </div>
-          )}
 
           {/* ── Chairperson prompt (IN_PROGRESS but no chairperson) ─────────── */}
           {meeting.status === 'IN_PROGRESS' && !meeting.chairpersonId && (
@@ -916,278 +883,213 @@ function DeclarationsPanel({ companyId, meetingId, jwt, meeting, declarations, i
 
 // ── Attendance Panel ──────────────────────────────────────────────────────────
 
+// ── Roll Call Panel (Attendance) ─────────────────────────────────────────────
+//
+// Used by the Chairperson after being elected (agenda item 1).
+// Chairperson marks each director as IN_PERSON, VIDEO, PHONE, or ABSENT.
+// For VIDEO/PHONE the location and no-third-party confirmation are recorded
+// per SS-1 Rule 3(4). Quorum is calculated live and displayed.
+//
+// This replaces the old self-mark + request flow. There is no pre-meeting
+// attendance step — roll call happens inside the meeting, taken by the Chair.
+
 function AttendancePanel({ companyId, meetingId, jwt, meeting, attendance, currentUserId, isChairperson, isCS, onRefresh }: any) {
-  const [saving,    setSaving]    = useState<string | null>(null);
-  const [requesting,setRequesting]= useState<string | null>(null); // 'VIDEO' | 'PHONE'
-  const [err,       setErr]       = useState('');
-  // SS-1 Rule 3(4) — virtual attendance confirmation fields
-  const [location,     setLocation]     = useState('');
-  const [noThirdParty, setNoThirdParty] = useState(false);
-  const [showVirtConfirm, setShowVirtConfirm] = useState<string | null>(null); // userId being confirmed
+  const [saving,       setSaving]       = useState<string | null>(null);
+  const [err,          setErr]          = useState('');
+  // Per-row location input — only shown for VIDEO/PHONE modes
+  const [locationInputs, setLocationInputs] = useState<Record<string, string>>({});
+  const [ntpChecks,      setNtpChecks]      = useState<Record<string, boolean>>({});
+  const [expandedRow,    setExpandedRow]    = useState<string | null>(null);
 
-  const canAuthenticate = isChairperson || isCS; // can record VIDEO/PHONE/ABSENT for others
-  // No chairperson required for self-marking. Only VIDEO/PHONE/ABSENT need chair/CS auth.
-  const canEdit = ['SCHEDULED', 'IN_PROGRESS'].includes(meeting.status);
+  const canRecord = isChairperson || isCS;
 
-  const present = attendance.filter((a: any) => a.attendance && !['ABSENT', null].includes(a.attendance?.mode) && !a.attendance?.mode?.startsWith('REQUESTED'));
-  const total   = attendance.length;
+  const present = attendance.filter((a: any) => {
+    const mode = a.attendance?.mode;
+    return mode && !['ABSENT'].includes(mode);
+  });
+  const total          = attendance.length;
   const quorumRequired = Math.max(2, Math.ceil(total / 3));
-  const quorumMet = present.length >= quorumRequired;
+  const quorumMet      = present.length >= quorumRequired;
 
-  async function record(userId: string, mode: AttendanceMode, loc?: string, ntp?: boolean) {
+  async function record(userId: string, mode: AttendanceMode, location?: string, noThirdParty?: boolean) {
     setSaving(userId); setErr('');
     try {
       await meetings.recordAttendance(companyId, meetingId, {
         userId, mode,
-        ...(loc  !== undefined && { location: loc }),
-        ...(ntp  !== undefined && { noThirdParty: ntp }),
+        ...(location     !== undefined ? { location }     : {}),
+        ...(noThirdParty !== undefined ? { noThirdParty } : {}),
       }, jwt);
-      setShowVirtConfirm(null);
-      setLocation('');
-      setNoThirdParty(false);
+      setExpandedRow(null);
+      setLocationInputs(prev => { const n = {...prev}; delete n[userId]; return n; });
+      setNtpChecks(prev => { const n = {...prev}; delete n[userId]; return n; });
       await onRefresh();
-    } catch (e: any) { setErr((e as any).body?.message ?? 'Could not save attendance'); }
-    finally { setSaving(null); }
+    } catch (e: any) {
+      setErr(e?.body?.message ?? 'Could not record attendance');
+    } finally { setSaving(null); }
   }
 
-  async function requestMode(mode: 'VIDEO' | 'PHONE') {
-    setRequesting(mode); setErr('');
-    try {
-      await meetings.requestAttendance(companyId, meetingId, mode, jwt);
-      await onRefresh();
-    } catch (e: any) { setErr((e as any).body?.message ?? 'Could not send request'); }
-    finally { setRequesting(null); }
+  function handleModeClick(userId: string, mode: AttendanceMode) {
+    if (mode === 'VIDEO' || mode === 'PHONE') {
+      // Expand the row to collect location + noThirdParty first
+      setExpandedRow(expandedRow === userId + mode ? null : userId + mode);
+    } else {
+      record(userId, mode);
+    }
   }
 
-  const noChairperson = !meeting.chairpersonId;
+  if (meeting.status !== 'IN_PROGRESS') {
+    return (
+      <div className="max-w-2xl fade-up">
+        <p className="text-zinc-600 text-xs uppercase tracking-widest font-semibold mb-1">Roll Call</p>
+        <h2 className="text-white text-xl font-bold mb-4" style={{fontFamily:"'Playfair Display',serif"}}>Attendance</h2>
+        <div className="bg-[#191D24] border border-[#232830] rounded-xl px-5 py-4 text-zinc-500 text-sm">
+          Roll call is taken by the Chairperson after the meeting opens.
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="max-w-2xl fade-up">
       {/* Header */}
       <div className="flex items-start justify-between mb-6">
         <div>
-          <p className="text-zinc-600 text-xs uppercase tracking-widest font-semibold mb-1">SS-1 · Section 174 · Companies Act 2013</p>
+          <p className="text-zinc-600 text-xs uppercase tracking-widest font-semibold mb-1">SS-1 · Sec. 174 · Roll Call</p>
           <h2 className="text-white text-xl font-bold" style={{fontFamily:"'Playfair Display',serif"}}>Attendance</h2>
         </div>
-        {total > 0 && (
-          <div className={`px-4 py-2 rounded-xl border text-xs font-semibold ${quorumMet
-            ? 'bg-green-950/40 border-green-800/40 text-green-400'
-            : 'bg-red-950/40 border-red-800/40 text-red-400'}`}>
-            {quorumMet ? '✓ Quorum Met' : '✕ Quorum Not Met'}
-            <span className="block text-[10px] font-normal opacity-70 mt-0.5">
-              {present.length} of {total} present · min {quorumRequired} required
-            </span>
-          </div>
-        )}
+        <div className={`px-4 py-2 rounded-xl border text-xs font-semibold ${quorumMet
+          ? 'bg-green-950/40 border-green-800/40 text-green-400'
+          : 'bg-red-950/40 border-red-800/40 text-red-400'}`}>
+          {quorumMet ? '✓ Quorum Met' : '✕ Quorum Not Met'}
+          <span className="block text-[10px] font-normal opacity-70 mt-0.5">
+            {present.length} of {total} present · min {quorumRequired} required
+          </span>
+        </div>
       </div>
 
-      {/* No chairperson warning */}
-      {noChairperson && (
-        <div className="mb-5 flex items-start gap-3 bg-amber-950/20 border border-amber-800/30 rounded-xl px-4 py-3">
-          <span className="text-amber-400 mt-0.5">⚠</span>
-          <p className="text-amber-300 text-xs leading-relaxed">
-            No chairperson elected yet. A chairperson must be elected before attendance can be recorded (SS-1).
-          </p>
+      {/* Chairperson instruction */}
+      {canRecord ? (
+        <div className="mb-5 bg-[#191D24] border border-[#232830] rounded-xl px-4 py-3 text-zinc-400 text-xs leading-relaxed">
+          Call the roll — mark each director's mode of attendance.
+          For Video or Phone, confirm their location and that no third party is present (SS-1 Rule 3(4)).
         </div>
-      )}
-
-      {/* Role context banner */}
-      {!noChairperson && canEdit && (
-        <div className="mb-5 flex items-start gap-3 bg-[#191D24] border border-[#232830] rounded-xl px-4 py-3">
-          <span className="text-blue-400 mt-0.5 text-sm">ℹ</span>
-          <p className="text-zinc-400 text-xs leading-relaxed">
-            {canAuthenticate
-              ? `You are the ${isChairperson ? 'Chairperson' : 'Company Secretary'}. You can authenticate electronic attendance (Video/Phone) and mark directors absent per SS-1.`
-              : 'You can mark yourself as In Person. To join by video or phone, use the request button — the Chairperson or CS will confirm.'}
-          </p>
+      ) : (
+        <div className="mb-5 bg-[#191D24] border border-[#232830] rounded-xl px-4 py-3 text-zinc-500 text-xs leading-relaxed">
+          Attendance is being recorded by the Chairperson.
         </div>
       )}
 
       {err && <p className="text-red-400 text-xs mb-4 bg-red-950/30 border border-red-800/30 rounded-lg px-3 py-2">{err}</p>}
 
-      <div className="space-y-3">
+      <div className="space-y-2">
         {attendance.map((dir: any) => {
-          const currentMode: string | null = dir.attendance?.mode ?? null;
-          const isSelf = dir.userId === currentUserId;
+          const mode     = dir.attendance?.mode ?? null;
           const isSaving = saving === dir.userId;
-          const isPending = currentMode === 'REQUESTED_VIDEO' || currentMode === 'REQUESTED_PHONE';
+          const rowKey   = (m: string) => dir.userId + m;
+          const location = locationInputs[dir.userId] ?? '';
+          const ntp      = ntpChecks[dir.userId] ?? false;
+
+          const modeColor = (m: string | null) => {
+            if (!m) return 'text-zinc-600';
+            if (m === 'ABSENT')    return 'text-red-400';
+            if (m === 'IN_PERSON') return 'text-green-400';
+            return 'text-blue-400';
+          };
+          const modeLabel = (m: string | null) =>
+            !m ? '—' : m === 'IN_PERSON' ? 'In Person' : m.charAt(0) + m.slice(1).toLowerCase();
 
           return (
-            <div key={dir.userId} className={`bg-[#191D24] border rounded-xl p-4 ${isPending ? 'border-amber-800/40' : 'border-[#232830]'}`}>
-              <div className="flex items-start gap-4">
-                {/* Member info */}
+            <div key={dir.userId} className="bg-[#191D24] border border-[#232830] rounded-xl p-4">
+              <div className="flex items-center gap-4">
+                {/* Director info */}
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 flex-wrap">
                     <p className="text-sm font-semibold text-zinc-200">{dir.name}</p>
-                    {isSelf && <span className="text-[9px] font-bold bg-blue-900/40 text-blue-400 border border-blue-700/30 px-1.5 py-0.5 rounded-full">you</span>}
-                    {meeting.chairpersonId === dir.userId && <span className="text-[9px] font-bold bg-purple-900/40 text-purple-400 border border-purple-700/30 px-1.5 py-0.5 rounded-full">Chairperson</span>}
-                    {dir.role === 'COMPANY_SECRETARY' && <span className="text-[9px] font-bold bg-indigo-900/40 text-indigo-400 border border-indigo-700/30 px-1.5 py-0.5 rounded-full">CS</span>}
+                    {dir.userId === currentUserId && (
+                      <span className="text-[9px] font-bold bg-blue-900/40 text-blue-400 border border-blue-700/30 px-1.5 py-0.5 rounded-full">you</span>
+                    )}
+                    {meeting.chairpersonId === dir.userId && (
+                      <span className="text-[9px] font-bold bg-purple-900/40 text-purple-400 border border-purple-700/30 px-1.5 py-0.5 rounded-full">Chairperson</span>
+                    )}
+                    {dir.role === 'COMPANY_SECRETARY' && (
+                      <span className="text-[9px] font-bold bg-indigo-900/40 text-indigo-400 border border-indigo-700/30 px-1.5 py-0.5 rounded-full">CS</span>
+                    )}
                   </div>
-                  <p className="text-zinc-600 text-[11px] mt-0.5">{dir.email}</p>
+                  {dir.attendance?.location && (
+                    <p className="text-zinc-600 text-[10px] mt-0.5">📍 {dir.attendance.location}</p>
+                  )}
                 </div>
 
-                {/* Current status badge */}
-                <div className="flex-shrink-0 text-right">
-                  {currentMode && (
-                    <span className={`text-[10px] font-bold px-2.5 py-1 rounded-full border ${
-                      isPending              ? 'bg-amber-950/40 border-amber-700/40 text-amber-400'
-                      : currentMode==='ABSENT'    ? 'bg-red-950/40 border-red-700/40 text-red-400'
-                      : currentMode==='IN_PERSON' ? 'bg-green-950/40 border-green-700/40 text-green-400'
-                      : 'bg-blue-950/40 border-blue-700/40 text-blue-400'
-                    }`}>
-                      {isPending
-                        ? `⏳ ${currentMode === 'REQUESTED_VIDEO' ? 'Requested Video' : 'Requested Phone'}`
-                        : currentMode.replace('_', ' ')}
-                    </span>
-                  )}
-                  {dir.attendance?.location && (
-                    <p className="text-zinc-600 text-[10px] mt-1">{dir.attendance.location}</p>
-                  )}
-                </div>
+                {/* Current mode */}
+                <span className={`text-xs font-semibold flex-shrink-0 ${modeColor(mode)}`}>
+                  {modeLabel(mode)}
+                </span>
               </div>
 
-              {/* Action buttons */}
-              {canEdit && (
+              {/* Action buttons — chairperson/CS only */}
+              {canRecord && (
                 <div className="mt-3 flex flex-wrap gap-2">
-
-                  {/* ── Own row: self-mark IN_PERSON + request VIDEO/PHONE ── */}
-                  {isSelf && !canAuthenticate && (
-                    <>
-                      {/* Show location/noThirdParty form when not yet confirmed */}
-                      {currentMode !== 'IN_PERSON' && showVirtConfirm !== dir.userId ? (
-                        <button
-                          disabled={isSaving}
-                          onClick={() => setShowVirtConfirm(dir.userId)}
-                          className="px-3 py-1.5 rounded-lg text-[11px] font-semibold border transition-all bg-transparent border-zinc-700/50 text-zinc-400 hover:border-green-700/50 hover:text-green-400"
-                        >
-                          ◉ Mark In Person
-                        </button>
-                      ) : currentMode === 'IN_PERSON' ? (
-                        <div className="w-full">
-                          <div className="flex items-center gap-2">
-                            <span className="text-green-400 text-[11px] font-semibold">◉ In Person</span>
-                            {dir.attendance?.location && (
-                              <span className="text-zinc-500 text-[10px]">from {dir.attendance.location}</span>
-                            )}
-                          </div>
-                        </div>
-                      ) : (
-                        /* Location + noThirdParty confirmation form */
-                        <div className="w-full bg-[#0D0F12] border border-[#232830] rounded-xl p-3 space-y-3">
-                          <p className="text-zinc-400 text-[11px] font-semibold">Confirm attendance details <span className="text-zinc-600 font-normal">(SS-1 Rule 3(4))</span></p>
-                          <input
-                            value={location}
-                            onChange={e => setLocation(e.target.value)}
-                            placeholder="Your current location (e.g. Mumbai, Maharashtra)"
-                            className="w-full bg-[#13161B] border border-[#232830] rounded-lg px-3 py-2 text-xs text-zinc-200 placeholder:text-zinc-700 focus:outline-none focus:border-blue-600"
-                          />
-                          <label className="flex items-start gap-2 cursor-pointer">
-                            <input
-                              type="checkbox"
-                              checked={noThirdParty}
-                              onChange={e => setNoThirdParty(e.target.checked)}
-                              className="mt-0.5 flex-shrink-0"
-                              style={{ accentColor: '#34D399', width: 13, height: 13 }}
-                            />
-                            <span className="text-[11px] text-zinc-400 leading-relaxed">
-                              I confirm no third party is present at my location
-                              <span className="text-zinc-600"> (SS-1 Rule 3(4)(ii))</span>
-                            </span>
-                          </label>
-                          <div className="flex gap-2">
-                            <button
-                              disabled={isSaving || !location.trim() || !noThirdParty}
-                              onClick={() => record(dir.userId, 'IN_PERSON', location, noThirdParty)}
-                              className="px-3 py-1.5 rounded-lg text-[11px] font-semibold bg-green-900/50 border border-green-700/50 text-green-400 disabled:opacity-50 disabled:cursor-not-allowed hover:bg-green-900/70 transition-colors"
-                            >
-                              {isSaving ? '…' : '✓ Confirm'}
-                            </button>
-                            <button
-                              onClick={() => { setShowVirtConfirm(null); setLocation(''); setNoThirdParty(false); }}
-                              className="px-3 py-1.5 rounded-lg text-[11px] text-zinc-600 hover:text-zinc-400"
-                            >
-                              Cancel
-                            </button>
-                          </div>
-                        </div>
-                      )}
-                      <button disabled={!!requesting || currentMode === 'REQUESTED_VIDEO' || currentMode === 'VIDEO'}
-                        onClick={() => requestMode('VIDEO')}
-                        className={`px-3 py-1.5 rounded-lg text-[11px] font-semibold border transition-all
-                          ${currentMode === 'VIDEO' || currentMode === 'REQUESTED_VIDEO'
-                            ? 'bg-blue-950/60 border-blue-700/60 text-blue-400'
-                            : 'bg-transparent border-zinc-700/50 text-zinc-400 hover:border-blue-700/50 hover:text-blue-400'}
-                          ${requesting ? 'opacity-50 cursor-not-allowed' : ''}`}>
-                        {requesting === 'VIDEO' ? '…' : '▶ Request Video'}
-                      </button>
-                      <button disabled={!!requesting || currentMode === 'REQUESTED_PHONE' || currentMode === 'PHONE'}
-                        onClick={() => requestMode('PHONE')}
-                        className={`px-3 py-1.5 rounded-lg text-[11px] font-semibold border transition-all
-                          ${currentMode === 'PHONE' || currentMode === 'REQUESTED_PHONE'
-                            ? 'bg-blue-950/60 border-blue-700/60 text-blue-400'
-                            : 'bg-transparent border-zinc-700/50 text-zinc-400 hover:border-blue-700/50 hover:text-blue-400'}
-                          ${requesting ? 'opacity-50 cursor-not-allowed' : ''}`}>
-                        {requesting === 'PHONE' ? '…' : '◌ Request Phone'}
-                      </button>
-                    </>
-                  )}
-
-                  {/* ── Chairperson / CS row: full control for others + self ── */}
-                  {canAuthenticate && (
-                    <>
-                      {/* IN_PERSON — anyone can appear in person */}
-                      <button disabled={isSaving} onClick={() => record(dir.userId, 'IN_PERSON')}
-                        className={`px-3 py-1.5 rounded-lg text-[11px] font-semibold border transition-all
-                          ${currentMode === 'IN_PERSON' ? 'bg-green-950/60 border-green-700/60 text-green-400' : 'bg-transparent border-zinc-700/50 text-zinc-400 hover:border-green-700/50 hover:text-green-400'}
-                          ${isSaving ? 'opacity-50' : ''}`}>
-                        {isSaving && currentMode==='IN_PERSON' ? '…' : '◉ In Person'}
-                      </button>
-
-                      {/* VIDEO — authenticate or confirm request */}
-                      <button disabled={isSaving} onClick={() => record(dir.userId, 'VIDEO')}
-                        className={`px-3 py-1.5 rounded-lg text-[11px] font-semibold border transition-all
-                          ${currentMode === 'VIDEO' ? 'bg-blue-950/60 border-blue-700/60 text-blue-400'
-                          : isPending && currentMode === 'REQUESTED_VIDEO' ? 'bg-amber-950/60 border-amber-700/60 text-amber-300 animate-pulse'
-                          : 'bg-transparent border-zinc-700/50 text-zinc-400 hover:border-blue-700/50 hover:text-blue-400'}
-                          ${isSaving ? 'opacity-50' : ''}`}>
-                        {isSaving && currentMode==='VIDEO' ? '…'
-                          : currentMode === 'REQUESTED_VIDEO' ? '✓ Confirm Video'
-                          : '▶ Video'}
-                      </button>
-
-                      {/* PHONE */}
-                      <button disabled={isSaving} onClick={() => record(dir.userId, 'PHONE')}
-                        className={`px-3 py-1.5 rounded-lg text-[11px] font-semibold border transition-all
-                          ${currentMode === 'PHONE' ? 'bg-blue-950/60 border-blue-700/60 text-blue-400'
-                          : isPending && currentMode === 'REQUESTED_PHONE' ? 'bg-amber-950/60 border-amber-700/60 text-amber-300 animate-pulse'
-                          : 'bg-transparent border-zinc-700/50 text-zinc-400 hover:border-blue-700/50 hover:text-blue-400'}
-                          ${isSaving ? 'opacity-50' : ''}`}>
-                        {isSaving && currentMode==='PHONE' ? '…'
-                          : currentMode === 'REQUESTED_PHONE' ? '✓ Confirm Phone'
-                          : '◌ Phone'}
-                      </button>
-
-                      {/* ABSENT */}
-                      <button disabled={isSaving} onClick={() => record(dir.userId, 'ABSENT')}
-                        className={`px-3 py-1.5 rounded-lg text-[11px] font-semibold border transition-all
-                          ${currentMode === 'ABSENT' ? 'bg-red-950/60 border-red-700/60 text-red-400' : 'bg-transparent border-zinc-700/50 text-zinc-400 hover:border-red-700/50 hover:text-red-400'}
-                          ${isSaving ? 'opacity-50' : ''}`}>
-                        {isSaving && currentMode==='ABSENT' ? '…' : '✕ Absent'}
-                      </button>
-                    </>
-                  )}
+                  {(['IN_PERSON', 'VIDEO', 'PHONE', 'ABSENT'] as AttendanceMode[]).map(m => (
+                    <button
+                      key={m}
+                      disabled={isSaving}
+                      onClick={() => handleModeClick(dir.userId, m)}
+                      className={`px-3 py-1.5 rounded-lg text-[11px] font-semibold border transition-all disabled:opacity-50 ${
+                        mode === m
+                          ? m === 'ABSENT'    ? 'bg-red-950/60 border-red-700/60 text-red-400'
+                          : m === 'IN_PERSON' ? 'bg-green-950/60 border-green-700/60 text-green-400'
+                          : 'bg-blue-950/60 border-blue-700/60 text-blue-400'
+                          : 'bg-transparent border-zinc-700/40 text-zinc-500 hover:text-zinc-300 hover:border-zinc-600'
+                      }`}
+                    >
+                      {isSaving && mode !== m ? '…' : m === 'IN_PERSON' ? '◉ In Person' : m === 'VIDEO' ? '▶ Video' : m === 'PHONE' ? '◌ Phone' : '✕ Absent'}
+                    </button>
+                  ))}
                 </div>
               )}
 
-              {/* Read-only — not editable */}
-              {!canEdit && currentMode && (
-                <div className="mt-2">
-                  <span className={`text-xs font-semibold px-3 py-1 rounded-full border ${
-                    !currentMode ? 'bg-zinc-900 border-zinc-700 text-zinc-500'
-                    : currentMode === 'ABSENT' ? 'bg-red-950/40 border-red-800/40 text-red-400'
-                    : 'bg-green-950/40 border-green-800/40 text-green-400'}`}>
-                    {currentMode.replace('_', ' ')}
-                  </span>
+              {/* Location + noThirdParty form — shown for VIDEO or PHONE */}
+              {canRecord && (expandedRow === rowKey('VIDEO') || expandedRow === rowKey('PHONE')) && (
+                <div className="mt-3 bg-[#0D0F12] border border-[#232830] rounded-xl p-3 space-y-3">
+                  <p className="text-zinc-400 text-[11px] font-semibold">
+                    SS-1 Rule 3(4) — Confirm remote attendance details for {dir.name}
+                  </p>
+                  <input
+                    value={location}
+                    onChange={e => setLocationInputs(prev => ({...prev, [dir.userId]: e.target.value}))}
+                    placeholder="Location (e.g. Mumbai, Maharashtra)"
+                    className="w-full bg-[#13161B] border border-[#232830] rounded-lg px-3 py-2 text-xs text-zinc-200 placeholder:text-zinc-700 focus:outline-none focus:border-blue-600"
+                  />
+                  <label className="flex items-start gap-2 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={ntp}
+                      onChange={e => setNtpChecks(prev => ({...prev, [dir.userId]: e.target.checked}))}
+                      className="mt-0.5 flex-shrink-0"
+                      style={{ accentColor: '#34D399', width: 13, height: 13 }}
+                    />
+                    <span className="text-[11px] text-zinc-400 leading-relaxed">
+                      Director confirms no third party is present at their location
+                      <span className="text-zinc-600"> (SS-1 Rule 3(4)(ii))</span>
+                    </span>
+                  </label>
+                  <div className="flex gap-2">
+                    <button
+                      disabled={isSaving || !location.trim() || !ntp}
+                      onClick={() => record(
+                        dir.userId,
+                        expandedRow === rowKey('VIDEO') ? 'VIDEO' : 'PHONE',
+                        location, ntp
+                      )}
+                      className="px-3 py-1.5 rounded-lg text-[11px] font-semibold bg-blue-900/50 border border-blue-700/50 text-blue-400 disabled:opacity-50 hover:bg-blue-900/70 transition-colors"
+                    >
+                      {isSaving ? '…' : '✓ Confirm'}
+                    </button>
+                    <button
+                      onClick={() => setExpandedRow(null)}
+                      className="px-3 py-1.5 text-[11px] text-zinc-600 hover:text-zinc-400"
+                    >Cancel</button>
+                  </div>
                 </div>
               )}
             </div>
@@ -1196,12 +1098,11 @@ function AttendancePanel({ companyId, meetingId, jwt, meeting, attendance, curre
       </div>
 
       {attendance.length === 0 && (
-        <p className="text-zinc-600 text-sm text-center py-10">No members to record attendance for.</p>
+        <p className="text-zinc-600 text-sm text-center py-10">No members found.</p>
       )}
     </div>
   );
 }
-
 // ── Resolutions Panel ─────────────────────────────────────────────────────────
 
 function ResolutionsPanel({ companyId, meetingId, jwt, meeting, resolutions, activeAgendaItem, currentUserId, onRefresh, isAdmin, vaultDocs }: any) {
