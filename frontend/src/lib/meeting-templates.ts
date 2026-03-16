@@ -648,6 +648,17 @@ export interface SystemAgendaItem {
   docLabel?:   string;
 }
 
+// Substitute template variables in text — called at meeting creation time
+// Supported vars: {{company_name}}, {{director_name}}, {{date}}, {{cin}},
+// {{registered_address}}, {{roc_city}}, {{inc_date}}, {{custodian_name}},
+// {{custodian_designation}}, {{present_count}}, {{total_count}}, {{quorum_required}}
+export function substituteTemplateVars(
+  text: string,
+  vars: Record<string, string>,
+): string {
+  return text.replace(/\{\{(\w+)\}\}/g, (_, key) => vars[key] ?? `{{${key}}}`);
+}
+
 // Convert rich template to the shape used by the template builder and DB storage
 export function toFlatAgendaItems(items: TemplateAgendaItem[]): SystemAgendaItem[] {
   return items.map(i => ({
