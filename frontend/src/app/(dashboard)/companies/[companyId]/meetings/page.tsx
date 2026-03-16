@@ -222,27 +222,38 @@ export default function MeetingsPage() {
           } : {}),
         }, token);
 
-        if (!tplItem || !tplItem.workItems.length) continue;
+        // Collect workItems from either the system template match OR the custom template item directly
+        const sourceWorkItems: any[] = tplItem?.workItems?.length
+          ? tplItem.workItems                           // system template — full TemplateWorkItem shape
+          : (item as any).workItems?.length
+          ? (item as any).workItems                    // custom template — WorkItemDraft shape
+          : [];
+
+        if (!sourceWorkItems.length) continue;
 
         // Create pre-filled resolutions/noting items for each work item
-        for (const wi of tplItem.workItems) {
-          if (wi.type === 'SYSTEM_ACTION') continue; // handled at runtime, not pre-created
+        for (const wi of sourceWorkItems) {
+          if (wi.type === 'SYSTEM_ACTION') continue;
+
+          // Normalise field names — system templates use textTemplate, custom use motionText
+          const motionText     = wi.textTemplate ?? wi.motionText ?? '';
+          const resolutionText = wi.resolutionTextTemplate ?? wi.resolutionText ?? undefined;
 
           if (wi.isDynamic) {
-            // One resolution per director
+            // One resolution per director (compliance forms)
             for (const member of directors) {
               const vars = { ...templateVars, director_name: member.user?.name ?? member.name ?? '' };
               await resApi.create(companyId, meeting.id, {
-                title:       substituteTemplateVars(wi.title, vars),
-                text:        substituteTemplateVars(wi.textTemplate, vars),
-                type:        'NOTING',
-                agendaItemId:agendaItem.id,
+                title:         substituteTemplateVars(wi.title, vars),
+                text:          substituteTemplateVars(motionText, vars),
+                resolutionText:resolutionText ? substituteTemplateVars(resolutionText, vars) : undefined,
+                type:          'NOTING',
+                agendaItemId:  agendaItem.id,
               }, token).catch(() => {});
             }
           } else {
-            // Single resolution for this work item
-            const resType = wi.type === 'RESOLUTION_VOTING' ? 'MEETING' : 'NOTING'; // DOCUMENT_NOTING and NOTING_VAULT_DOC both → NOTING
-            // For document noting items — auto-link vault slot if vaultDocType is set
+            const resType = wi.type === 'RESOLUTION_VOTING' ? 'MEETING' : 'NOTING';
+            // Auto-link vault slot for document noting items
             let vaultDocId: string | undefined;
             const isDocNoting = wi.type === 'DOCUMENT_NOTING' || wi.type === 'NOTING_VAULT_DOC';
             if (isDocNoting && wi.vaultDocType) {
@@ -252,10 +263,11 @@ export default function MeetingsPage() {
               if (match) vaultDocId = match.id;
             }
             await resApi.create(companyId, meeting.id, {
-              title:       substituteTemplateVars(wi.title, templateVars),
-              text:        substituteTemplateVars(wi.textTemplate, templateVars),
-              type:        resType as 'MEETING' | 'NOTING',
-              agendaItemId:agendaItem.id,
+              title:          substituteTemplateVars(wi.title, templateVars),
+              text:           substituteTemplateVars(motionText, templateVars),
+              resolutionText: resolutionText ? substituteTemplateVars(resolutionText, templateVars) : undefined,
+              type:           resType as 'MEETING' | 'NOTING',
+              agendaItemId:   agendaItem.id,
               ...(vaultDocId ? { vaultDocId } : {}),
             }, token).catch(() => {});
           }

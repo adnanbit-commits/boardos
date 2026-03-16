@@ -11,21 +11,31 @@ import { getToken } from '@/lib/auth';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
+interface WorkItemDraft {
+  id:             string;
+  title:          string;   // Noun phrase: "Appointment of CFO"
+  motionText:     string;   // "The Board is moved to..."
+  resolutionText: string;   // "RESOLVED THAT..." (after passing)
+  hasPlaceholders:boolean;
+}
+
 interface AgendaDraft {
   id:                string;
   title:             string;
   description:       string;
   itemType:          string;   // 'STANDARD' | 'DOCUMENT_NOTING' | 'COMPLIANCE_NOTING'
+  // Standard motions
+  workItems:         WorkItemDraft[];
   // Document noting
-  vaultDocType:      string;   // known vault slot key, or '' for custom/external
-  customVaultDocId:  string;   // id of a custom uploaded vault document
-  docLabel:          string;   // human label for the document
-  externalDocUrl:    string;   // Path B: URL on external platform
-  externalDocPlatform: string; // 'MCA21' | 'Google Drive' | 'Dropbox' | 'OneDrive' | 'Other'
-  physicalPresence:  boolean;  // Path C: physically present at deemed venue
+  vaultDocType:      string;
+  customVaultDocId:  string;
+  docLabel:          string;
+  externalDocUrl:    string;
+  externalDocPlatform: string;
+  physicalPresence:  boolean;
   // Compliance noting
-  complianceScope:   string;   // 'ALL' | 'SPECIFIC'
-  specificDirectors: string[]; // userIds when scope is SPECIFIC
+  complianceScope:   string;
+  specificDirectors: string[];
 }
 
 const VAULT_SLOT_OPTIONS = [
@@ -90,7 +100,7 @@ export default function TemplatesPage() {
   const [bName,     setBName]     = useState('');
   const [bDesc,     setBDesc]     = useState('');
   const [bCategory, setBCategory] = useState('BOARD');
-  const [bItems,    setBItems]    = useState<AgendaDraft[]>([{ id: uid(), title: '', description: '', itemType: 'STANDARD', vaultDocType: '', customVaultDocId: '', docLabel: '', externalDocUrl: '', externalDocPlatform: 'MCA21', physicalPresence: false, complianceScope: 'ALL', specificDirectors: [] }]);
+  const [bItems,    setBItems]    = useState<AgendaDraft[]>([{ id: uid(), title: '', description: '', itemType: 'STANDARD', workItems: [], vaultDocType: '', customVaultDocId: '', docLabel: '', externalDocUrl: '', externalDocPlatform: 'MCA21', physicalPresence: false, complianceScope: 'ALL', specificDirectors: [] }]);
   const [bSaving,   setBSaving]   = useState(false);
   const [bErr,      setBErr]      = useState('');
 
@@ -123,11 +133,11 @@ export default function TemplatesPage() {
       setBName(tpl.name);
       setBDesc(tpl.description ?? '');
       setBCategory(tpl.category);
-      setBItems((tpl.agendaItems as any[]).map(a => ({ id: uid(), title: a.title, description: a.description ?? '', itemType: a.itemType ?? 'STANDARD', vaultDocType: a.vaultDocType ?? '', customVaultDocId: a.customVaultDocId ?? '', docLabel: a.docLabel ?? '', externalDocUrl: a.externalDocUrl ?? '', externalDocPlatform: a.externalDocPlatform ?? 'MCA21', physicalPresence: a.physicalPresence ?? false, complianceScope: a.complianceScope ?? 'ALL', specificDirectors: a.specificDirectors ?? [] })));
+      setBItems((tpl.agendaItems as any[]).map(a => ({ id: uid(), title: a.title, description: a.description ?? '', itemType: a.itemType ?? 'STANDARD', workItems: (a.workItems ?? []).map((wi: any) => ({ id: uid(), title: wi.title ?? '', motionText: wi.motionText ?? wi.textTemplate ?? '', resolutionText: wi.resolutionText ?? wi.resolutionTextTemplate ?? '', hasPlaceholders: wi.hasPlaceholders ?? false })), vaultDocType: a.vaultDocType ?? '', customVaultDocId: a.customVaultDocId ?? '', docLabel: a.docLabel ?? '', externalDocUrl: a.externalDocUrl ?? '', externalDocPlatform: a.externalDocPlatform ?? 'MCA21', physicalPresence: a.physicalPresence ?? false, complianceScope: a.complianceScope ?? 'ALL', specificDirectors: a.specificDirectors ?? [] })));
     } else {
       setEditingTpl(null);
       setBName(''); setBDesc(''); setBCategory('BOARD');
-      setBItems([{ id: uid(), title: '', description: '', itemType: 'STANDARD', vaultDocType: '', customVaultDocId: '', docLabel: '', externalDocUrl: '', externalDocPlatform: 'MCA21', physicalPresence: false, complianceScope: 'ALL', specificDirectors: [] }]);
+      setBItems([{ id: uid(), title: '', description: '', itemType: 'STANDARD', workItems: [], vaultDocType: '', customVaultDocId: '', docLabel: '', externalDocUrl: '', externalDocPlatform: 'MCA21', physicalPresence: false, complianceScope: 'ALL', specificDirectors: [] }]);
     }
     setBErr('');
     setView('builder');
@@ -138,12 +148,32 @@ export default function TemplatesPage() {
     setBName(`${tpl.name} (Custom)`);
     setBDesc(tpl.description);
     setBCategory(tpl.category);
-    setBItems(tpl.agendaItems.map(a => ({ id: uid(), title: a.title, description: a.description ?? a.legalBasis ?? '', itemType: a.itemType ?? 'STANDARD', vaultDocType: (a.workItems?.[0] as any)?.vaultDocType ?? '', customVaultDocId: '', docLabel: (a.workItems?.[0] as any)?.docLabel ?? '', externalDocUrl: '', externalDocPlatform: 'MCA21', physicalPresence: false, complianceScope: 'ALL', specificDirectors: [] })));
+    setBItems(tpl.agendaItems.map(a => ({
+      id: uid(),
+      title: a.title,
+      description: a.description ?? a.legalBasis ?? '',
+      itemType: a.itemType ?? 'STANDARD',
+      workItems: (a.workItems ?? [])
+        .filter((wi: any) => wi.type === 'RESOLUTION_VOTING')
+        .map((wi: any) => ({
+          id: uid(),
+          title: wi.title ?? '',
+          motionText: wi.textTemplate ?? '',
+          resolutionText: (wi as any).resolutionTextTemplate ?? '',
+          hasPlaceholders: wi.hasPlaceholders ?? false,
+        })),
+      vaultDocType: (a.workItems?.[0] as any)?.vaultDocType ?? '',
+      customVaultDocId: '',
+      docLabel: (a.workItems?.[0] as any)?.docLabel ?? '',
+      externalDocUrl: '', externalDocPlatform: 'MCA21',
+      physicalPresence: false, complianceScope: 'ALL', specificDirectors: [],
+    })));"
+
     setBErr('');
     setView('builder');
   }
 
-  function addItem() { setBItems(p => [...p, { id: uid(), title: '', description: '', itemType: 'STANDARD', vaultDocType: '', customVaultDocId: '', docLabel: '', externalDocUrl: '', externalDocPlatform: 'MCA21', physicalPresence: false, complianceScope: 'ALL', specificDirectors: [] }]); }
+  function addItem() { setBItems(p => [...p, { id: uid(), title: '', description: '', itemType: 'STANDARD', workItems: [], vaultDocType: '', customVaultDocId: '', docLabel: '', externalDocUrl: '', externalDocPlatform: 'MCA21', physicalPresence: false, complianceScope: 'ALL', specificDirectors: [] }]); }
   function removeItem(id: string) { setBItems(p => p.length > 1 ? p.filter(a => a.id !== id) : p); }
   function updateItem(id: string, field: keyof AgendaDraft, val: string | boolean | string[]) {
     setBItems(p => p.map(a => a.id === id ? { ...a, [field]: val } : a));
@@ -175,6 +205,20 @@ export default function TemplatesPage() {
           description:  a.description.trim() || undefined,
           order:        i + 1,
           itemType:             a.itemType !== 'STANDARD' ? a.itemType : undefined,
+          workItems:            a.itemType === 'STANDARD' && a.workItems.some(wi => wi.title.trim())
+                                  ? a.workItems.filter(wi => wi.title.trim()).map(wi => ({
+                                      title:          wi.title.trim(),
+                                      motionText:     wi.motionText.trim(),
+                                      resolutionText: wi.resolutionText.trim(),
+                                      hasPlaceholders:wi.hasPlaceholders,
+                                      // shape matches TemplateWorkItem so applyTemplate reads it directly
+                                      type:            'RESOLUTION_VOTING',
+                                      textTemplate:    wi.motionText.trim(),
+                                      resolutionTextTemplate: wi.resolutionText.trim() || undefined,
+                                      isEditable:      true,
+                                      requiredFor:     'ALL',
+                                    }))
+                                  : undefined,
           vaultDocType:         a.itemType === 'DOCUMENT_NOTING' && a.vaultDocType ? a.vaultDocType : undefined,
           customVaultDocId:     a.itemType === 'DOCUMENT_NOTING' && a.customVaultDocId ? a.customVaultDocId : undefined,
           docLabel:             a.itemType === 'DOCUMENT_NOTING' && a.docLabel.trim() ? a.docLabel.trim() : undefined,
@@ -495,6 +539,99 @@ export default function TemplatesPage() {
                           DIR-8 and MBP-1 will be required for all directors at the first meeting of each financial year. DIR-2 will be required for each new director on their first appointment.
                         </p>
                       )}
+                    </div>
+                  )}
+
+                  {/* ── Motions sub-form (STANDARD items only) ────────────────── */}
+                  {item.itemType === 'STANDARD' && (
+                    <div style={{ background: 'rgba(79,127,255,0.06)', border: '1px solid rgba(79,127,255,0.18)', borderRadius: 8, padding: '12px', display: 'flex', flexDirection: 'column', gap: 10 }}>
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                        <p style={{ fontSize: 10, fontWeight: 700, color: '#818CF8', textTransform: 'uppercase', letterSpacing: '0.06em', margin: 0 }}>
+                          Motions ({item.workItems.length})
+                        </p>
+                        <button type="button"
+                          onClick={() => updateItem(item.id, 'workItems' as any, [
+                            ...item.workItems,
+                            { id: uid(), title: '', motionText: 'The Board is moved to ', resolutionText: 'RESOLVED THAT ', hasPlaceholders: false },
+                          ])}
+                          style={{ fontSize: 10, fontWeight: 700, color: '#818CF8', background: 'rgba(79,127,255,0.10)', border: '1px solid rgba(79,127,255,0.25)', borderRadius: 5, padding: '3px 8px', cursor: 'pointer' }}>
+                          + Add Motion
+                        </button>
+                      </div>
+
+                      {item.workItems.length === 0 && (
+                        <p style={{ fontSize: 11, color: '#4B5563', fontStyle: 'italic', margin: 0 }}>
+                          No motions yet. Add a motion to pre-fill the voting item when this template is applied to a meeting.
+                        </p>
+                      )}
+
+                      {item.workItems.map((wi, wiIdx) => (
+                        <div key={wi.id} style={{ background: '#0D0F12', border: '1px solid #232830', borderRadius: 7, padding: '10px 12px', display: 'flex', flexDirection: 'column', gap: 7 }}>
+                          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                            <span style={{ fontSize: 10, fontWeight: 700, color: '#4B5563', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Motion {wiIdx + 1}</span>
+                            <button type="button"
+                              onClick={() => updateItem(item.id, 'workItems' as any,
+                                item.workItems.filter((_, i) => i !== wiIdx)
+                              )}
+                              style={{ fontSize: 13, color: '#4B5563', background: 'none', border: 'none', cursor: 'pointer', padding: '0 2px', lineHeight: 1 }}>×</button>
+                          </div>
+
+                          {/* Motion title */}
+                          <input
+                            value={wi.title}
+                            onChange={e => {
+                              const updated = item.workItems.map((w, i) => i === wiIdx ? { ...w, title: e.target.value } : w);
+                              updateItem(item.id, 'workItems' as any, updated);
+                            }}
+                            placeholder="Motion title — noun phrase (e.g. Appointment of CFO)"
+                            style={{ ...inputStyle, fontSize: 12, fontWeight: 600, padding: '6px 10px' }}
+                          />
+
+                          {/* Motion text */}
+                          <div>
+                            <p style={{ fontSize: 9, color: '#4B5563', margin: '0 0 3px', textTransform: 'uppercase', letterSpacing: '0.05em', fontWeight: 600 }}>Motion text — shown during voting</p>
+                            <textarea
+                              value={wi.motionText}
+                              onChange={e => {
+                                const updated = item.workItems.map((w, i) => i === wiIdx ? { ...w, motionText: e.target.value } : w);
+                                updateItem(item.id, 'workItems' as any, updated);
+                              }}
+                              rows={2}
+                              placeholder="The Board is moved to appoint..."
+                              style={{ ...inputStyle, fontSize: 11, color: '#D1D5DB', resize: 'vertical', padding: '6px 10px' }}
+                            />
+                          </div>
+
+                          {/* Resolution text */}
+                          <div>
+                            <p style={{ fontSize: 9, color: '#4B5563', margin: '0 0 3px', textTransform: 'uppercase', letterSpacing: '0.05em', fontWeight: 600 }}>Resolution text — if motion passes (goes in minutes)</p>
+                            <textarea
+                              value={wi.resolutionText}
+                              onChange={e => {
+                                const updated = item.workItems.map((w, i) => i === wiIdx ? { ...w, resolutionText: e.target.value } : w);
+                                updateItem(item.id, 'workItems' as any, updated);
+                              }}
+                              rows={3}
+                              placeholder="RESOLVED THAT..."
+                              style={{ ...inputStyle, fontSize: 11, color: '#9CA3AF', resize: 'vertical', padding: '6px 10px' }}
+                            />
+                          </div>
+
+                          {/* Placeholders flag */}
+                          <label style={{ display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer' }}>
+                            <input
+                              type="checkbox"
+                              checked={wi.hasPlaceholders}
+                              onChange={e => {
+                                const updated = item.workItems.map((w, i) => i === wiIdx ? { ...w, hasPlaceholders: e.target.checked } : w);
+                                updateItem(item.id, 'workItems' as any, updated);
+                              }}
+                              style={{ accentColor: '#818CF8', width: 12, height: 12 }}
+                            />
+                            <span style={{ fontSize: 10, color: '#6B7280' }}>Contains [PLACEHOLDERS] that must be filled before the meeting</span>
+                          </label>
+                        </div>
+                      ))}
                     </div>
                   )}
 
