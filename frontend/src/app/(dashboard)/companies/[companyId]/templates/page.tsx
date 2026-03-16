@@ -73,7 +73,7 @@ export default function TemplatesPage() {
   const [bName,     setBName]     = useState('');
   const [bDesc,     setBDesc]     = useState('');
   const [bCategory, setBCategory] = useState('BOARD');
-  const [bItems,    setBItems]    = useState<AgendaDraft[]>([{ id: uid(), title: '', description: '' }]);
+  const [bItems,    setBItems]    = useState<AgendaDraft[]>([{ id: uid(), title: '', description: '', itemType: 'STANDARD', vaultDocType: '', docLabel: '' }]);
   const [bSaving,   setBSaving]   = useState(false);
   const [bErr,      setBErr]      = useState('');
 
