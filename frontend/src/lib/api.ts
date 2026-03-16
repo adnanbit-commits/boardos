@@ -337,6 +337,22 @@ export interface MeetingTemplate {
     itemType?:    string;  // 'STANDARD' | 'DOCUMENT_NOTING' | 'COMPLIANCE_NOTING' | etc.
     vaultDocType?:string;  // for DOCUMENT_NOTING — auto-links vault slot
     docLabel?:    string;  // human label for the document
+    // Pre-written motions for STANDARD items (saved by template builder)
+    workItems?:   {
+      type:                   string;
+      title:                  string;
+      textTemplate:           string;   // motion text
+      resolutionTextTemplate?:string;   // enacted text if passed
+      motionText?:            string;   // alias used by builder
+      resolutionText?:        string;   // alias used by builder
+      hasPlaceholders?:       boolean;
+      isDynamic?:             boolean;
+      complianceForm?:        string;
+      vaultDocType?:          string;
+      docLabel?:              string;
+      isEditable?:            boolean;
+      requiredFor?:           string;
+    }[];
   }[];
   usageCount: number;
   createdAt: string;
@@ -349,7 +365,7 @@ export interface MeetingTemplate {
 export const meetingTemplates = {
   list: (companyId: string, token: string) =>
     get<MeetingTemplate[]>(`/companies/${companyId}/meeting-templates`, token),
-  create: (companyId: string, body: { name: string; description?: string; category?: string; agendaItems: { title: string; description?: string; order: number; itemType?: string; vaultDocType?: string; docLabel?: string }[] }, token: string) =>
+  create: (companyId: string, body: { name: string; description?: string; category?: string; agendaItems: { title: string; description?: string; order: number; itemType?: string; vaultDocType?: string; docLabel?: string; workItems?: any[] }[] }, token: string) =>
     post<MeetingTemplate>(`/companies/${companyId}/meeting-templates`, body, token),
   update: (companyId: string, id: string, body: Partial<{ name: string; description: string; category: string; agendaItems: { title: string; description?: string; order: number }[] }>, token: string) =>
     patch<MeetingTemplate>(`/companies/${companyId}/meeting-templates/${id}`, body, token),
