@@ -1,21 +1,13 @@
 // lib/meeting-templates.ts
 // System meeting templates — Companies Act 2013 + SS-1/SS-2 compliant
 //
-// Each agenda item carries:
-//   workItems[]  — pre-built resolutions/noting items created when template is applied
-//   legalBasis   — shown to CS as guidance, never appears in minutes
-//   guidanceNote — operational note for the CS, never appears in minutes
-//   itemType     — drives specialised UI in the meeting workspace
-//   requiredFor  — controls whether item appears in subsequent meetings
-//
-// AGENDA ITEM TITLES follow Indian corporate practice:
-//   "To appoint…"     for elections / appointments
-//   "To take note of…" for document / compliance noting
-//   "To consider and approve…" for resolutions requiring approval
-//   "To consider and fix…" for determinations
-//
-// RESOLUTION TEXT (what appears in minutes / certified copies) uses "RESOLVED THAT…"
-// The agenda title and the resolution text are intentionally different.
+// TERMINOLOGY:
+//   textTemplate         — Motion text shown to directors during discussion/voting
+//                          ("The Board is moved to...") — never "RESOLVED THAT"
+//   resolutionTextTemplate — Enacted text stored only after the motion passes
+//                          ("RESOLVED THAT...") — printed in minutes + certified copies
+//   NOTING items          — textTemplate is the noting record text (no motion language)
+//                          ("The Board took note of...") — goes directly into minutes
 
 export type AgendaItemType =
   | 'STANDARD'
@@ -23,51 +15,46 @@ export type AgendaItemType =
   | 'QUORUM_CONFIRMATION'
   | 'CHAIRPERSON_ELECTION'
   | 'COMPLIANCE_NOTING'
-  | 'DOCUMENT_NOTING'       // canonical type for all document noting agenda items
-  | 'VAULT_DOC_NOTING'      // alias kept for backward compat
+  | 'DOCUMENT_NOTING'
+  | 'VAULT_DOC_NOTING'
   | 'ELECTRONIC_CONSENT';
 
 export type WorkItemType =
   | 'RESOLUTION_VOTING'
-  | 'DOCUMENT_NOTING'       // canonical: note any document — vault, external, or physical
-  | 'NOTING_VAULT_DOC'      // alias kept for backward compat
+  | 'DOCUMENT_NOTING'
+  | 'NOTING_VAULT_DOC'
   | 'NOTING_COMPLIANCE_FORM'
   | 'SYSTEM_ACTION';
 
 export type RequiredFor =
-  | 'ALL'             // every board meeting
-  | 'FIRST_MEETING'   // first board meeting only — suppressed after firstBoardMeetingLockedId is set
-  | 'FY_FIRST_MEETING'// first meeting of each financial year
-  | 'FIRST_APPOINTMENT'; // once per director on first appointment
+  | 'ALL'
+  | 'FIRST_MEETING'
+  | 'FY_FIRST_MEETING'
+  | 'FIRST_APPOINTMENT';
 
 export interface TemplateWorkItem {
-  type:                     WorkItemType;
-  title:                    string;
-  textTemplate:             string;   // Motion text — shown to directors during discussion/voting
-                                      // Uses natural language: "The Board is moved to..."
-  resolutionTextTemplate?:  string;   // Enacted text — "RESOLVED THAT..." stored only after vote passes
-                                      // Printed in minutes and certified copies
-  // Document noting fields (DOCUMENT_NOTING / NOTING_VAULT_DOC)
-  vaultDocType?:    string;
-  docLabel?:        string;
-  // Compliance form (NOTING_COMPLIANCE_FORM)
-  complianceForm?:  string;   // 'DIR_2' | 'DIR_8' | 'MBP_1'
-  isDynamic?:       boolean;
-  isEditable:       boolean;
-  hasPlaceholders:  boolean;
-  requiredFor:      RequiredFor;
+  type:                    WorkItemType;
+  title:                   string;
+  textTemplate:            string;
+  resolutionTextTemplate?: string;
+  vaultDocType?:           string;
+  docLabel?:               string;
+  complianceForm?:         string;
+  isDynamic?:              boolean;
+  isEditable:              boolean;
+  hasPlaceholders:         boolean;
+  requiredFor:             RequiredFor;
 }
 
 export interface TemplateAgendaItem {
   order:        number;
-  title:        string;        // agenda line — "To take note of…", "To consider and approve…"
+  title:        string;
   itemType:     AgendaItemType;
   legalBasis:   string;
   guidanceNote: string;
   isOptional:   boolean;
   requiredFor:  RequiredFor;
   workItems:    TemplateWorkItem[];
-  // Backward-compat alias used by the template builder UI (maps to legalBasis)
   description?: string;
 }
 
@@ -86,426 +73,308 @@ export const SYSTEM_TEMPLATES: SystemTemplate[] = [
     id:          'sys_first_board_meeting',
     name:        'First Board Meeting — Post-Incorporation',
     category:    'BOARD',
-    description: 'Post-incorporation first meeting of the Board of Directors. Covers all mandatory agenda items under the Companies Act 2013 and SS-1 in the legally correct sequence.',
+    description: 'Post-incorporation first meeting of the Board of Directors. All mandatory items under Companies Act 2013 and SS-1.',
     agendaItems: [
-
-      // ── Item 1: Chairperson election ────────────────────────────────────────
-      // Not a resolution. A procedural act — directors elect from among themselves.
-      // The chairperson takes the chair; their election is recorded in the minutes
-      // as a statement of fact, not as a "RESOLVED THAT" resolution.
       {
-        order:       1,
-        title:       'To appoint Chairperson for this Meeting',
-        itemType:    'CHAIRPERSON_ELECTION',
-        legalBasis:  'SS-1 Annexure B — Item 1. Mandatory first act of every board meeting. Not a resolution — a procedural election among directors.',
-        guidanceNote:'Any director nominates a colleague (or themselves). The other director(s) confirm. Once elected, the Chairperson takes the chair. Minutes record: "Mr/Ms [Name] was elected as the Chairperson of the Meeting."',
-        isOptional:  false,
+        order: 1,
+        title: 'To appoint Chairperson for this Meeting',
+        itemType: 'CHAIRPERSON_ELECTION',
+        legalBasis: 'SS-1 Annexure B — Item 1. Procedural election, not a resolution.',
+        guidanceNote: 'Any director nominates a colleague. Confirmed by others. Minutes record: "Mr/Ms [Name] was elected as Chairperson."',
+        isOptional: false,
+        requiredFor: 'ALL',
+        workItems: [{
+          type: 'SYSTEM_ACTION',
+          title: 'Chairperson of the Meeting',
+          textTemplate: '{{nominee_name}}, a Director of the Company, was proposed by {{proposer_name}} and duly elected as the Chairperson of the Meeting. The Chairperson took the chair and confirmed that the Notice of Meeting had been duly issued to all Directors.',
+          isEditable: false, hasPlaceholders: true, requiredFor: 'ALL',
+        }],
+      },
+      {
+        order: 2,
+        title: 'To confirm Quorum for the Meeting',
+        itemType: 'QUORUM_CONFIRMATION',
+        legalBasis: 'Sec. 174 Companies Act 2013. SS-1 Rule 3(5).',
+        guidanceNote: 'Chairperson reviews attendance register and confirms quorum on the record.',
+        isOptional: false,
+        requiredFor: 'ALL',
+        workItems: [{
+          type: 'SYSTEM_ACTION',
+          title: 'Quorum Confirmation',
+          textTemplate: 'The Chairperson confirmed that {{present_count}} out of {{total_count}} Directors were present, constituting the required quorum of {{quorum_required}} under Section 174 of the Companies Act, 2013. The Meeting was declared duly constituted.',
+          isEditable: false, hasPlaceholders: false, requiredFor: 'ALL',
+        }],
+      },
+      {
+        order: 3,
+        title: 'To take note of Director Declarations — DIR-2, DIR-8, MBP-1',
+        itemType: 'COMPLIANCE_NOTING',
+        legalBasis: 'Sec. 152(5) — DIR-2. Sec. 164(2) — DIR-8. Sec. 184(1) — MBP-1.',
+        guidanceNote: 'Chairperson must open and review each director\'s uploaded form before noting. All three forms mandatory at first board meeting.',
+        isOptional: false,
         requiredFor: 'ALL',
         workItems: [
           {
-            type:            'SYSTEM_ACTION',
-            title:           'Chairperson of the Meeting',
-            // Minutes entry — not a resolution
-            textTemplate:    '{{nominee_name}}, a Director of the Company, was proposed by {{proposer_name}} and duly elected as the Chairperson of the Meeting. The Chairperson took the chair and confirmed that the Notice of Meeting had been duly issued to all Directors.',
-            isEditable:      false,
-            hasPlaceholders: true,
-            requiredFor:     'ALL',
+            type: 'NOTING_COMPLIANCE_FORM',
+            title: 'To take note of Form DIR-2 — Consent to Act as Director',
+            textTemplate: 'The Board took note of the written consent to act as Director received from {{director_name}} in Form DIR-2 dated {{date}} and confirmed the appointment. The Form is placed on record.',
+            complianceForm: 'DIR_2', isDynamic: true,
+            isEditable: false, hasPlaceholders: false, requiredFor: 'FIRST_APPOINTMENT',
+          },
+          {
+            type: 'NOTING_COMPLIANCE_FORM',
+            title: 'To take note of Form DIR-8 — Non-Disqualification Declaration',
+            textTemplate: 'The Board took note of the declaration of non-disqualification under Section 164(2) received from {{director_name}} in Form DIR-8. The Form is placed on record.',
+            complianceForm: 'DIR_8', isDynamic: true,
+            isEditable: false, hasPlaceholders: false, requiredFor: 'FY_FIRST_MEETING',
+          },
+          {
+            type: 'NOTING_COMPLIANCE_FORM',
+            title: 'To take note of Form MBP-1 — Disclosure of Interest',
+            textTemplate: 'The Board took note of the disclosure of interest under Section 184(1) received from {{director_name}} in Form MBP-1. The interests disclosed are placed on record.',
+            complianceForm: 'MBP_1', isDynamic: true,
+            isEditable: false, hasPlaceholders: false, requiredFor: 'FY_FIRST_MEETING',
           },
         ],
       },
-
-      // ── Item 2: Confirmation of Quorum ──────────────────────────────────────
       {
-        order:       2,
-        title:       'To confirm Quorum for the Meeting',
-        itemType:    'QUORUM_CONFIRMATION',
-        legalBasis:  'Sec. 174 Companies Act 2013 — quorum is the higher of 2 directors or one-third of total strength. SS-1 Rule 3(5) — Chairperson must confirm quorum on the record.',
-        guidanceNote:'The Chairperson reviews the attendance register and formally confirms quorum. For a 2-director company, both directors must be present. If quorum is not met the meeting must be adjourned.',
-        isOptional:  false,
+        order: 4,
+        title: 'To take note of the Certificate of Incorporation',
+        itemType: 'DOCUMENT_NOTING',
+        legalBasis: 'SS-1 Annexure B — first board meeting only.',
+        guidanceNote: 'Upload the COI to the Vault before the meeting. Chairperson opens and reviews before placing on record.',
+        isOptional: false,
+        requiredFor: 'FIRST_MEETING',
+        workItems: [{
+          type: 'DOCUMENT_NOTING',
+          title: 'To take note of the Certificate of Incorporation',
+          textTemplate: 'The Board took note of the Certificate of Incorporation bearing Corporate Identity Number (CIN) {{cin}} dated {{inc_date}}, issued by the Registrar of Companies, {{roc_city}}, confirming that the Company has been duly incorporated under the Companies Act, 2013. The Certificate of Incorporation is placed on record.',
+          vaultDocType: 'INCORPORATION_CERT',
+          docLabel: 'Certificate of Incorporation',
+          isEditable: false, hasPlaceholders: false, requiredFor: 'FIRST_MEETING',
+        }],
+      },
+      {
+        order: 5,
+        title: 'To take note of the Memorandum of Association',
+        itemType: 'DOCUMENT_NOTING',
+        legalBasis: 'SS-1 Annexure B — first board meeting only.',
+        guidanceNote: 'Upload the MOA to the Vault before the meeting.',
+        isOptional: false,
+        requiredFor: 'FIRST_MEETING',
+        workItems: [{
+          type: 'DOCUMENT_NOTING',
+          title: 'To take note of the Memorandum of Association',
+          textTemplate: 'The Board took note of the Memorandum of Association of {{company_name}} as registered with the Registrar of Companies. The Memorandum of Association, being the constitutional document governing the Company\'s objects, powers, and share capital, is placed on record.',
+          vaultDocType: 'MOA',
+          docLabel: 'Memorandum of Association',
+          isEditable: false, hasPlaceholders: false, requiredFor: 'FIRST_MEETING',
+        }],
+      },
+      {
+        order: 6,
+        title: 'To take note of the Articles of Association',
+        itemType: 'DOCUMENT_NOTING',
+        legalBasis: 'SS-1 Annexure B — first board meeting only.',
+        guidanceNote: 'Upload the AOA to the Vault before the meeting.',
+        isOptional: false,
+        requiredFor: 'FIRST_MEETING',
+        workItems: [{
+          type: 'DOCUMENT_NOTING',
+          title: 'To take note of the Articles of Association',
+          textTemplate: 'The Board took note of the Articles of Association of {{company_name}} as registered with the Registrar of Companies. The Articles of Association, being the document governing the internal management and administration of the Company, are placed on record.',
+          vaultDocType: 'AOA',
+          docLabel: 'Articles of Association',
+          isEditable: false, hasPlaceholders: false, requiredFor: 'FIRST_MEETING',
+        }],
+      },
+      {
+        order: 7,
+        title: 'To confirm the Registered Office of the Company',
+        itemType: 'STANDARD',
+        legalBasis: 'Sec. 12 Companies Act 2013.',
+        guidanceNote: 'Auto-filled from company profile. Confirm the registered address is correct before the meeting.',
+        isOptional: false,
+        requiredFor: 'FIRST_MEETING',
+        workItems: [{
+          type: 'RESOLUTION_VOTING',
+          title: 'Registered Office Confirmation',
+          textTemplate: 'The Board is moved to confirm that the registered office of the Company is situated at {{registered_address}}, and that the said premises are capable of receiving and acknowledging communications and notices as required under Section 12 of the Companies Act, 2013.',
+          resolutionTextTemplate: 'RESOLVED THAT the registered office of the Company be and is hereby confirmed to be situated at {{registered_address}}, and that the said premises are capable of receiving and acknowledging all communications and notices addressed to the Company, as required under Section 12 of the Companies Act, 2013.',
+          isEditable: true, hasPlaceholders: false, requiredFor: 'FIRST_MEETING',
+        }],
+      },
+      {
+        order: 8,
+        title: 'To consider and approve authorisation of electronic records and appointment of Custodian',
+        itemType: 'STANDARD',
+        legalBasis: 'Rule 3(7) Companies (Meetings of Board and its Powers) Rules, 2014. Rule 28 Companies (Management and Administration) Rules, 2014.',
+        guidanceNote: 'This resolution authorises BoardOS as the electronic records platform and designates the custodian under Rule 28. Without this resolution, electronic records have no board authorisation.',
+        isOptional: false,
+        requiredFor: 'FIRST_MEETING',
+        workItems: [{
+          type: 'RESOLUTION_VOTING',
+          title: 'Authorisation of Electronic Records and Custodian Appointment',
+          textTemplate: 'The Board is moved to authorise the maintenance of all statutory registers and records in electronic form, and to designate {{custodian_name}}, {{custodian_designation}}, as the person responsible for maintaining and authenticating all electronic statutory records under Rule 28 of the Companies (Management and Administration) Rules, 2014.',
+          resolutionTextTemplate: 'RESOLVED THAT pursuant to Rule 3(7) of the Companies (Meetings of Board and its Powers) Rules, 2014, and Rule 28 of the Companies (Management and Administration) Rules, 2014, the Board hereby resolves that:\n\n(a) All statutory registers, minutes books, and records of the Company shall be maintained in electronic form on a compliant digital governance platform;\n\n(b) {{custodian_name}}, {{custodian_designation}}, be and is hereby designated as the person responsible for the maintenance, security, and authentication of all electronic statutory records of the Company under Rule 28;\n\n(c) The consent of all directors participating in this meeting through video conferencing to authenticate the statutory registers electronically is hereby placed on record as required under Rule 3(7);\n\n(d) The attendance register for this meeting shall be deemed to have been signed by all directors participating through video conferencing, their attendance having been recorded by the Chairperson.',
+          isEditable: true, hasPlaceholders: true, requiredFor: 'FIRST_MEETING',
+        }],
+      },
+      {
+        order: 9,
+        title: 'To consider and approve directions for maintenance of Statutory Registers',
+        itemType: 'STANDARD',
+        legalBasis: 'Companies Act 2013 — various sections requiring maintenance of statutory registers.',
+        guidanceNote: 'Directs the custodian to maintain all required registers in electronic form on BoardOS.',
+        isOptional: false,
+        requiredFor: 'FIRST_MEETING',
+        workItems: [{
+          type: 'RESOLUTION_VOTING',
+          title: 'Maintenance of Statutory Registers',
+          textTemplate: 'The Board is moved to direct {{custodian_name}} to procure and maintain all statutory registers and books required under the Companies Act, 2013 in electronic form.',
+          resolutionTextTemplate: 'RESOLVED THAT the {{custodian_name}} be and is hereby directed to procure and maintain all statutory registers and books required under the Companies Act, 2013 in electronic form, including the Register of Members, Register of Directors and Key Managerial Personnel, Minutes Books, Attendance Register, Register of Charges, and all other registers as applicable.',
+          isEditable: true, hasPlaceholders: true, requiredFor: 'FIRST_MEETING',
+        }],
+      },
+      {
+        order: 10,
+        title: 'To consider and approve appointment of Chairman of the Board (Optional)',
+        itemType: 'STANDARD',
+        legalBasis: 'SS-1 — distinct from per-meeting chairperson election. A permanent Board Chairman chairs all future meetings.',
+        guidanceNote: 'Optional for small private companies. Skip if no permanent chairman is being appointed.',
+        isOptional: true,
+        requiredFor: 'FIRST_MEETING',
+        workItems: [{
+          type: 'RESOLUTION_VOTING',
+          title: 'Appointment of Chairman of the Board',
+          textTemplate: 'The Board is moved to appoint {{director_name}} as the Chairman of the Board of Directors of the Company to preside over all future meetings of the Board.',
+          resolutionTextTemplate: 'RESOLVED THAT {{director_name}} be and is hereby appointed as the Chairman of the Board of Directors of the Company and shall preside over all future meetings of the Board.',
+          isEditable: true, hasPlaceholders: true, requiredFor: 'FIRST_MEETING',
+        }],
+      },
+      {
+        order: 11,
+        title: 'To consider and approve appointment of First Statutory Auditor',
+        itemType: 'STANDARD',
+        legalBasis: 'Sec. 139(6) Companies Act 2013 — first auditor must be appointed within 30 days of incorporation.',
+        guidanceNote: 'Fill in auditor firm name and ICAI FRN. File ADT-1 within 15 days of this resolution.',
+        isOptional: false,
+        requiredFor: 'FIRST_MEETING',
+        workItems: [{
+          type: 'RESOLUTION_VOTING',
+          title: 'Appointment of First Statutory Auditor',
+          textTemplate: 'The Board is moved to appoint [AUDITOR_FIRM_NAME], Chartered Accountants (FRN: [FRN]), as the First Statutory Auditors of the Company to hold office until the conclusion of the First Annual General Meeting, at a remuneration to be mutually agreed, and to authorise {{custodian_name}} to file Form ADT-1 within 15 days.',
+          resolutionTextTemplate: 'RESOLVED THAT pursuant to Section 139(6) of the Companies Act, 2013, [AUDITOR_FIRM_NAME], Chartered Accountants, bearing ICAI Firm Registration Number [FRN], be and are hereby appointed as the First Statutory Auditors of the Company to hold office from the conclusion of this Meeting until the conclusion of the First Annual General Meeting of the Company, at a remuneration to be mutually agreed.\n\nFURTHER RESOLVED THAT the {{custodian_name}} be authorised to file Form ADT-1 with the Registrar of Companies within 15 days of this appointment.',
+          isEditable: true, hasPlaceholders: true, requiredFor: 'FIRST_MEETING',
+        }],
+      },
+      {
+        order: 12,
+        title: 'To consider and approve opening of Bank Account',
+        itemType: 'STANDARD',
+        legalBasis: 'Operational requirement — Company needs a bank account to conduct business.',
+        guidanceNote: 'Fill in bank name, branch, and authorised signatory details before the meeting.',
+        isOptional: false,
+        requiredFor: 'FIRST_MEETING',
+        workItems: [{
+          type: 'RESOLUTION_VOTING',
+          title: 'Opening of Bank Account',
+          textTemplate: 'The Board is moved to authorise the opening of a current account with [BANK_NAME], [BRANCH_NAME] Branch, and to designate [AUTHORISED_SIGNATORIES] as authorised signatories for the said account.',
+          resolutionTextTemplate: 'RESOLVED THAT the Company be and is hereby authorised to open a current account with [BANK_NAME], [BRANCH_NAME] Branch.\n\nFURTHER RESOLVED THAT [AUTHORISED_SIGNATORIES] be and are hereby authorised to sign cheques, drafts, or other orders for the payment of money on behalf of the Company, and to operate the said account.\n\nFURTHER RESOLVED THAT the officers of the Company are authorised to execute any bank-provided signature cards or documents required to give effect to this resolution.',
+          isEditable: true, hasPlaceholders: true, requiredFor: 'FIRST_MEETING',
+        }],
+      },
+      {
+        order: 13,
+        title: 'To take note of the Common Seal of the Company (Optional)',
+        itemType: 'DOCUMENT_NOTING',
+        legalBasis: 'Common seal is optional post-2015. If adopted, a specimen impression must be placed on record.',
+        guidanceNote: 'Optional. Upload a scan/impression to the Vault and this item will auto-link it.',
+        isOptional: true,
+        requiredFor: 'FIRST_MEETING',
+        workItems: [{
+          type: 'DOCUMENT_NOTING',
+          title: 'Adoption of Common Seal',
+          textTemplate: 'The Board took note of the Common Seal of the Company, an impression of which was placed before the Board. The Common Seal is placed on record. The {{custodian_name}} is authorised to have custody of the Common Seal.',
+          resolutionTextTemplate: 'RESOLVED THAT the Common Seal of the Company, an impression of which is placed on record, be and is hereby adopted as the Common Seal of the Company. The {{custodian_name}} is authorised to have custody of the Common Seal and to affix the same on documents as authorised by the Board.',
+          vaultDocType: 'COMMON_SEAL',
+          docLabel: 'Common Seal',
+          isEditable: true, hasPlaceholders: true, requiredFor: 'FIRST_MEETING',
+        }],
+      },
+      {
+        order: 14,
+        title: 'To consider and approve allotment of Shares to Subscribers of Memorandum',
+        itemType: 'STANDARD',
+        legalBasis: 'Sec. 2(84) read with Sec. 62 — MOA subscribers become first members on allotment.',
+        guidanceNote: 'Fill in each subscriber\'s name, number of shares, and face value from the MOA.',
+        isOptional: false,
+        requiredFor: 'FIRST_MEETING',
+        workItems: [{
+          type: 'RESOLUTION_VOTING',
+          title: 'Allotment of Shares to MOA Subscribers',
+          textTemplate: 'The Board is moved to allot equity shares of ₹[FACE_VALUE]/- each to the subscribers of the Memorandum of Association as per the statement before the Board, and to issue share certificates accordingly.',
+          resolutionTextTemplate: 'RESOLVED THAT the following equity shares of ₹[FACE_VALUE]/- each be allotted to the subscribers of the Memorandum of Association of the Company:\n\n[TABLE: Name | Shares | Amount]\n\nFURTHER RESOLVED THAT share certificates be issued to the above allottees and entries be made in the Register of Members.',
+          isEditable: true, hasPlaceholders: true, requiredFor: 'FIRST_MEETING',
+        }],
+      },
+      {
+        order: 15,
+        title: 'To consider and ratify Preliminary Expenses (Optional)',
+        itemType: 'STANDARD',
+        legalBasis: 'Expenses incurred by promoters before incorporation may be ratified by the Board.',
+        guidanceNote: 'List any pre-incorporation expenses (registration fees, professional fees, stamp duty).',
+        isOptional: true,
+        requiredFor: 'FIRST_MEETING',
+        workItems: [{
+          type: 'RESOLUTION_VOTING',
+          title: 'Ratification of Preliminary Expenses',
+          textTemplate: 'The Board is moved to ratify and approve preliminary expenses of ₹[AMOUNT]/- incurred by the promoters in connection with the incorporation of the Company, as detailed in the statement before the Board.',
+          resolutionTextTemplate: 'RESOLVED THAT the preliminary expenses incurred by the promoters in connection with the incorporation of the Company, amounting to ₹[AMOUNT]/-, as detailed in the statement placed before the Board, be and are hereby ratified and approved.',
+          isEditable: true, hasPlaceholders: true, requiredFor: 'FIRST_MEETING',
+        }],
+      },
+      {
+        order: 16,
+        title: 'To consider and fix the Financial Year of the Company',
+        itemType: 'STANDARD',
+        legalBasis: 'Sec. 2(41) Companies Act 2013 — financial year is April 1 to March 31.',
+        guidanceNote: 'Pre-filled. Change only if the company has a different financial year.',
+        isOptional: false,
+        requiredFor: 'FIRST_MEETING',
+        workItems: [{
+          type: 'RESOLUTION_VOTING',
+          title: 'Fixing of Financial Year',
+          textTemplate: 'The Board is moved to fix the financial year of the Company as 1st April to 31st March of the succeeding year, in accordance with Section 2(41) of the Companies Act, 2013.',
+          resolutionTextTemplate: 'RESOLVED THAT the financial year of the Company shall be from 1st April to 31st March of the succeeding year, in accordance with Section 2(41) of the Companies Act, 2013.',
+          isEditable: true, hasPlaceholders: false, requiredFor: 'FIRST_MEETING',
+        }],
+      },
+      {
+        order: 17,
+        title: 'To consider and approve appointment of Company Secretary / KMP (Optional)',
+        itemType: 'STANDARD',
+        legalBasis: 'Sec. 203 Companies Act 2013 — companies with paid-up capital of ₹5 crore or more must appoint a whole-time CS.',
+        guidanceNote: 'Optional for companies below the threshold.',
+        isOptional: true,
+        requiredFor: 'FIRST_MEETING',
+        workItems: [{
+          type: 'RESOLUTION_VOTING',
+          title: 'Appointment of Company Secretary',
+          textTemplate: 'The Board is moved to appoint [CS_NAME], ACS/FCS No. [MEMBERSHIP_NO], as the Company Secretary of the Company with effect from [DATE], at a remuneration to be mutually agreed.',
+          resolutionTextTemplate: 'RESOLVED THAT [CS_NAME], ACS/FCS No. [MEMBERSHIP_NO], be and is hereby appointed as the Company Secretary of the Company with effect from [DATE], at a remuneration to be mutually agreed.',
+          isEditable: true, hasPlaceholders: true, requiredFor: 'FIRST_MEETING',
+        }],
+      },
+      {
+        order: 18,
+        title: 'Any Other Business with the permission of the Chairperson',
+        itemType: 'STANDARD',
+        legalBasis: 'SS-1 Clause 6 — AOB items admitted with Chairperson\'s permission.',
+        guidanceNote: 'Any urgent matters not on the original agenda.',
+        isOptional: true,
         requiredFor: 'ALL',
-        workItems: [
-          {
-            type:            'SYSTEM_ACTION',
-            title:           'Quorum Confirmation',
-            textTemplate:    'The Chairperson confirmed that {{present_count}} out of {{total_count}} Directors were present, constituting the required quorum of {{quorum_required}} under Section 174 of the Companies Act, 2013. The Meeting was declared duly constituted.',
-            isEditable:      false,
-            hasPlaceholders: false,
-            requiredFor:     'ALL',
-          },
-        ],
-      },
-
-      // ── Item 3: Director Declarations ──────────────────────────────────────
-      // COMPLIANCE_NOTING itemType → renders ComplianceNotingInline in the workspace
-      // (same as DocNotesPanel but inline within the agenda item)
-      {
-        order:       3,
-        title:       'To take note of Director Declarations — DIR-2, DIR-8, MBP-1',
-        itemType:    'COMPLIANCE_NOTING',
-        legalBasis:  'Sec. 152(5) — DIR-2 (consent to act as director). Sec. 164(2) — DIR-8 (non-disqualification). Sec. 184(1) — MBP-1 (disclosure of interest).',
-        guidanceNote:'The Chairperson must open and review each director\'s uploaded form before formally noting it. All three forms are mandatory at the first board meeting. DIR-8 and MBP-1 must be re-noted at the first meeting of each financial year.',
-        isOptional:  false,
-        requiredFor: 'ALL',
-        workItems: [
-          {
-            type:            'NOTING_COMPLIANCE_FORM',
-            title:           'To take note of Form DIR-2 — Consent to Act as Director',
-            textTemplate:    'The Board took note of the written consent to act as Director received from {{director_name}} in Form DIR-2 dated {{date}} and confirmed the appointment. The Form is placed on record.',
-            complianceForm:  'DIR_2',
-            isDynamic:       true,
-            isEditable:      false,
-            hasPlaceholders: false,
-            requiredFor:     'FIRST_APPOINTMENT',
-          },
-          {
-            type:            'NOTING_COMPLIANCE_FORM',
-            title:           'To take note of Form DIR-8 — Non-Disqualification Declaration',
-            textTemplate:    'The Board took note of the declaration of non-disqualification under Section 164(2) received from {{director_name}} in Form DIR-8. The Form is placed on record.',
-            complianceForm:  'DIR_8',
-            isDynamic:       true,
-            isEditable:      false,
-            hasPlaceholders: false,
-            requiredFor:     'FY_FIRST_MEETING',
-          },
-          {
-            type:            'NOTING_COMPLIANCE_FORM',
-            title:           'To take note of Form MBP-1 — Disclosure of Interest',
-            textTemplate:    'The Board took note of the disclosure of interest under Section 184(1) received from {{director_name}} in Form MBP-1. The interests disclosed are placed on record.',
-            complianceForm:  'MBP_1',
-            isDynamic:       true,
-            isEditable:      false,
-            hasPlaceholders: false,
-            requiredFor:     'FY_FIRST_MEETING',
-          },
-        ],
-      },
-
-      // ── Item 4: Certificate of Incorporation ─────────────────────────────────
-      // DOCUMENT_NOTING itemType → renders DocumentNotingInline in the workspace
-      // vaultDocType links to the statutory vault slot automatically
-      {
-        order:       4,
-        title:       'To take note of the Certificate of Incorporation',
-        itemType:    'DOCUMENT_NOTING',
-        legalBasis:  'SS-1 Annexure B — first board meeting only. The Board acknowledges the Company\'s formal legal existence.',
-        guidanceNote:'Upload the COI to the Statutory Documents section of the Vault before the meeting. The Chairperson opens and reviews it before placing on record. Once noted and the meeting is locked, this item will not appear in future meetings.',
-        isOptional:  false,
-        requiredFor: 'FIRST_MEETING',
-        workItems: [
-          {
-            type:            'DOCUMENT_NOTING',
-            title:           'To take note of the Certificate of Incorporation',
-            textTemplate:    'The Board took note of the Certificate of Incorporation bearing Corporate Identity Number (CIN) {{cin}} dated {{inc_date}}, issued by the Registrar of Companies, {{roc_city}}, confirming that the Company has been duly incorporated under the Companies Act, 2013. The Certificate of Incorporation is placed on record.',
-            vaultDocType:    'INCORPORATION_CERT',
-            docLabel:        'Certificate of Incorporation',
-            isEditable:      false,
-            hasPlaceholders: false,
-            requiredFor:     'FIRST_MEETING',
-          },
-        ],
-      },
-
-      // ── Item 5: Memorandum of Association ─────────────────────────────────
-      {
-        order:       5,
-        title:       'To take note of the Memorandum of Association',
-        itemType:    'DOCUMENT_NOTING',
-        legalBasis:  'SS-1 Annexure B — first board meeting only. Constitutional document governing the Company\'s objects and capital.',
-        guidanceNote:'Upload the MOA to the Statutory Documents section of the Vault before the meeting.',
-        isOptional:  false,
-        requiredFor: 'FIRST_MEETING',
-        workItems: [
-          {
-            type:            'DOCUMENT_NOTING',
-            title:           'To take note of the Memorandum of Association',
-            textTemplate:    'The Board took note of the Memorandum of Association of {{company_name}} as registered with the Registrar of Companies. The Memorandum of Association, being the constitutional document governing the Company\'s objects, powers, and share capital, is placed on record.',
-            vaultDocType:    'MOA',
-            docLabel:        'Memorandum of Association',
-            isEditable:      false,
-            hasPlaceholders: false,
-            requiredFor:     'FIRST_MEETING',
-          },
-        ],
-      },
-
-      // ── Item 6: Articles of Association ──────────────────────────────────
-      {
-        order:       6,
-        title:       'To take note of the Articles of Association',
-        itemType:    'DOCUMENT_NOTING',
-        legalBasis:  'SS-1 Annexure B — first board meeting only. Internal governance document.',
-        guidanceNote:'Upload the AOA to the Statutory Documents section of the Vault before the meeting.',
-        isOptional:  false,
-        requiredFor: 'FIRST_MEETING',
-        workItems: [
-          {
-            type:            'DOCUMENT_NOTING',
-            title:           'To take note of the Articles of Association',
-            textTemplate:    'The Board took note of the Articles of Association of {{company_name}} as registered with the Registrar of Companies. The Articles of Association, being the document governing the internal management and administration of the Company, are placed on record.',
-            vaultDocType:    'AOA',
-            docLabel:        'Articles of Association',
-            isEditable:      false,
-            hasPlaceholders: false,
-            requiredFor:     'FIRST_MEETING',
-          },
-        ],
-      },
-
-      // ── Item 7: Registered Office ────────────────────────────────────────
-      {
-        order:       7,
-        title:       'To confirm the Registered Office of the Company',
-        itemType:    'STANDARD',
-        legalBasis:  'Sec. 12 Companies Act 2013 — registered office must be capable of receiving communications.',
-        guidanceNote:'Auto-filled from the company profile. Confirm the registered address is correct before the meeting.',
-        isOptional:  false,
-        requiredFor: 'FIRST_MEETING',
-        workItems: [
-          {
-            type:            'RESOLUTION_VOTING',
-            title:           'Registered Office Confirmation',
-            textTemplate:    'The Board is moved to confirm that the registered office of the Company is situated at {{registered_address}}, and that the said premises are capable of receiving and acknowledging communications and notices as required under Section 12 of the Companies Act, 2013.',
-            resolutionTextTemplate: 'RESOLVED THAT the registered office of the Company be and is hereby confirmed to be situated at {{registered_address}}, and that the said premises are capable of receiving and acknowledging all communications and notices addressed to the Company, as required under Section 12 of the Companies Act, 2013.',
-            isEditable:      true,
-            hasPlaceholders: false,
-            requiredFor:     'FIRST_MEETING',
-          },
-        ],
-      },
-
-      // ── Item 8: Authorisation of Electronic Records & Custodian ─────────
-      {
-        order:       8,
-        title:       'To consider and approve authorisation of electronic records and appointment of Custodian',
-        itemType:    'STANDARD',
-        legalBasis:  'Rule 3(7) Companies (Meetings of Board and its Powers) Rules, 2014. Rule 28 Companies (Management and Administration) Rules, 2014.',
-        guidanceNote:'This is the resolution that makes everything on BoardOS legally valid. It authorises electronic maintenance of registers and designates the custodian responsible under Rule 28. Without this resolution, electronic records have no board authorisation.',
-        isOptional:  false,
-        requiredFor: 'FIRST_MEETING',
-        workItems: [
-          {
-            type:            'RESOLUTION_VOTING',
-            title:           'Authorisation of Electronic Records and Custodian Appointment',
-            textTemplate:    'The Board is moved to authorise the maintenance of all statutory registers and records in electronic form, and to designate {{custodian_name}}, {{custodian_designation}}, as the person responsible for maintaining and authenticating all electronic statutory records under Rule 28 of the Companies (Management and Administration) Rules, 2014.',
-            resolutionTextTemplate: 'RESOLVED THAT pursuant to Rule 3(7) of the Companies (Meetings of Board and its Powers) Rules, 2014, and Rule 28 of the Companies (Management and Administration) Rules, 2014, the Board hereby resolves that:\n\n(a) All statutory registers, minutes books, and records of the Company shall be maintained in electronic form on a compliant digital governance platform;\n\n(b) {{custodian_name}}, {{custodian_designation}}, be and is hereby designated as the person responsible for the maintenance, security, and authentication of all electronic statutory records of the Company under Rule 28;\n\n(c) The consent of all directors participating in this meeting through video conferencing to authenticate the statutory registers electronically is hereby placed on record as required under Rule 3(7);\n\n(d) The attendance register for this meeting shall be deemed to have been signed by all directors participating through video conferencing, their attendance having been recorded by the Chairperson.',
-            isEditable:      true,
-            hasPlaceholders: true,
-            requiredFor:     'FIRST_MEETING',
-          },
-        ],
-      },
-
-      // ── Item 9: Statutory Books and Registers ───────────────────────────
-      {
-        order:       9,
-        title:       'To consider and approve directions for maintenance of Statutory Registers',
-        itemType:    'STANDARD',
-        legalBasis:  'Companies Act 2013 — various sections requiring maintenance of statutory registers.',
-        guidanceNote:'Directs the custodian to maintain all required registers. On BoardOS this authorises the platform as the register system.',
-        isOptional:  false,
-        requiredFor: 'FIRST_MEETING',
-        workItems: [
-          {
-            type:            'RESOLUTION_VOTING',
-            title:           'Maintenance of Statutory Registers',
-            textTemplate:    'The Board is moved to direct {{custodian_name}} to procure and maintain all statutory registers and books required under the Companies Act, 2013 in electronic form.',
-            resolutionTextTemplate: 'RESOLVED THAT the {{custodian_name}} be and is hereby directed to procure and maintain all statutory registers and books required under the Companies Act, 2013 in electronic form, including the Register of Members, Register of Directors and Key Managerial Personnel, Minutes Books, Attendance Register, Register of Charges, and all other registers as applicable.',
-            isEditable:      true,
-            hasPlaceholders: true,
-            requiredFor:     'FIRST_MEETING',
-          },
-        ],
-      },
-
-      // ── Item 10: Board Chairman (optional) ──────────────────────────────
-      {
-        order:       10,
-        title:       'To consider and approve appointment of Chairman of the Board (Optional)',
-        itemType:    'STANDARD',
-        legalBasis:  'SS-1 — distinct from per-meeting chairperson election. A permanent Board Chairman chairs all future meetings unless absent.',
-        guidanceNote:'Optional for small private companies. If not appointed here, a chairperson is elected at the start of each meeting (Item 1 on every agenda).',
-        isOptional:  true,
-        requiredFor: 'FIRST_MEETING',
-        workItems: [
-          {
-            type:            'RESOLUTION_VOTING',
-            title:           'Appointment of Chairman of the Board',
-            textTemplate:    'The Board is moved to appoint {{director_name}} as the Chairman of the Board of Directors of the Company to preside over all future meetings of the Board.',
-            resolutionTextTemplate: 'RESOLVED THAT {{director_name}} be and is hereby appointed as the Chairman of the Board of Directors of the Company and shall preside over all future meetings of the Board.',
-            isEditable:      true,
-            hasPlaceholders: true,
-            requiredFor:     'FIRST_MEETING',
-          },
-        ],
-      },
-
-      // ── Item 11: First Statutory Auditor ────────────────────────────────
-      {
-        order:       11,
-        title:       'To consider and approve appointment of First Statutory Auditor',
-        itemType:    'STANDARD',
-        legalBasis:  'Sec. 139(6) Companies Act 2013 — first auditor must be appointed within 30 days of incorporation by the Board.',
-        guidanceNote:'Fill in the auditor firm name and ICAI registration number before the meeting. File ADT-1 with MCA within 15 days of this resolution. Failure to appoint within 30 days of incorporation is an offence.',
-        isOptional:  false,
-        requiredFor: 'FIRST_MEETING',
-        workItems: [
-          {
-            type:            'RESOLUTION_VOTING',
-            title:           'Appointment of First Statutory Auditor',
-            textTemplate:    'The Board is moved to appoint [AUDITOR_FIRM_NAME], Chartered Accountants (FRN: [FRN]), as the First Statutory Auditors of the Company to hold office until the conclusion of the First Annual General Meeting, at a remuneration to be mutually agreed, and to authorise {{custodian_name}} to file Form ADT-1 within 15 days.',
-            resolutionTextTemplate: 'RESOLVED THAT pursuant to Section 139(6) of the Companies Act, 2013, [AUDITOR_FIRM_NAME], Chartered Accountants, bearing ICAI Firm Registration Number [FRN], be and are hereby appointed as the First Statutory Auditors of the Company to hold office from the conclusion of this Meeting until the conclusion of the First Annual General Meeting of the Company, at a remuneration to be mutually agreed.\n\nFURTHER RESOLVED THAT the {{custodian_name}} be authorised to file Form ADT-1 with the Registrar of Companies within 15 days of this appointment.',
-            isEditable:      true,
-            hasPlaceholders: true,
-            requiredFor:     'FIRST_MEETING',
-          },
-        ],
-      },
-
-      // ── Item 12: Bank Account ────────────────────────────────────────────
-      {
-        order:       12,
-        title:       'To consider and approve opening of Bank Account',
-        itemType:    'STANDARD',
-        legalBasis:  'Operational requirement — Company needs a bank account to conduct business.',
-        guidanceNote:'Fill in the bank name, branch, and authorised signatory details before the meeting.',
-        isOptional:  false,
-        requiredFor: 'FIRST_MEETING',
-        workItems: [
-          {
-            type:            'RESOLUTION_VOTING',
-            title:           'Opening of Bank Account',
-            textTemplate:    'The Board is moved to authorise the opening of a current account with [BANK_NAME], [BRANCH_NAME] Branch, and to designate [AUTHORISED_SIGNATORIES] as authorised signatories for the said account.',
-            resolutionTextTemplate: 'RESOLVED THAT the Company be and is hereby authorised to open a current account with [BANK_NAME], [BRANCH_NAME] Branch.\n\nFURTHER RESOLVED THAT [AUTHORISED_SIGNATORIES] be and are hereby authorised to sign cheques, drafts, or other orders for the payment of money on behalf of the Company, and to operate the said account.\n\nFURTHER RESOLVED THAT the officers of the Company are authorised to execute any bank-provided signature cards or documents required to give effect to this resolution.',
-            isEditable:      true,
-            hasPlaceholders: true,
-            requiredFor:     'FIRST_MEETING',
-          },
-        ],
-      },
-
-      // ── Item 13: Common Seal (optional) ─────────────────────────────────
-      // DOCUMENT_NOTING — seal impression is a company document, noted like COI/MOA/AOA
-      {
-        order:       13,
-        title:       'To take note of the Common Seal of the Company (Optional)',
-        itemType:    'DOCUMENT_NOTING',
-        legalBasis:  'Common seal is optional post-2015 (Companies Amendment Act 2015). If adopted, a specimen impression must be placed on record.',
-        guidanceNote:'Optional. If the company has adopted a common seal, upload a scan/impression to the Vault and this item will auto-link it. Skip if no common seal.',
-        isOptional:  true,
-        requiredFor: 'FIRST_MEETING',
-        workItems: [
-          {
-            type:            'DOCUMENT_NOTING',
-            title:           'Adoption of Common Seal',
-            textTemplate:    'The Board is moved to adopt the Common Seal of the Company, an impression of which is placed before the Board, and to authorise {{custodian_name}} to have custody of the Common Seal.',
-            resolutionTextTemplate: 'RESOLVED THAT the Common Seal of the Company, an impression of which is placed on record, be and is hereby adopted as the Common Seal of the Company. The {{custodian_name}} is authorised to have custody of the Common Seal and to affix the same on documents as authorised by the Board.',
-            vaultDocType:    'COMMON_SEAL',
-            docLabel:        'Common Seal',
-            isEditable:      true,
-            hasPlaceholders: true,
-            requiredFor:     'FIRST_MEETING',
-          },
-        ],
-      },
-
-      // ── Item 14: Allotment of Shares ────────────────────────────────────
-      {
-        order:       14,
-        title:       'To consider and approve allotment of Shares to Subscribers of Memorandum',
-        itemType:    'STANDARD',
-        legalBasis:  'Sec. 2(84) read with Sec. 62 — MOA subscribers become first members on allotment.',
-        guidanceNote:'Fill in each subscriber\'s name, number of shares, and face value from the MOA.',
-        isOptional:  false,
-        requiredFor: 'FIRST_MEETING',
-        workItems: [
-          {
-            type:            'RESOLUTION_VOTING',
-            title:           'Allotment of Shares to MOA Subscribers',
-            textTemplate:    'The Board is moved to allot equity shares of ₹[FACE_VALUE]/- each to the subscribers of the Memorandum of Association as per the statement before the Board, and to issue share certificates accordingly.',
-            resolutionTextTemplate: 'RESOLVED THAT the following equity shares of ₹[FACE_VALUE]/- each be allotted to the subscribers of the Memorandum of Association of the Company:\n\n[TABLE: Name | Shares | Amount]\n\nFURTHER RESOLVED THAT share certificates be issued to the above allottees and entries be made in the Register of Members.',
-            isEditable:      true,
-            hasPlaceholders: true,
-            requiredFor:     'FIRST_MEETING',
-          },
-        ],
-      },
-
-      // ── Item 15: Preliminary Expenses (optional) ─────────────────────────
-      {
-        order:       15,
-        title:       'To consider and ratify Preliminary Expenses (Optional)',
-        itemType:    'STANDARD',
-        legalBasis:  'Expenses incurred by promoters before and during incorporation may be ratified by the Board.',
-        guidanceNote:'List any expenses incurred before incorporation (registration fees, professional fees, stamp duty etc.).',
-        isOptional:  true,
-        requiredFor: 'FIRST_MEETING',
-        workItems: [
-          {
-            type:            'RESOLUTION_VOTING',
-            title:           'Ratification of Preliminary Expenses',
-            textTemplate:    'The Board is moved to ratify and approve preliminary expenses of ₹[AMOUNT]/- incurred by the promoters in connection with the incorporation of the Company, as detailed in the statement before the Board.',
-            resolutionTextTemplate: 'RESOLVED THAT the preliminary expenses incurred by the promoters in connection with the incorporation of the Company, amounting to ₹[AMOUNT]/-, as detailed in the statement placed before the Board, be and are hereby ratified and approved.',
-            isEditable:      true,
-            hasPlaceholders: true,
-            requiredFor:     'FIRST_MEETING',
-          },
-        ],
-      },
-
-      // ── Item 16: Financial Year ──────────────────────────────────────────
-      {
-        order:       16,
-        title:       'To consider and fix the Financial Year of the Company',
-        itemType:    'STANDARD',
-        legalBasis:  'Sec. 2(41) Companies Act 2013 — financial year is April 1 to March 31 for most companies.',
-        guidanceNote:'Pre-filled. Change only if the company has a different financial year (requires special approval).',
-        isOptional:  false,
-        requiredFor: 'FIRST_MEETING',
-        workItems: [
-          {
-            type:            'RESOLUTION_VOTING',
-            title:           'Fixing of Financial Year',
-            textTemplate:    'The Board is moved to fix the financial year of the Company as 1st April to 31st March of the succeeding year, in accordance with Section 2(41) of the Companies Act, 2013.',
-            resolutionTextTemplate: 'RESOLVED THAT the financial year of the Company shall be from 1st April to 31st March of the succeeding year, in accordance with Section 2(41) of the Companies Act, 2013.',
-            isEditable:      true,
-            hasPlaceholders: false,
-            requiredFor:     'FIRST_MEETING',
-          },
-        ],
-      },
-
-      // ── Item 17: Company Secretary (optional) ───────────────────────────
-      {
-        order:       17,
-        title:       'To consider and approve appointment of Company Secretary / KMP (Optional)',
-        itemType:    'STANDARD',
-        legalBasis:  'Sec. 203 Companies Act 2013 — companies with paid-up capital of ₹5 crore or more must appoint a whole-time CS.',
-        guidanceNote:'Optional for companies below the threshold. If appointing a CS, include their name and membership number.',
-        isOptional:  true,
-        requiredFor: 'FIRST_MEETING',
-        workItems: [
-          {
-            type:            'RESOLUTION_VOTING',
-            title:           'Appointment of Company Secretary',
-            textTemplate:    'The Board is moved to appoint [CS_NAME], ACS/FCS No. [MEMBERSHIP_NO], as the Company Secretary of the Company with effect from [DATE], at a remuneration to be mutually agreed.',
-            resolutionTextTemplate: 'RESOLVED THAT [CS_NAME], ACS/FCS No. [MEMBERSHIP_NO], be and is hereby appointed as the Company Secretary of the Company with effect from [DATE], at a remuneration to be mutually agreed.',
-            isEditable:      true,
-            hasPlaceholders: true,
-            requiredFor:     'FIRST_MEETING',
-          },
-        ],
-      },
-
-      // ── Item 18: Any Other Business ────────────────────────────────────
-      {
-        order:       18,
-        title:       'Any Other Business with the permission of the Chairperson',
-        itemType:    'STANDARD',
-        legalBasis:  'SS-1 Clause 6 — AOB items admitted with Chairperson\'s permission.',
-        guidanceNote:'Any urgent matters not on the original agenda. Chairperson must explicitly admit each AOB item.',
-        isOptional:  true,
-        requiredFor: 'ALL',
-        workItems:   [],
+        workItems: [],
       },
     ],
   },
@@ -515,13 +384,13 @@ export const SYSTEM_TEMPLATES: SystemTemplate[] = [
     id:          'sys_quarterly_board',
     name:        'Quarterly Board Meeting',
     category:    'BOARD',
-    description: 'Standard quarterly board meeting. Director declarations (DIR-8/MBP-1) included — required at the first meeting of each financial year.',
+    description: 'Standard quarterly board meeting. Director declarations included for first meeting of each financial year.',
     agendaItems: [
       {
         order: 1, title: 'To appoint Chairperson for this Meeting',
         itemType: 'CHAIRPERSON_ELECTION',
         legalBasis: 'SS-1 Annexure B — Item 1.',
-        guidanceNote: 'Any director nominates a colleague (or themselves). Confirmed by other directors.',
+        guidanceNote: 'Any director nominates a colleague. Confirmed by others.',
         isOptional: false, requiredFor: 'ALL',
         workItems: [{
           type: 'SYSTEM_ACTION', title: 'Chairperson Election',
@@ -545,18 +414,20 @@ export const SYSTEM_TEMPLATES: SystemTemplate[] = [
         order: 3, title: 'To take note of Director Declarations — DIR-8, MBP-1',
         itemType: 'COMPLIANCE_NOTING',
         legalBasis: 'Sec. 164(2) — DIR-8. Sec. 184(1) — MBP-1. Required at first meeting of each FY.',
-        guidanceNote: 'Required once per financial year. The Chairperson must note each director\'s uploaded forms.',
+        guidanceNote: 'Required once per financial year.',
         isOptional: false, requiredFor: 'FY_FIRST_MEETING',
         workItems: [
           {
             type: 'NOTING_COMPLIANCE_FORM', title: 'To take note of Form DIR-8',
             textTemplate: 'The Board took note of the non-disqualification declaration received from {{director_name}} in Form DIR-8. The Form is placed on record.',
-            complianceForm: 'DIR_8', isDynamic: true, isEditable: false, hasPlaceholders: false, requiredFor: 'FY_FIRST_MEETING',
+            complianceForm: 'DIR_8', isDynamic: true,
+            isEditable: false, hasPlaceholders: false, requiredFor: 'FY_FIRST_MEETING',
           },
           {
             type: 'NOTING_COMPLIANCE_FORM', title: 'To take note of Form MBP-1',
             textTemplate: 'The Board took note of the disclosure of interest received from {{director_name}} in Form MBP-1. The interests disclosed are placed on record.',
-            complianceForm: 'MBP_1', isDynamic: true, isEditable: false, hasPlaceholders: false, requiredFor: 'FY_FIRST_MEETING',
+            complianceForm: 'MBP_1', isDynamic: true,
+            isEditable: false, hasPlaceholders: false, requiredFor: 'FY_FIRST_MEETING',
           },
         ],
       },
@@ -564,7 +435,7 @@ export const SYSTEM_TEMPLATES: SystemTemplate[] = [
         order: 4, title: 'To consider and approve the Financial Statements',
         itemType: 'STANDARD',
         legalBasis: 'Sec. 134 Companies Act 2013.',
-        guidanceNote: 'Approve quarterly / annual financial statements. Attach supporting documents.',
+        guidanceNote: 'Approve quarterly/annual financial statements.',
         isOptional: false, requiredFor: 'ALL',
         workItems: [{
           type: 'RESOLUTION_VOTING', title: 'Approval of Financial Statements',
@@ -594,12 +465,14 @@ export const SYSTEM_TEMPLATES: SystemTemplate[] = [
       {
         order: 1, title: 'To appoint Chairperson for this Meeting',
         itemType: 'CHAIRPERSON_ELECTION',
-        legalBasis: 'Articles of Association — Chairperson of the Board chairs the AGM unless absent.',
+        legalBasis: 'Articles of Association — Chairperson of the Board chairs the AGM.',
         guidanceNote: 'Chairman of the Board (or any member) takes the chair.',
         isOptional: false, requiredFor: 'ALL',
-        workItems: [{ type: 'SYSTEM_ACTION', title: 'Chairperson Election',
+        workItems: [{
+          type: 'SYSTEM_ACTION', title: 'Chairperson Election',
           textTemplate: '{{nominee_name}} was proposed and elected as the Chairperson of the Annual General Meeting.',
-          isEditable: false, hasPlaceholders: true, requiredFor: 'ALL' }],
+          isEditable: false, hasPlaceholders: true, requiredFor: 'ALL',
+        }],
       },
       {
         order: 2, title: 'To consider and adopt the Audited Financial Statements',
@@ -607,10 +480,12 @@ export const SYSTEM_TEMPLATES: SystemTemplate[] = [
         legalBasis: 'Sec. 129 Companies Act 2013.',
         guidanceNote: 'Ordinary resolution — requires simple majority.',
         isOptional: false, requiredFor: 'ALL',
-        workItems: [{ type: 'RESOLUTION_VOTING', title: 'Adoption of Financial Statements',
+        workItems: [{
+          type: 'RESOLUTION_VOTING', title: 'Adoption of Financial Statements',
           textTemplate: 'The Board is moved to receive, consider, and adopt the Audited Financial Statements of the Company for the financial year ended 31st March {{year}}, together with the Reports of the Board of Directors and the Auditors thereon.',
           resolutionTextTemplate: 'RESOLVED THAT the Audited Financial Statements of the Company for the financial year ended 31st March {{year}}, together with the Reports of the Board of Directors and the Auditors thereon, be and are hereby received, considered, and adopted.',
-          isEditable: true, hasPlaceholders: true, requiredFor: 'ALL' }],
+          isEditable: true, hasPlaceholders: true, requiredFor: 'ALL',
+        }],
       },
       {
         order: 3, title: 'To consider and approve re-appointment of retiring Director(s)',
@@ -618,10 +493,12 @@ export const SYSTEM_TEMPLATES: SystemTemplate[] = [
         legalBasis: 'Sec. 152(6) — directors retire by rotation at AGM.',
         guidanceNote: 'One-third of rotational directors retire at each AGM.',
         isOptional: false, requiredFor: 'ALL',
-        workItems: [{ type: 'RESOLUTION_VOTING', title: 'Re-appointment of Retiring Director',
+        workItems: [{
+          type: 'RESOLUTION_VOTING', title: 'Re-appointment of Retiring Director',
           textTemplate: 'The Board is moved to re-appoint {{director_name}}, who retires by rotation and being eligible offers himself/herself for re-appointment, as a Director of the Company.',
-          resolutionTextTemplate: 'RESOLVED THAT {{director_name}}, who retires by rotation and being eligible, offers himself/herself for re-appointment, be and is hereby re-appointed as a Director of the Company.',
-          isEditable: true, hasPlaceholders: true, requiredFor: 'ALL' }],
+          resolutionTextTemplate: 'RESOLVED THAT {{director_name}}, who retires by rotation and being eligible offers himself/herself for re-appointment, be and is hereby re-appointed as a Director of the Company.',
+          isEditable: true, hasPlaceholders: true, requiredFor: 'ALL',
+        }],
       },
       {
         order: 4, title: 'To consider and approve appointment of Statutory Auditors',
@@ -629,24 +506,27 @@ export const SYSTEM_TEMPLATES: SystemTemplate[] = [
         legalBasis: 'Sec. 139(1) Companies Act 2013.',
         guidanceNote: 'Auditors appointed for 5-year term at AGM.',
         isOptional: false, requiredFor: 'ALL',
-        workItems: [{ type: 'RESOLUTION_VOTING', title: 'Appointment of Statutory Auditors',
+        workItems: [{
+          type: 'RESOLUTION_VOTING', title: 'Appointment of Statutory Auditors',
           textTemplate: 'The Board is moved to appoint [AUDITOR_FIRM_NAME], Chartered Accountants (FRN: [FRN]), as the Statutory Auditors of the Company for a term of five consecutive years.',
           resolutionTextTemplate: 'RESOLVED THAT pursuant to Section 139 of the Companies Act, 2013, [AUDITOR_FIRM_NAME], Chartered Accountants (FRN: [FRN]), be and are hereby appointed as the Statutory Auditors of the Company for a term of five consecutive years from the conclusion of this meeting.',
-          isEditable: true, hasPlaceholders: true, requiredFor: 'ALL' }],
+          isEditable: true, hasPlaceholders: true, requiredFor: 'ALL',
+        }],
       },
       {
         order: 5, title: 'Any Other Business with the permission of the Chairperson',
-        itemType: 'STANDARD', legalBasis: 'Sec. 102 Companies Act 2013.',
+        itemType: 'STANDARD',
+        legalBasis: 'Sec. 102 Companies Act 2013.',
         guidanceNote: 'Any special business admitted by the Chairperson.',
-        isOptional: true, requiredFor: 'ALL', workItems: [],
+        isOptional: true, requiredFor: 'ALL',
+        workItems: [],
       },
     ],
   },
 ];
 
-// ── Template utilities ────────────────────────────────────────────────────────
+// ── Template utilities ─────────────────────────────────────────────────────
 
-// Returns agenda items relevant to the company's current state.
 export function filterAgendaForCompany(
   template: SystemTemplate,
   opts: { isFirstMeeting: boolean; isFyFirstMeeting: boolean },
@@ -658,18 +538,6 @@ export function filterAgendaForCompany(
   });
 }
 
-export interface SystemAgendaItem {
-  title:       string;
-  description: string;
-  itemType:    AgendaItemType;
-  vaultDocType?: string;
-  docLabel?:   string;
-}
-
-// Substitute template variables in text — called at meeting creation time
-// Supported vars: {{company_name}}, {{director_name}}, {{date}}, {{cin}},
-// {{registered_address}}, {{roc_city}}, {{inc_date}}, {{custodian_name}},
-// {{custodian_designation}}, {{present_count}}, {{total_count}}, {{quorum_required}}
 export function substituteTemplateVars(
   text: string,
   vars: Record<string, string>,
@@ -677,7 +545,14 @@ export function substituteTemplateVars(
   return text.replace(/\{\{(\w+)\}\}/g, (_, key) => vars[key] ?? `{{${key}}}`);
 }
 
-// Convert rich template to the shape used by the template builder and DB storage
+export interface SystemAgendaItem {
+  title:        string;
+  description:  string;
+  itemType:     AgendaItemType;
+  vaultDocType?: string;
+  docLabel?:    string;
+}
+
 export function toFlatAgendaItems(items: TemplateAgendaItem[]): SystemAgendaItem[] {
   return items.map(i => ({
     title:       i.title,
