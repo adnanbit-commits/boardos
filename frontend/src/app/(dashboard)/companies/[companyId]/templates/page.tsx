@@ -167,7 +167,7 @@ export default function TemplatesPage() {
       docLabel: (a.workItems?.[0] as any)?.docLabel ?? '',
       externalDocUrl: '', externalDocPlatform: 'MCA21',
       physicalPresence: false, complianceScope: 'ALL', specificDirectors: [],
-    })));"
+    })));
 
     setBErr('');
     setView('builder');
