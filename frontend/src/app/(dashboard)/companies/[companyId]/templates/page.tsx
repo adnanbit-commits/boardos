@@ -175,7 +175,7 @@ export default function TemplatesPage() {
 
   function addItem() { setBItems(p => [...p, { id: uid(), title: '', description: '', itemType: 'STANDARD', workItems: [], vaultDocType: '', customVaultDocId: '', docLabel: '', externalDocUrl: '', externalDocPlatform: 'MCA21', physicalPresence: false, complianceScope: 'ALL', specificDirectors: [] }]); }
   function removeItem(id: string) { setBItems(p => p.length > 1 ? p.filter(a => a.id !== id) : p); }
-  function updateItem(id: string, field: keyof AgendaDraft, val: string | boolean | string[]) {
+  function updateItem(id: string, field: keyof AgendaDraft, val: string | boolean | string[] | WorkItemDraft[]) {
     setBItems(p => p.map(a => a.id === id ? { ...a, [field]: val } : a));
   }
   function moveItem(id: string, dir: -1 | 1) {
