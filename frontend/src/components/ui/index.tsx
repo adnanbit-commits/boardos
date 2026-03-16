@@ -15,8 +15,10 @@ const STATUS_MAP: Record<string, { label: string; className: string }> = {
   signed:        { label: 'Signed',      className: 'bg-green-950 text-green-400 border-green-800' },
   locked:        { label: 'Locked',      className: 'bg-zinc-800 text-zinc-500 border-zinc-700' },
   proposed:      { label: 'Proposed',    className: 'bg-blue-950 text-blue-400 border-blue-800' },
-  approved:      { label: 'Approved',    className: 'bg-green-950 text-green-400 border-green-800' },
+  approved:      { label: 'Passed',      className: 'bg-green-950 text-green-400 border-green-800' },
   rejected:      { label: 'Rejected',    className: 'bg-red-950 text-red-400 border-red-800' },
+  noted:         { label: 'Noted',       className: 'bg-zinc-800 text-zinc-300 border-zinc-600' },
+  minutes_circulated: { label: 'Circulated', className: 'bg-purple-950 text-purple-400 border-purple-800' },
 };
 
 export function StatusBadge({ status }: { status: string }) {

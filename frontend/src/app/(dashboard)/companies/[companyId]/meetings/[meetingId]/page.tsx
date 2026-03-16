@@ -240,43 +240,78 @@ export default function MeetingWorkspacePage() {
           <div className="px-4 pt-5 pb-2">
             <p className="text-zinc-600 text-[10px] uppercase tracking-widest font-semibold">Agenda</p>
           </div>
+          {/* ── Pre-business procedural gates (not agenda items) ─────────── */}
+          {['IN_PROGRESS'].includes(meeting.status) && (() => {
+            const hasChairItem = meeting.agendaItems.some(a => (a as any).itemType === 'CHAIRPERSON_ELECTION');
+            const hasQuorumItem = meeting.agendaItems.some(a => (a as any).itemType === 'QUORUM_CONFIRMATION');
+            if (!hasChairItem && !hasQuorumItem) return null;
+            return (
+              <div className="px-3 pb-2 space-y-1">
+                {hasChairItem && (
+                  <div className={`flex items-center gap-2 px-3 py-2 rounded-lg ${meeting.chairpersonId ? 'text-green-400' : 'text-amber-400'}`}>
+                    <span className="text-[10px]">{meeting.chairpersonId ? '✓' : '⚑'}</span>
+                    <span className="text-[10px] font-semibold">{meeting.chairpersonId ? 'Chairperson elected' : 'Elect Chairperson'}</span>
+                  </div>
+                )}
+                {hasQuorumItem && (
+                  <div className={`flex items-center gap-2 px-3 py-2 rounded-lg ${(meeting as any).quorumConfirmedAt ? 'text-green-400' : 'text-zinc-500'}`}>
+                    <span className="text-[10px]">{(meeting as any).quorumConfirmedAt ? '✓' : '◎'}</span>
+                    <span className="text-[10px] font-semibold">{(meeting as any).quorumConfirmedAt ? 'Quorum confirmed' : 'Confirm quorum'}</span>
+                  </div>
+                )}
+                <div className="border-t border-[#232830] mt-1" />
+              </div>
+            );
+          })()}
+
           <nav className="flex flex-col gap-0.5 px-2 pb-4">
             {meeting.agendaItems.length === 0 ? (
               <p className="text-zinc-600 text-xs px-2 py-3">No agenda items yet.</p>
-            ) : meeting.agendaItems.map((item, idx) => {
-              const itemRes = resolutions.filter(r => r.agendaItemId === item.id);
-              const hasVoting = itemRes.some(r => r.status === 'VOTING');
-              const allDone   = itemRes.length > 0 && itemRes.every(r => ['APPROVED','REJECTED','NOTED'].includes(r.status));
-              return (
-                <button key={item.id}
-                  onClick={() => { setActiveAgenda(item.id === activeAgenda ? null : item.id); setPanel('resolutions'); }}
-                  className={`w-full text-left px-3 py-2.5 rounded-lg transition-all duration-150
-                    ${activeAgenda === item.id && panel === 'resolutions'
-                      ? 'bg-blue-950/60 border border-blue-800/50'
-                      : 'hover:bg-[#191D24] border border-transparent'}`}>
-                  <div className="flex items-start gap-2.5">
-                    <span className={`flex-shrink-0 w-5 h-5 rounded-full border text-[10px] font-bold flex items-center justify-center mt-0.5
-                      ${allDone ? 'bg-green-950 border-green-700 text-green-400'
-                      : hasVoting ? 'bg-amber-950 border-amber-700 text-amber-400'
-                      : 'bg-zinc-900 border-zinc-700 text-zinc-500'}`}>
-                      {allDone ? '✓' : idx + 1}
-                    </span>
-                    <div className="min-w-0">
-                      <p className={`text-xs font-medium leading-tight ${
-                        activeAgenda === item.id && panel === 'resolutions' ? 'text-blue-300' : 'text-zinc-300'}`}>
-                        {item.title}
-                        {(item as any).isAob && <span className="ml-1 text-[9px] text-amber-500">AOB</span>}
-                      </p>
-                      {itemRes.length > 0 && (
-                        <p className="text-zinc-600 text-[10px] mt-0.5">
-                          {itemRes.length} item{itemRes.length !== 1 ? 's' : ''}{hasVoting && ' · voting open'}
-                        </p>
-                      )}
-                    </div>
-                  </div>
-                </button>
+            ) : (() => {
+              // Filter out procedural steps — these are shown as gates above, not agenda items
+              const PROCEDURAL = ['CHAIRPERSON_ELECTION', 'QUORUM_CONFIRMATION'];
+              const businessItems = meeting.agendaItems.filter(
+                (item: any) => !PROCEDURAL.includes(item.itemType ?? 'STANDARD')
               );
-            })}
+              let displayIdx = 0;
+              return meeting.agendaItems.map((item: any) => {
+                if (PROCEDURAL.includes(item.itemType ?? 'STANDARD')) return null;
+                displayIdx++;
+                const itemRes = resolutions.filter((r: any) => r.agendaItemId === item.id);
+                const hasVoting = itemRes.some((r: any) => r.status === 'VOTING');
+                const allDone   = itemRes.length > 0 && itemRes.every((r: any) => ['APPROVED','REJECTED','NOTED'].includes(r.status));
+                const n = displayIdx;
+                return (
+                  <button key={item.id}
+                    onClick={() => { setActiveAgenda(item.id === activeAgenda ? null : item.id); setPanel('resolutions'); }}
+                    className={`w-full text-left px-3 py-2.5 rounded-lg transition-all duration-150
+                      ${activeAgenda === item.id && panel === 'resolutions'
+                        ? 'bg-blue-950/60 border border-blue-800/50'
+                        : 'hover:bg-[#191D24] border border-transparent'}`}>
+                    <div className="flex items-start gap-2.5">
+                      <span className={`flex-shrink-0 w-5 h-5 rounded-full border text-[10px] font-bold flex items-center justify-center mt-0.5
+                        ${allDone ? 'bg-green-950 border-green-700 text-green-400'
+                        : hasVoting ? 'bg-amber-950 border-amber-700 text-amber-400'
+                        : 'bg-zinc-900 border-zinc-700 text-zinc-500'}`}>
+                        {allDone ? '✓' : n}
+                      </span>
+                      <div className="min-w-0">
+                        <p className={`text-xs font-medium leading-tight ${
+                          activeAgenda === item.id && panel === 'resolutions' ? 'text-blue-300' : 'text-zinc-300'}`}>
+                          {item.title}
+                          {item.isAob && <span className="ml-1 text-[9px] text-amber-500">AOB</span>}
+                        </p>
+                        {itemRes.length > 0 && (
+                          <p className="text-zinc-600 text-[10px] mt-0.5">
+                            {itemRes.length} item{itemRes.length !== 1 ? 's' : ''}{hasVoting && ' · voting open'}
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                  </button>
+                );
+              });
+            })()}
           </nav>
 
           {isAdmin && !['VOTING','MINUTES_DRAFT','MINUTES_CIRCULATED','SIGNED','LOCKED'].includes(meeting.status) && (
@@ -300,7 +335,7 @@ export default function MeetingWorkspacePage() {
           <div className="px-3 pb-4 pt-1 border-t border-[#232830] space-y-1">
             <p className="text-zinc-600 text-[10px] uppercase tracking-widest font-semibold mb-2 px-1">View</p>
             {[
-              { key: 'resolutions', label: '◇ Resolutions', always: true },
+              { key: 'resolutions', label: '◇ Business', always: true },
               // Declarations panel removed — DocNotesPanel (Compliance Docs) is the single source
 
               { key: 'attendance', label: '◎ Attendance', show: !['DRAFT'].includes(meeting.status),
@@ -1134,12 +1169,12 @@ function ResolutionsPanel({ companyId, meetingId, jwt, meeting, resolutions, act
       <div className="flex items-center justify-between mb-6">
         <div>
           <p className="text-zinc-600 text-xs uppercase tracking-widest font-semibold mb-1">
-            {activeAgendaItem ? `Agenda — ${activeAgendaItem.title}` : 'All Resolutions'}
+            {activeAgendaItem ? `Agenda — ${activeAgendaItem.title}` : 'All Business Items'}
           </p>
-          <h2 className="text-white text-xl font-bold" style={{fontFamily:"'Playfair Display',serif"}}>Board Resolutions</h2>
+          <h2 className="text-white text-xl font-bold" style={{fontFamily:"'Playfair Display',serif"}}>Agenda Business</h2>
         </div>
         {isAdmin && canAdd && (
-          <Button size="sm" onClick={() => setShowAdd(s => !s)}>{showAdd ? '✕ Cancel' : '+ New Resolution'}</Button>
+          <Button size="sm" onClick={() => setShowAdd(s => !s)}>{showAdd ? '✕ Cancel' : '+ New Motion'}</Button>
         )}
       </div>
       {showAdd && (
@@ -1151,8 +1186,8 @@ function ResolutionsPanel({ companyId, meetingId, jwt, meeting, resolutions, act
       {resolutions.length === 0 && (
         <div className="text-center py-16 text-zinc-600">
           <p className="text-3xl mb-3">◇</p>
-          <p className="text-sm">No resolutions yet for this agenda item.</p>
-          {isAdmin && canAdd && <button onClick={() => setShowAdd(true)} className="mt-3 text-blue-400 text-xs hover:text-blue-300">+ Add first resolution</button>}
+          <p className="text-sm">No motions yet for this agenda item.</p>
+          {isAdmin && canAdd && <button onClick={() => setShowAdd(true)} className="mt-3 text-blue-400 text-xs hover:text-blue-300">+ Add first motion</button>}
         </div>
       )}
       <div className="space-y-4">
@@ -1548,7 +1583,7 @@ function ResolutionCard({ resolution, index, companyId, jwt, currentUserId, meet
           <div className="min-w-0">
             <div className="flex items-center gap-2 flex-wrap">
               <p className="text-white font-semibold text-sm leading-snug">{resolution.title}</p>
-              {isNoting && <span className="text-[9px] bg-zinc-800 border border-zinc-700 text-zinc-500 px-1.5 py-0.5 rounded-full">Document Noting</span>}
+              {isNoting && <span className="text-[9px] bg-zinc-800 border border-zinc-700 text-zinc-500 px-1.5 py-0.5 rounded-full">Noting</span>}
             </div>
             {resolution.status === 'VOTING' && (
               <p className="text-amber-400 text-[11px] mt-0.5">{totalVotes} of {resolution.directorCount ?? '?'} voted</p>
@@ -1766,7 +1801,7 @@ function ResolutionCard({ resolution, index, companyId, jwt, currentUserId, meet
 
           {/* ── Regular resolution actions ────────────────────────────────── */}
           {!isNoting && isChairperson && resolution.status === 'DRAFT' && meeting.status === 'IN_PROGRESS' && (
-            <Button size="sm" onClick={propose} loading={proposing}>Propose Resolution</Button>
+            <Button size="sm" onClick={propose} loading={proposing}>Put to Vote</Button>
           )}
 
           {/* Vote buttons */}
@@ -1923,11 +1958,11 @@ function AddResolutionForm({ companyId, meetingId, agendaItemId, jwt, onAdded, v
 
   return (
     <form onSubmit={submit} className="bg-[#13161B] border border-[#232830] rounded-2xl p-5 space-y-4">
-      <p className="text-zinc-400 text-sm font-semibold">New Resolution</p>
+      <p className="text-zinc-400 text-sm font-semibold">New Motion</p>
 
       {/* Type selector */}
       <div className="flex gap-2">
-        {[{v:'MEETING',l:'Voting Resolution'},{v:'NOTING',l:'Noting Item (on record)'}].map(t => (
+        {[{v:'MEETING',l:'Motion (requires vote)'},{v:'NOTING',l:'Noting Item (on record)'}].map(t => (
           <button key={t.v} type="button" onClick={() => { setType(t.v as any); if (t.v === 'NOTING') setText('The Board takes note of '); else setText('RESOLVED THAT the Board of Directors of [Company] hereby '); }}
             className={`flex-1 py-2 text-[11px] font-semibold rounded-lg border transition-all ${type === t.v
               ? 'bg-blue-950/60 border-blue-700 text-blue-300'
@@ -1974,7 +2009,7 @@ function AddResolutionForm({ companyId, meetingId, agendaItemId, jwt, onAdded, v
       )}
       {error && <p className="text-red-400 text-xs">{error}</p>}
       <div className="flex gap-2 pt-1">
-        <Button type="submit" size="sm" loading={loading}>Add {type === 'NOTING' ? 'Noting Item' : 'Resolution'}</Button>
+        <Button type="submit" size="sm" loading={loading}>Add {type === 'NOTING' ? 'Noting Item' : 'Motion'}</Button>
       </div>
     </form>
   );
@@ -2022,7 +2057,7 @@ const DOC_TYPES = [
   { value: 'DRAFT_NOTICE',     label: 'Draft Notice' },
   { value: 'DRAFT_AGENDA',     label: 'Draft Agenda' },
   { value: 'SUPPORTING_PAPER', label: 'Supporting Paper' },
-  { value: 'DRAFT_RESOLUTION', label: 'Draft Resolution' },
+  { value: 'DRAFT_RESOLUTION', label: 'Draft Motion' },
   { value: 'CUSTOM',           label: 'Other Document' },
 ];
 

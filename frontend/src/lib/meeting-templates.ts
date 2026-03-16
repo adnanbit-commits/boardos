@@ -101,7 +101,7 @@ export const SYSTEM_TEMPLATES: SystemTemplate[] = [
         workItems: [
           {
             type:            'SYSTEM_ACTION',
-            title:           'Chairperson Election',
+            title:           'Chairperson of the Meeting',
             // Minutes entry — not a resolution
             textTemplate:    '{{nominee_name}}, a Director of the Company, was proposed by {{proposer_name}} and duly elected as the Chairperson of the Meeting. The Chairperson took the chair and confirmed that the Notice of Meeting had been duly issued to all Directors.',
             isEditable:      false,
@@ -260,7 +260,7 @@ export const SYSTEM_TEMPLATES: SystemTemplate[] = [
         workItems: [
           {
             type:            'RESOLUTION_VOTING',
-            title:           'To confirm the Registered Office',
+            title:           'Registered Office Confirmation',
             textTemplate:    'RESOLVED THAT the Board takes note that the registered office of the Company is situated at {{registered_address}} and that the same is capable of receiving and acknowledging all communications and notices as required under Section 12 of the Companies Act, 2013.',
             isEditable:      true,
             hasPlaceholders: false,
@@ -281,7 +281,7 @@ export const SYSTEM_TEMPLATES: SystemTemplate[] = [
         workItems: [
           {
             type:            'RESOLUTION_VOTING',
-            title:           'To authorise electronic records and appoint Custodian',
+            title:           'Authorisation of Electronic Records and Custodian Appointment',
             textTemplate:    'RESOLVED THAT pursuant to Rule 3(7) of the Companies (Meetings of Board and its Powers) Rules, 2014, and Rule 28 of the Companies (Management and Administration) Rules, 2014, the Board hereby resolves that:\n\n(a) All statutory registers, minutes books, and records of the Company shall be maintained in electronic form on a compliant digital governance platform;\n\n(b) {{custodian_name}}, {{custodian_designation}}, be and is hereby designated as the person responsible for the maintenance, security, and authentication of all electronic statutory records of the Company under Rule 28;\n\n(c) The consent of all directors participating in this meeting through video conferencing to authenticate the statutory registers electronically is hereby placed on record as required under Rule 3(7);\n\n(d) The attendance register for this meeting shall be deemed to have been signed by all directors participating through video conferencing, their attendance having been recorded by the Chairperson.',
             isEditable:      true,
             hasPlaceholders: true,
@@ -302,7 +302,7 @@ export const SYSTEM_TEMPLATES: SystemTemplate[] = [
         workItems: [
           {
             type:            'RESOLUTION_VOTING',
-            title:           'To approve maintenance of Statutory Registers',
+            title:           'Maintenance of Statutory Registers',
             textTemplate:    'RESOLVED THAT the {{custodian_name}} be and is hereby directed to procure and maintain all statutory registers and books required under the Companies Act, 2013 in electronic form, including the Register of Members, Register of Directors and Key Managerial Personnel, Minutes Books, Attendance Register, Register of Charges, and all other registers as applicable.',
             isEditable:      true,
             hasPlaceholders: true,
@@ -323,7 +323,7 @@ export const SYSTEM_TEMPLATES: SystemTemplate[] = [
         workItems: [
           {
             type:            'RESOLUTION_VOTING',
-            title:           'To appoint Chairman of the Board',
+            title:           'Appointment of Chairman of the Board',
             textTemplate:    'RESOLVED THAT {{director_name}} be and is hereby appointed as the Chairman of the Board of Directors of the Company and shall preside over all future meetings of the Board.',
             isEditable:      true,
             hasPlaceholders: true,
@@ -344,7 +344,7 @@ export const SYSTEM_TEMPLATES: SystemTemplate[] = [
         workItems: [
           {
             type:            'RESOLUTION_VOTING',
-            title:           'To appoint First Statutory Auditor',
+            title:           'Appointment of First Statutory Auditor',
             textTemplate:    'RESOLVED THAT pursuant to Section 139(6) of the Companies Act, 2013, [AUDITOR_FIRM_NAME], Chartered Accountants, bearing ICAI Firm Registration Number [FRN], be and are hereby appointed as the First Statutory Auditors of the Company to hold office from the conclusion of this Meeting until the conclusion of the First Annual General Meeting of the Company, at a remuneration to be mutually agreed.\n\nFURTHER RESOLVED THAT the {{custodian_name}} be authorised to file Form ADT-1 with the Registrar of Companies within 15 days of this appointment.',
             isEditable:      true,
             hasPlaceholders: true,
@@ -365,7 +365,7 @@ export const SYSTEM_TEMPLATES: SystemTemplate[] = [
         workItems: [
           {
             type:            'RESOLUTION_VOTING',
-            title:           'To approve opening of Bank Account',
+            title:           'Opening of Bank Account',
             textTemplate:    'RESOLVED THAT the Company be and is hereby authorised to open a current account with [BANK_NAME], [BRANCH_NAME] Branch.\n\nFURTHER RESOLVED THAT [AUTHORISED_SIGNATORIES] be and are hereby authorised to operate the said account, and that the bank be informed of this resolution.',
             isEditable:      true,
             hasPlaceholders: true,
@@ -387,7 +387,7 @@ export const SYSTEM_TEMPLATES: SystemTemplate[] = [
         workItems: [
           {
             type:            'DOCUMENT_NOTING',
-            title:           'To take note of the Common Seal',
+            title:           'Adoption of Common Seal',
             textTemplate:    'RESOLVED THAT the Common Seal of the Company, an impression of which is placed before the Board, be and is hereby adopted as the Common Seal of the Company. The {{custodian_name}} is authorised to have custody of the Common Seal and to affix the same on documents as authorised by the Board.',
             vaultDocType:    'COMMON_SEAL',
             docLabel:        'Common Seal',
@@ -410,7 +410,7 @@ export const SYSTEM_TEMPLATES: SystemTemplate[] = [
         workItems: [
           {
             type:            'RESOLUTION_VOTING',
-            title:           'To approve allotment of Shares to MOA Subscribers',
+            title:           'Allotment of Shares to MOA Subscribers',
             textTemplate:    'RESOLVED THAT the following equity shares of ₹[FACE_VALUE]/- each be allotted to the subscribers of the Memorandum of Association of the Company:\n\n[TABLE: Name | Shares | Amount]\n\nFURTHER RESOLVED THAT share certificates be issued to the above allottees and entries be made in the Register of Members.',
             isEditable:      true,
             hasPlaceholders: true,
@@ -431,7 +431,7 @@ export const SYSTEM_TEMPLATES: SystemTemplate[] = [
         workItems: [
           {
             type:            'RESOLUTION_VOTING',
-            title:           'To ratify Preliminary Expenses',
+            title:           'Ratification of Preliminary Expenses',
             textTemplate:    'RESOLVED THAT the preliminary expenses incurred by the promoters in connection with the incorporation of the Company, amounting to ₹[AMOUNT]/-, as detailed in the statement placed before the Board, be and are hereby ratified and approved.',
             isEditable:      true,
             hasPlaceholders: true,
@@ -452,7 +452,7 @@ export const SYSTEM_TEMPLATES: SystemTemplate[] = [
         workItems: [
           {
             type:            'RESOLUTION_VOTING',
-            title:           'To fix the Financial Year',
+            title:           'Fixing of Financial Year',
             textTemplate:    'RESOLVED THAT the financial year of the Company shall be from 1st April to 31st March of the succeeding year, in accordance with Section 2(41) of the Companies Act, 2013.',
             isEditable:      true,
             hasPlaceholders: false,
@@ -473,7 +473,7 @@ export const SYSTEM_TEMPLATES: SystemTemplate[] = [
         workItems: [
           {
             type:            'RESOLUTION_VOTING',
-            title:           'To appoint Company Secretary',
+            title:           'Appointment of Company Secretary',
             textTemplate:    'RESOLVED THAT [CS_NAME], ACS/FCS No. [MEMBERSHIP_NO], be and is hereby appointed as the Company Secretary of the Company with effect from [DATE], at a remuneration to be mutually agreed.',
             isEditable:      true,
             hasPlaceholders: true,
@@ -553,7 +553,7 @@ export const SYSTEM_TEMPLATES: SystemTemplate[] = [
         guidanceNote: 'Approve quarterly / annual financial statements. Attach supporting documents.',
         isOptional: false, requiredFor: 'ALL',
         workItems: [{
-          type: 'RESOLUTION_VOTING', title: 'To approve Financial Statements',
+          type: 'RESOLUTION_VOTING', title: 'Approval of Financial Statements',
           textTemplate: 'RESOLVED THAT the Financial Statements of the Company for the period ending {{date}}, as placed before the Board, be and are hereby approved and adopted.',
           isEditable: true, hasPlaceholders: true, requiredFor: 'ALL',
         }],
@@ -592,7 +592,7 @@ export const SYSTEM_TEMPLATES: SystemTemplate[] = [
         legalBasis: 'Sec. 129 Companies Act 2013.',
         guidanceNote: 'Ordinary resolution — requires simple majority.',
         isOptional: false, requiredFor: 'ALL',
-        workItems: [{ type: 'RESOLUTION_VOTING', title: 'To adopt Financial Statements',
+        workItems: [{ type: 'RESOLUTION_VOTING', title: 'Adoption of Financial Statements',
           textTemplate: 'RESOLVED THAT the Audited Financial Statements of the Company for the financial year ended 31st March {{year}}, together with the Reports of the Board of Directors and the Auditors thereon, be and are hereby received, considered, and adopted.',
           isEditable: true, hasPlaceholders: true, requiredFor: 'ALL' }],
       },
@@ -602,7 +602,7 @@ export const SYSTEM_TEMPLATES: SystemTemplate[] = [
         legalBasis: 'Sec. 152(6) — directors retire by rotation at AGM.',
         guidanceNote: 'One-third of rotational directors retire at each AGM.',
         isOptional: false, requiredFor: 'ALL',
-        workItems: [{ type: 'RESOLUTION_VOTING', title: 'To re-appoint retiring Director',
+        workItems: [{ type: 'RESOLUTION_VOTING', title: 'Re-appointment of Retiring Director',
           textTemplate: 'RESOLVED THAT {{director_name}}, who retires by rotation and being eligible, offers himself/herself for re-appointment, be and is hereby re-appointed as a Director of the Company.',
           isEditable: true, hasPlaceholders: true, requiredFor: 'ALL' }],
       },
@@ -612,7 +612,7 @@ export const SYSTEM_TEMPLATES: SystemTemplate[] = [
         legalBasis: 'Sec. 139(1) Companies Act 2013.',
         guidanceNote: 'Auditors appointed for 5-year term at AGM.',
         isOptional: false, requiredFor: 'ALL',
-        workItems: [{ type: 'RESOLUTION_VOTING', title: 'To appoint Statutory Auditors',
+        workItems: [{ type: 'RESOLUTION_VOTING', title: 'Appointment of Statutory Auditors',
           textTemplate: 'RESOLVED THAT pursuant to Section 139 of the Companies Act, 2013, [AUDITOR_FIRM_NAME], Chartered Accountants (FRN: [FRN]), be and are hereby appointed as the Statutory Auditors of the Company for a term of five consecutive years.',
           isEditable: true, hasPlaceholders: true, requiredFor: 'ALL' }],
       },

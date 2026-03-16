@@ -12,23 +12,38 @@ import { getToken } from '@/lib/auth';
 // ── Types ─────────────────────────────────────────────────────────────────────
 
 interface AgendaDraft {
-  id:           string;
-  title:        string;
-  description:  string;
-  itemType:     string;   // 'STANDARD' | 'DOCUMENT_NOTING' | 'COMPLIANCE_NOTING'
-  vaultDocType: string;   // only for DOCUMENT_NOTING — vault slot key or ''
-  docLabel:     string;   // only for DOCUMENT_NOTING — human label
+  id:                string;
+  title:             string;
+  description:       string;
+  itemType:          string;   // 'STANDARD' | 'DOCUMENT_NOTING' | 'COMPLIANCE_NOTING'
+  // Document noting
+  vaultDocType:      string;   // known vault slot key, or '' for custom/external
+  customVaultDocId:  string;   // id of a custom uploaded vault document
+  docLabel:          string;   // human label for the document
+  externalDocUrl:    string;   // Path B: URL on external platform
+  externalDocPlatform: string; // 'MCA21' | 'Google Drive' | 'Dropbox' | 'OneDrive' | 'Other'
+  physicalPresence:  boolean;  // Path C: physically present at deemed venue
+  // Compliance noting
+  complianceScope:   string;   // 'ALL' | 'SPECIFIC'
+  specificDirectors: string[]; // userIds when scope is SPECIFIC
 }
 
 const VAULT_SLOT_OPTIONS = [
-  { value: '',                  label: 'Custom / not in vault' },
+  { value: '',                  label: 'Select a statutory slot…' },
   { value: 'INCORPORATION_CERT',label: 'Certificate of Incorporation (COI)' },
   { value: 'MOA',               label: 'Memorandum of Association (MOA)' },
   { value: 'AOA',               label: 'Articles of Association (AOA)' },
   { value: 'PAN',               label: 'Company PAN Card' },
   { value: 'GST_CERT',          label: 'GST Registration Certificate' },
   { value: 'COMMON_SEAL',       label: 'Common Seal' },
-  { value: 'CUSTOM',            label: 'Custom vault document' },
+];
+
+const EXTERNAL_PLATFORM_OPTIONS = [
+  { value: 'MCA21',         label: 'MCA21 Portal',  hint: 'https://www.mca.gov.in/...' },
+  { value: 'Google Drive',  label: 'Google Drive',  hint: 'https://drive.google.com/...' },
+  { value: 'Dropbox',       label: 'Dropbox',       hint: 'https://www.dropbox.com/...' },
+  { value: 'OneDrive',      label: 'OneDrive',      hint: 'https://onedrive.live.com/...' },
+  { value: 'Other',         label: 'Other URL',     hint: 'https://...' },
 ];
 
 type ViewMode = 'library' | 'builder';
@@ -66,6 +81,8 @@ export default function TemplatesPage() {
   const [view,         setView]         = useState<ViewMode>('library');
   const [customTpls,   setCustomTpls]   = useState<MeetingTemplate[]>([]);
   const [loading,      setLoading]      = useState(true);
+  const [vaultDocs,    setVaultDocs]    = useState<any[]>([]);
+  const [companyMembers, setCompanyMembers] = useState<any[]>([]);
   const [previewTpl,   setPreviewTpl]   = useState<typeof SYSTEM_TEMPLATES[0] | MeetingTemplate | null>(null);
   const [editingTpl,   setEditingTpl]   = useState<MeetingTemplate | null>(null); // null = new template
 
@@ -73,7 +90,7 @@ export default function TemplatesPage() {
   const [bName,     setBName]     = useState('');
   const [bDesc,     setBDesc]     = useState('');
   const [bCategory, setBCategory] = useState('BOARD');
-  const [bItems,    setBItems]    = useState<AgendaDraft[]>([{ id: uid(), title: '', description: '', itemType: 'STANDARD', vaultDocType: '', docLabel: '' }]);
+  const [bItems,    setBItems]    = useState<AgendaDraft[]>([{ id: uid(), title: '', description: '', itemType: 'STANDARD', vaultDocType: '', customVaultDocId: '', docLabel: '', externalDocUrl: '', externalDocPlatform: 'MCA21', physicalPresence: false, complianceScope: 'ALL', specificDirectors: [] }]);
   const [bSaving,   setBSaving]   = useState(false);
   const [bErr,      setBErr]      = useState('');
 
@@ -81,7 +98,18 @@ export default function TemplatesPage() {
 
   const load = useCallback(async () => {
     setLoading(true);
-    try { setCustomTpls(await templatesApi.list(companyId, token)); }
+    try {
+      const [tpls, vDocs, members] = await Promise.all([
+        templatesApi.list(companyId, token),
+        import('@/lib/api').then(a => a.vault.list(companyId, token).catch(() => [])),
+        import('@/lib/api').then(a => a.companies.listMembers(companyId, token).catch(() => [])),
+      ]);
+      setCustomTpls(tpls);
+      setVaultDocs(vDocs ?? []);
+      setCompanyMembers((members as any[]).filter((m: any) =>
+        ['DIRECTOR', 'COMPANY_SECRETARY'].includes(m.role)
+      ));
+    }
     catch { /* silently ignore */ }
     finally { setLoading(false); }
   }, [companyId, token]);
@@ -95,11 +123,11 @@ export default function TemplatesPage() {
       setBName(tpl.name);
       setBDesc(tpl.description ?? '');
       setBCategory(tpl.category);
-      setBItems((tpl.agendaItems as any[]).map(a => ({ id: uid(), title: a.title, description: a.description ?? '', itemType: a.itemType ?? 'STANDARD', vaultDocType: a.vaultDocType ?? '', docLabel: a.docLabel ?? '' })));
+      setBItems((tpl.agendaItems as any[]).map(a => ({ id: uid(), title: a.title, description: a.description ?? '', itemType: a.itemType ?? 'STANDARD', vaultDocType: a.vaultDocType ?? '', customVaultDocId: a.customVaultDocId ?? '', docLabel: a.docLabel ?? '', externalDocUrl: a.externalDocUrl ?? '', externalDocPlatform: a.externalDocPlatform ?? 'MCA21', physicalPresence: a.physicalPresence ?? false, complianceScope: a.complianceScope ?? 'ALL', specificDirectors: a.specificDirectors ?? [] })));
     } else {
       setEditingTpl(null);
       setBName(''); setBDesc(''); setBCategory('BOARD');
-      setBItems([{ id: uid(), title: '', description: '', itemType: 'STANDARD', vaultDocType: '', docLabel: '' }]);
+      setBItems([{ id: uid(), title: '', description: '', itemType: 'STANDARD', vaultDocType: '', customVaultDocId: '', docLabel: '', externalDocUrl: '', externalDocPlatform: 'MCA21', physicalPresence: false, complianceScope: 'ALL', specificDirectors: [] }]);
     }
     setBErr('');
     setView('builder');
@@ -110,14 +138,14 @@ export default function TemplatesPage() {
     setBName(`${tpl.name} (Custom)`);
     setBDesc(tpl.description);
     setBCategory(tpl.category);
-    setBItems(tpl.agendaItems.map(a => ({ id: uid(), title: a.title, description: a.description ?? a.legalBasis ?? '', itemType: a.itemType ?? 'STANDARD', vaultDocType: (a.workItems?.[0] as any)?.vaultDocType ?? '', docLabel: (a.workItems?.[0] as any)?.docLabel ?? '' })));
+    setBItems(tpl.agendaItems.map(a => ({ id: uid(), title: a.title, description: a.description ?? a.legalBasis ?? '', itemType: a.itemType ?? 'STANDARD', vaultDocType: (a.workItems?.[0] as any)?.vaultDocType ?? '', customVaultDocId: '', docLabel: (a.workItems?.[0] as any)?.docLabel ?? '', externalDocUrl: '', externalDocPlatform: 'MCA21', physicalPresence: false, complianceScope: 'ALL', specificDirectors: [] })));
     setBErr('');
     setView('builder');
   }
 
-  function addItem() { setBItems(p => [...p, { id: uid(), title: '', description: '', itemType: 'STANDARD', vaultDocType: '', docLabel: '' }]); }
+  function addItem() { setBItems(p => [...p, { id: uid(), title: '', description: '', itemType: 'STANDARD', vaultDocType: '', customVaultDocId: '', docLabel: '', externalDocUrl: '', externalDocPlatform: 'MCA21', physicalPresence: false, complianceScope: 'ALL', specificDirectors: [] }]); }
   function removeItem(id: string) { setBItems(p => p.length > 1 ? p.filter(a => a.id !== id) : p); }
-  function updateItem(id: string, field: keyof AgendaDraft, val: string) {
+  function updateItem(id: string, field: keyof AgendaDraft, val: string | boolean | string[]) {
     setBItems(p => p.map(a => a.id === id ? { ...a, [field]: val } : a));
   }
   function moveItem(id: string, dir: -1 | 1) {
@@ -146,9 +174,15 @@ export default function TemplatesPage() {
           title:        a.title.trim(),
           description:  a.description.trim() || undefined,
           order:        i + 1,
-          itemType:     a.itemType !== 'STANDARD' ? a.itemType : undefined,
-          vaultDocType: a.itemType === 'DOCUMENT_NOTING' && a.vaultDocType ? a.vaultDocType : undefined,
-          docLabel:     a.itemType === 'DOCUMENT_NOTING' && a.docLabel.trim() ? a.docLabel.trim() : undefined,
+          itemType:             a.itemType !== 'STANDARD' ? a.itemType : undefined,
+          vaultDocType:         a.itemType === 'DOCUMENT_NOTING' && a.vaultDocType ? a.vaultDocType : undefined,
+          customVaultDocId:     a.itemType === 'DOCUMENT_NOTING' && a.customVaultDocId ? a.customVaultDocId : undefined,
+          docLabel:             a.itemType === 'DOCUMENT_NOTING' && a.docLabel.trim() ? a.docLabel.trim() : undefined,
+          externalDocUrl:       a.itemType === 'DOCUMENT_NOTING' && a.externalDocUrl.trim() ? a.externalDocUrl.trim() : undefined,
+          externalDocPlatform:  a.itemType === 'DOCUMENT_NOTING' && a.externalDocUrl.trim() ? a.externalDocPlatform : undefined,
+          physicalPresence:     a.itemType === 'DOCUMENT_NOTING' && a.physicalPresence ? true : undefined,
+          complianceScope:      a.itemType === 'COMPLIANCE_NOTING' && a.complianceScope === 'SPECIFIC' ? 'SPECIFIC' : undefined,
+          specificDirectors:    a.itemType === 'COMPLIANCE_NOTING' && a.complianceScope === 'SPECIFIC' && a.specificDirectors.length > 0 ? a.specificDirectors : undefined,
         })),
       };
       if (editingTpl) {
@@ -319,39 +353,148 @@ export default function TemplatesPage() {
                     }
                     style={{ ...inputStyle, fontSize: 13, fontWeight: 600, padding: '9px 12px' }} />
 
-                  {/* Document Noting fields */}
+                  {/* ── Document Noting sub-form ──────────────────────────────── */}
                   {item.itemType === 'DOCUMENT_NOTING' && (
-                    <div style={{ background: 'rgba(59,130,246,0.06)', border: '1px solid rgba(59,130,246,0.2)', borderRadius: 8, padding: '10px 12px', display: 'flex', flexDirection: 'column', gap: 8 }}>
-                      <p style={{ fontSize: 10, fontWeight: 700, color: '#60A5FA', textTransform: 'uppercase', letterSpacing: '0.06em', margin: 0 }}>Document Details</p>
+                    <div style={{ background: 'rgba(59,130,246,0.06)', border: '1px solid rgba(59,130,246,0.2)', borderRadius: 8, padding: '12px', display: 'flex', flexDirection: 'column', gap: 10 }}>
+                      <p style={{ fontSize: 10, fontWeight: 700, color: '#60A5FA', textTransform: 'uppercase', letterSpacing: '0.06em', margin: 0 }}>Document Source</p>
+
+                      {/* Document label */}
                       <input
                         value={item.docLabel}
                         onChange={e => updateItem(item.id, 'docLabel', e.target.value)}
-                        placeholder="Document name (e.g. Shareholders Agreement, Brand Licence)"
+                        placeholder="Document name (e.g. Shareholders Agreement, Brand Licence Agreement)"
                         style={{ ...inputStyle, fontSize: 12, padding: '7px 10px' }}
                       />
-                      <div>
-                        <p style={{ fontSize: 10, color: '#6B7280', marginBottom: 4 }}>
-                          Vault slot (optional) — if the document is uploaded to the vault under a known slot, select it here so the system auto-links it during the meeting.
-                        </p>
-                        <select
-                          value={item.vaultDocType}
-                          onChange={e => updateItem(item.id, 'vaultDocType', e.target.value)}
-                          style={{ ...inputStyle, fontSize: 12, padding: '7px 10px' }}
-                        >
-                          {VAULT_SLOT_OPTIONS.map(opt => (
-                            <option key={opt.value} value={opt.value}>{opt.label}</option>
-                          ))}
-                        </select>
+
+                      {/* Source tabs */}
+                      <div style={{ display: 'flex', gap: 6 }}>
+                        {[
+                          { k: 'vault',    l: '📁 BoardOS Vault' },
+                          { k: 'external', l: '🔗 External URL' },
+                          { k: 'physical', l: '📄 Physical Copy' },
+                        ].map(tab => {
+                          const active =
+                            tab.k === 'vault'    ? (!item.physicalPresence && !item.externalDocUrl) :
+                            tab.k === 'external' ? (!!item.externalDocUrl) :
+                            item.physicalPresence;
+                          return (
+                            <button key={tab.k} type="button"
+                              onClick={() => {
+                                if (tab.k === 'vault')    { updateItem(item.id, 'externalDocUrl', ''); (item as any).physicalPresence = false; updateItem(item.id, 'physicalPresence' as any, false); }
+                                if (tab.k === 'external') { updateItem(item.id, 'physicalPresence' as any, false); if (!item.externalDocUrl) updateItem(item.id, 'externalDocUrl', 'https://'); }
+                                if (tab.k === 'physical') { updateItem(item.id, 'externalDocUrl', ''); updateItem(item.id, 'physicalPresence' as any, true); }
+                              }}
+                              style={{ padding: '4px 10px', borderRadius: 6, fontSize: 11, fontWeight: 600, cursor: 'pointer', border: `1px solid ${active ? '#3B82F6' : '#232830'}`, background: active ? 'rgba(59,130,246,0.12)' : 'transparent', color: active ? '#60A5FA' : '#6B7280', transition: 'all 0.15s' }}>
+                              {tab.l}
+                            </button>
+                          );
+                        })}
                       </div>
+
+                      {/* Vault sub-form */}
+                      {!item.physicalPresence && !item.externalDocUrl && (
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                          {/* Statutory slot */}
+                          <div>
+                            <p style={{ fontSize: 10, color: '#6B7280', marginBottom: 4 }}>Statutory vault slot (auto-links at meeting time)</p>
+                            <select value={item.vaultDocType} onChange={e => updateItem(item.id, 'vaultDocType', e.target.value)}
+                              style={{ ...inputStyle, fontSize: 12, padding: '7px 10px' }}>
+                              {VAULT_SLOT_OPTIONS.map(opt => <option key={opt.value} value={opt.value}>{opt.label}</option>)}
+                            </select>
+                          </div>
+                          {/* Custom uploaded docs */}
+                          {!item.vaultDocType && vaultDocs.filter((d: any) => d.docType === 'CUSTOM').length > 0 && (
+                            <div>
+                              <p style={{ fontSize: 10, color: '#6B7280', marginBottom: 4 }}>Or pick a custom vault document</p>
+                              <select value={item.customVaultDocId} onChange={e => updateItem(item.id, 'customVaultDocId', e.target.value)}
+                                style={{ ...inputStyle, fontSize: 12, padding: '7px 10px' }}>
+                                <option value="">— Select uploaded document —</option>
+                                {vaultDocs.filter((d: any) => d.docType === 'CUSTOM').map((d: any) => (
+                                  <option key={d.id} value={d.id}>{d.label || d.fileName}</option>
+                                ))}
+                              </select>
+                            </div>
+                          )}
+                          {!item.vaultDocType && vaultDocs.filter((d: any) => d.docType === 'CUSTOM').length === 0 && (
+                            <p style={{ fontSize: 10, color: '#4B5563', fontStyle: 'italic' }}>No custom documents in vault yet — upload first, then link here.</p>
+                          )}
+                        </div>
+                      )}
+
+                      {/* External URL sub-form */}
+                      {!!item.externalDocUrl && !item.physicalPresence && (
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                          <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                            {EXTERNAL_PLATFORM_OPTIONS.map(p => (
+                              <button key={p.value} type="button"
+                                onClick={() => updateItem(item.id, 'externalDocPlatform', p.value)}
+                                style={{ padding: '3px 8px', borderRadius: 5, fontSize: 10, fontWeight: 600, cursor: 'pointer', border: `1px solid ${item.externalDocPlatform === p.value ? '#3B82F6' : '#232830'}`, background: item.externalDocPlatform === p.value ? 'rgba(59,130,246,0.12)' : 'transparent', color: item.externalDocPlatform === p.value ? '#60A5FA' : '#6B7280' }}>
+                                {p.label}
+                              </button>
+                            ))}
+                          </div>
+                          <input value={item.externalDocUrl} onChange={e => updateItem(item.id, 'externalDocUrl', e.target.value)}
+                            placeholder={EXTERNAL_PLATFORM_OPTIONS.find(p => p.value === item.externalDocPlatform)?.hint ?? 'https://...'}
+                            style={{ ...inputStyle, fontSize: 12, padding: '7px 10px' }} />
+                          <p style={{ fontSize: 10, color: '#92400E', background: 'rgba(146,64,14,0.08)', border: '1px solid rgba(146,64,14,0.2)', borderRadius: 4, padding: '4px 8px', margin: 0 }}>
+                            ⚠ Directors must have access to this URL. BoardOS cannot verify access for external platforms.
+                          </p>
+                        </div>
+                      )}
+
+                      {/* Physical presence sub-form */}
+                      {item.physicalPresence && (
+                        <p style={{ fontSize: 11, color: '#6B7280', background: 'rgba(75,85,99,0.08)', border: '1px solid #232830', borderRadius: 6, padding: '8px 10px', margin: 0, lineHeight: 1.5 }}>
+                          The Chairperson will confirm at the meeting that this document was physically present at the deemed venue and placed before the Board.
+                        </p>
+                      )}
                     </div>
                   )}
 
-                  {/* Compliance Noting hint */}
+                  {/* ── Compliance Noting sub-form ─────────────────────────────── */}
                   {item.itemType === 'COMPLIANCE_NOTING' && (
-                    <div style={{ background: 'rgba(16,185,129,0.06)', border: '1px solid rgba(16,185,129,0.2)', borderRadius: 8, padding: '8px 12px' }}>
-                      <p style={{ fontSize: 11, color: '#34D399', margin: 0, lineHeight: 1.5 }}>
-                        The system will automatically show the compliance noting surface (DIR-8, MBP-1, DIR-2) for each director when this agenda item is active in the meeting.
-                      </p>
+                    <div style={{ background: 'rgba(16,185,129,0.06)', border: '1px solid rgba(16,185,129,0.2)', borderRadius: 8, padding: '12px', display: 'flex', flexDirection: 'column', gap: 8 }}>
+                      <p style={{ fontSize: 10, fontWeight: 700, color: '#34D399', textTransform: 'uppercase', letterSpacing: '0.06em', margin: 0 }}>Director Scope</p>
+                      <div style={{ display: 'flex', gap: 6 }}>
+                        {[{ v: 'ALL', l: 'All directors' }, { v: 'SPECIFIC', l: 'Specific directors' }].map(opt => (
+                          <button key={opt.v} type="button"
+                            onClick={() => updateItem(item.id, 'complianceScope', opt.v)}
+                            style={{ padding: '4px 10px', borderRadius: 6, fontSize: 11, fontWeight: 600, cursor: 'pointer', border: `1px solid ${item.complianceScope === opt.v ? '#10B981' : '#232830'}`, background: item.complianceScope === opt.v ? 'rgba(16,185,129,0.12)' : 'transparent', color: item.complianceScope === opt.v ? '#34D399' : '#6B7280', transition: 'all 0.15s' }}>
+                            {opt.l}
+                          </button>
+                        ))}
+                      </div>
+                      {item.complianceScope === 'SPECIFIC' && (
+                        companyMembers.length > 0 ? (
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                            {companyMembers.map((m: any) => (
+                              <label key={m.user?.id ?? m.userId} style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer' }}>
+                                <input type="checkbox"
+                                  checked={item.specificDirectors.includes(m.user?.id ?? m.userId)}
+                                  onChange={e => {
+                                    const uid = m.user?.id ?? m.userId;
+                                    const current = item.specificDirectors;
+                                    updateItem(item.id, 'specificDirectors' as any,
+                                      e.target.checked ? [...current, uid] : current.filter((id: string) => id !== uid)
+                                    );
+                                  }}
+                                  style={{ accentColor: '#34D399', width: 13, height: 13 }} />
+                                <span style={{ fontSize: 12, color: '#D1D5DB' }}>
+                                  {m.user?.name ?? m.name}
+                                  <span style={{ fontSize: 10, color: '#6B7280', marginLeft: 6 }}>{m.role}</span>
+                                </span>
+                              </label>
+                            ))}
+                          </div>
+                        ) : (
+                          <p style={{ fontSize: 11, color: '#4B5563', fontStyle: 'italic' }}>No directors loaded — save this template and re-open to select specific directors.</p>
+                        )
+                      )}
+                      {item.complianceScope === 'ALL' && (
+                        <p style={{ fontSize: 11, color: '#34D399', margin: 0, lineHeight: 1.5 }}>
+                          DIR-8 and MBP-1 will be required for all directors at the first meeting of each financial year. DIR-2 will be required for each new director on their first appointment.
+                        </p>
+                      )}
                     </div>
                   )}
 
