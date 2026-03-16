@@ -145,8 +145,8 @@ export default function MeetingsPage() {
     const isFirstMeetingDone = !!(companyData as any)?.firstBoardMeetingLockedId;
     // TODO: derive isFirstMeetingOfFY from last noted DIR-8/MBP-1 meeting
     const filtered = filterAgendaForCompany(tpl, {
-      isFirstMeetingDone,
-      isFirstMeetingOfFY: true, // conservative — always show at apply time, gate at meeting time
+      isFirstMeeting: !isFirstMeetingDone,  // true = this IS the first meeting
+      isFyFirstMeeting: true, // conservative — always include at apply time
     });
     applyTemplate(filtered, tpl.id);
     // Auto-set first meeting flag if this is the first board meeting template
