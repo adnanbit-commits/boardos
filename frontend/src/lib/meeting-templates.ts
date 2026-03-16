@@ -261,7 +261,7 @@ export const SYSTEM_TEMPLATES: SystemTemplate[] = [
           {
             type:            'RESOLUTION_VOTING',
             title:           'Registered Office Confirmation',
-            textTemplate:    'RESOLVED THAT the Board takes note that the registered office of the Company is situated at {{registered_address}} and that the same is capable of receiving and acknowledging all communications and notices as required under Section 12 of the Companies Act, 2013.',
+            textTemplate:    'RESOLVED THAT the registered office of the Company be and is hereby confirmed to be situated at {{registered_address}}, and that the said premises are capable of receiving and acknowledging all communications and notices addressed to the Company, as required under Section 12 of the Companies Act, 2013.',
             isEditable:      true,
             hasPlaceholders: false,
             requiredFor:     'FIRST_MEETING',

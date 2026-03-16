@@ -8,7 +8,7 @@
 //
 // Key invariants enforced here:
 //   • Resolution text can only be edited in DRAFT or PROPOSED
-//   • Opening voting requires the parent meeting to be in VOTING status
+//   • Opening voting requires the parent meeting to be in IN_PROGRESS or VOTING status
 //   • APPROVED/REJECTED resolutions are immutable — no edits, no deletes
 //   • Opening voting fires director notifications via BullMQ (non-blocking)
 //   • Every state transition is written to the audit log
@@ -292,9 +292,10 @@ export class ResolutionService {
       select: { status: true, title: true },
     });
 
-    if (meeting?.status !== MeetingStatus.VOTING) {
+    // Allow voting during IN_PROGRESS (per-motion voting) or legacy VOTING status
+    if (!['IN_PROGRESS', 'VOTING'].includes(meeting?.status ?? '')) {
       throw new BadRequestException(
-        `The parent meeting must be in VOTING status before opening a resolution for votes. ` +
+        `Motions can only be put to vote while the meeting is in progress. ` +
         `Current meeting status: ${meeting?.status}`,
       );
     }
@@ -333,9 +334,9 @@ export class ResolutionService {
   ) {
     const meeting = await this.assertMeetingBelongsToCompany(companyId, meetingId);
 
-    if (meeting.status !== MeetingStatus.VOTING) {
+    if (!['IN_PROGRESS', 'VOTING'].includes(meeting.status)) {
       throw new BadRequestException(
-        `Meeting must be in VOTING status to open resolutions. ` +
+        `Meeting must be in progress to open motions for voting. ` +
         `Current: ${meeting.status}`,
       );
     }

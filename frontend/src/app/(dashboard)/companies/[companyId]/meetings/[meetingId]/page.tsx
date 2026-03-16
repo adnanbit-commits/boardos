@@ -166,7 +166,7 @@ export default function MeetingWorkspacePage() {
         <ChairpersonModal
           companyId={companyId} meetingId={meetingId} jwt={jwt}
           currentUserId={me?.id ?? ''}
-          onElected={async () => { setShowChairModal(false); await reload(); }}
+          onElected={async () => { setShowChairModal(false); await reload(); setPanel('attendance'); }}
           onClose={() => setShowChairModal(false)}
         />
       )}
@@ -248,12 +248,30 @@ export default function MeetingWorkspacePage() {
                     <span className="text-[10px] font-semibold">{meeting.chairpersonId ? 'Chairperson elected' : 'Elect Chairperson'}</span>
                   </div>
                 )}
-                {hasQuorumItem && (
-                  <div className={`flex items-center gap-2 px-3 py-2 rounded-lg ${(meeting as any).quorumConfirmedAt ? 'text-green-400' : 'text-zinc-500'}`}>
-                    <span className="text-[10px]">{(meeting as any).quorumConfirmedAt ? '✓' : '◎'}</span>
-                    <span className="text-[10px] font-semibold">{(meeting as any).quorumConfirmedAt ? 'Quorum confirmed' : 'Confirm quorum'}</span>
-                  </div>
-                )}
+                {hasQuorumItem && (() => {
+                  const presentCount2 = attendance.filter((a: any) => a.attendance?.mode && a.attendance.mode !== 'ABSENT').length;
+                  const totalCount2   = attendance.length;
+                  const quorumReq2    = Math.max(2, Math.ceil(totalCount2 / 3));
+                  const quorumMet2    = presentCount2 >= quorumReq2;
+                  const allMarked     = totalCount2 > 0 && attendance.every((a: any) => a.attendance?.mode);
+                  const done          = (meeting as any).quorumConfirmedAt || (allMarked && quorumMet2);
+                  return (
+                    <div
+                      className={`flex items-center gap-2 px-3 py-2 rounded-lg cursor-pointer transition-colors ${done ? 'text-green-400' : totalCount2 > 0 ? 'text-blue-400 hover:bg-[#191D24]' : 'text-zinc-500'}`}
+                      onClick={() => totalCount2 > 0 && setPanel('attendance')}
+                      title={totalCount2 > 0 ? 'Click to view attendance' : undefined}
+                    >
+                      <span className="text-[10px]">{done ? '✓' : totalCount2 > 0 ? '◎' : '◎'}</span>
+                      <span className="text-[10px] font-semibold">
+                        {done
+                          ? `Quorum confirmed — ${presentCount2} of ${totalCount2} present`
+                          : totalCount2 > 0
+                          ? `Roll call in progress — ${presentCount2} of ${totalCount2} marked`
+                          : 'Roll call pending'}
+                      </span>
+                    </div>
+                  );
+                })()}
                 <div className="border-t border-[#232830] mt-1" />
               </div>
             );
@@ -1609,8 +1627,14 @@ function ResolutionCard({ resolution, index, companyId, jwt, currentUserId, meet
 
   async function propose() {
     setProposing(true);
-    try { await resApi.propose(companyId, resolution.id, jwt); onRefresh(); }
-    catch (e: any) { setCastError((e as any).body?.message ?? 'Could not propose'); }
+    try {
+      // Propose (DRAFT → PROPOSED) then immediately open voting (PROPOSED → VOTING)
+      // This is the chairperson putting the motion to the Board in one action
+      await resApi.propose(companyId, resolution.id, jwt);
+      await resApi.openVoting(companyId, resolution.id, jwt);
+      onRefresh();
+    }
+    catch (e: any) { setCastError((e as any).body?.message ?? 'Could not put motion to vote'); }
     finally { setProposing(false); }
   }
 
@@ -1688,8 +1712,19 @@ function ResolutionCard({ resolution, index, companyId, jwt, currentUserId, meet
 
       {expanded && (
         <div className="px-6 pb-5 fade-up space-y-4 border-t border-[#232830] pt-4">
-          {/* Resolution text */}
+          {/* Resolution text — label differs by status */}
           <div className="bg-[#13161B] border-l-2 border-zinc-700 pl-4 py-3 pr-3 rounded-r-xl">
+            {!isNoting && (
+              <p className="text-zinc-600 text-[10px] uppercase tracking-widest font-semibold mb-1.5">
+                {resolution.status === 'APPROVED'
+                  ? 'Resolution'
+                  : resolution.status === 'REJECTED'
+                  ? 'Rejected Motion'
+                  : resolution.status === 'VOTING'
+                  ? 'Motion before the Board'
+                  : 'Draft Motion Text'}
+              </p>
+            )}
             <p className="text-zinc-400 text-xs leading-relaxed whitespace-pre-wrap">{resolution.text}</p>
           </div>
 
@@ -1883,8 +1918,10 @@ function ResolutionCard({ resolution, index, companyId, jwt, currentUserId, meet
           )}
 
           {/* ── Regular resolution actions ────────────────────────────────── */}
-          {!isNoting && isChairperson && resolution.status === 'DRAFT' && meeting.status === 'IN_PROGRESS' && (
-            <Button size="sm" onClick={propose} loading={proposing}>Put to Vote</Button>
+          {!isNoting && isChairperson && ['DRAFT','PROPOSED'].includes(resolution.status) && ['IN_PROGRESS','VOTING'].includes(meeting.status) && (
+            <Button size="sm" onClick={propose} loading={proposing} disabled={resolution.status === 'VOTING'}>
+              {resolution.status === 'VOTING' ? 'Voting open' : 'Put Motion to Vote'}
+            </Button>
           )}
 
           {/* Vote buttons */}
