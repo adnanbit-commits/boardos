@@ -17,6 +17,7 @@ import { ResolutionService } from './resolution.service';
 import { CreateResolutionDto } from './dto/create-resolution.dto';
 import { UpdateResolutionDto } from './dto/update-resolution.dto';
 import { BulkOpenVotingDto } from './dto/bulk-open-voting.dto';
+import { SetEvidenceDto } from './dto/set-evidence.dto';
 
 @UseGuards(JwtAuthGuard, CompanyGuard)
 @Controller('companies/:companyId')
@@ -157,9 +158,29 @@ export class ResolutionController {
   }
 
   /**
+   * PATCH /companies/:companyId/resolutions/:id/set-evidence
+   * Chairperson sets the document evidence path for a NOTING resolution before placing on record.
+   * Three paths:
+   *   A. vault/meeting doc already linked (vaultDocId set) — no action needed here
+   *   B. external URL (MCA21, Google Drive, Dropbox, OneDrive, Other)
+   *   C. physical presence at deemed venue
+   * Only one path needs to be confirmed. The frontend sends whichever the chairperson chose.
+   */
+  @Patch('resolutions/:id/set-evidence')
+  @RequireRole('DIRECTOR')
+  setEvidence(
+    @Param('companyId') companyId: string,
+    @Param('id') id: string,
+    @Body() dto: SetEvidenceDto,
+    @Req() req: any,
+  ) {
+    return this.resolutionService.setEvidence(companyId, id, dto, req.user.userId);
+  }
+
+  /**
    * PATCH /companies/:companyId/resolutions/:id/note
    * DRAFT → NOTED: places a NOTING-type resolution on record (no voting)
-   * Used for: COI, MoA/AoA, DIR-2, DIR-8, MBP-1 recordings
+   * Requires at least one evidence path to be confirmed first.
    */
   @Patch('resolutions/:id/note')
   @RequireRole('DIRECTOR')

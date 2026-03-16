@@ -51,7 +51,9 @@ export class MeetingService {
   }
 
   async create(companyId: string, dto: CreateMeetingDto, userId: string) {
-    const meeting = await this.prisma.meeting.create({ data: { companyId, ...dto } });
+    const meeting = await this.prisma.meeting.create({
+      data: { companyId, calledBy: userId, ...dto } as any,
+    });
     await this.audit.log({ companyId, userId, action: 'MEETING_CREATED', entity: 'Meeting', entityId: meeting.id });
     return meeting;
   }
@@ -112,7 +114,7 @@ export class MeetingService {
     const meeting = await this.prisma.meeting.findFirst({
       where: { id: meetingId, companyId },
       select: {
-        id: true, chairpersonId: true,
+        id: true, chairpersonId: true, calledBy: true,
         chairNomineeId: true,
         chairNomineeProposedBy: true,
         chairNomineeConfirmedBy: true,

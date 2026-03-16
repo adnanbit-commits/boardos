@@ -154,14 +154,14 @@ export class ResolutionService {
       data: {
         companyId,
         meetingId,
-        agendaItemId:  dto.agendaItemId,
+        agendaItemId:  dto.agendaItemId ?? null,
         title:         dto.title,
         text:          dto.text,
         type:          dto.type ?? 'MEETING',
         status:        ResolutionStatus.DRAFT,
-        vaultDocId:    (dto as any).vaultDocId    ?? null,
-        meetingDocId:  (dto as any).meetingDocId  ?? null,
-      },
+        vaultDocId:    dto.vaultDocId    ?? null,
+        meetingDocId:  dto.meetingDocId  ?? null,
+      } as any,
       include: {
         meeting:   { select: { title: true } },
         agendaItem: { select: { title: true } },
@@ -383,6 +383,69 @@ export class ResolutionService {
   }
 
 
+  // ── Document Evidence ────────────────────────────────────────────────────────
+  //
+  // Chairperson sets one of three evidence paths before placing on record:
+  //   A. vault/meeting doc already linked via vaultDocId (no action needed here)
+  //   B. external platform URL (MCA21, Google Drive, etc.)
+  //   C. physical presence at deemed venue
+  //
+  // Called via PATCH /resolutions/:id/set-evidence
+
+  async setEvidence(
+    companyId: string,
+    id: string,
+    dto: {
+      externalDocUrl?: string;
+      externalDocPlatform?: string;
+      physicallyPresent?: boolean;
+      physicalEvidence?: string;
+    },
+    userId: string,
+  ) {
+    const resolution = await this.assertExists(companyId, id);
+
+    if (resolution.type !== 'NOTING') {
+      throw new BadRequestException('Evidence can only be set on NOTING-type resolutions');
+    }
+    if (resolution.status !== 'DRAFT') {
+      throw new BadRequestException('Evidence can only be set while resolution is in DRAFT status');
+    }
+
+    // Validate Path B: URL required with platform
+    if (dto.externalDocUrl !== undefined && !dto.externalDocUrl.trim()) {
+      throw new BadRequestException('External document URL cannot be empty');
+    }
+    if (dto.externalDocUrl && !dto.externalDocPlatform) {
+      throw new BadRequestException('Platform must be specified when providing an external URL');
+    }
+
+    const updated = await this.prisma.resolution.update({
+      where: { id },
+      data: {
+        externalDocUrl:      dto.externalDocUrl      ?? null,
+        externalDocPlatform: dto.externalDocPlatform ?? null,
+        physicallyPresent:   dto.physicallyPresent   ?? null,
+        physicalEvidence:    dto.physicalEvidence    ?? null,
+      } as any,
+    });
+
+    await this.audit.log({
+      companyId, userId,
+      action: 'RESOLUTION_EVIDENCE_SET',
+      entity: 'Resolution', entityId: id,
+      metadata: {
+        path: dto.physicallyPresent ? 'C_PHYSICAL'
+              : dto.externalDocUrl  ? 'B_EXTERNAL'
+              : 'A_VAULT',
+        externalDocPlatform: dto.externalDocPlatform,
+        physicallyPresent: dto.physicallyPresent,
+      },
+    });
+
+    return updated;
+  }
+
   /**
    * Place a NOTING-type resolution on record.
    * NOTING resolutions bypass the PROPOSED → VOTING → APPROVED flow entirely.
@@ -403,6 +466,19 @@ export class ResolutionService {
       throw new BadRequestException(`Resolution is already ${resolution.status}`);
     }
 
+    // At least one evidence path must be confirmed before placing on record
+    const hasVaultDoc    = !!(resolution as any).vaultDocId || !!(resolution as any).meetingDocId;
+    const hasExternalDoc = !!(resolution as any).externalDocUrl;
+    const hasPhysical    = !!(resolution as any).physicallyPresent;
+
+    if (!hasVaultDoc && !hasExternalDoc && !hasPhysical) {
+      throw new BadRequestException(
+        'Document evidence must be confirmed before placing on record. ' +
+        'Link the document from BoardOS vault, provide an external URL, ' +
+        'or confirm physical presence at the deemed venue.',
+      );
+    }
+
     const updated = await this.prisma.resolution.update({
       where: { id },
       data: { status: 'NOTED' as any },
@@ -412,7 +488,10 @@ export class ResolutionService {
       companyId, userId,
       action: 'RESOLUTION_NOTED',
       entity: 'Resolution', entityId: id,
-      metadata: { title: resolution.title },
+      metadata: {
+        title: resolution.title,
+        evidencePath: hasPhysical ? 'physical' : hasExternalDoc ? 'external' : 'vault',
+      },
     });
 
     return updated;
@@ -501,10 +580,35 @@ export class ResolutionService {
   // placing the resolution on record — vault docs (COI, MOA, AOA etc.) or
   // meeting papers (supporting documents, director declarations).
 
-  private async resolveExhibitDoc(resolution: any): Promise<{ fileName: string; downloadUrl: string } | null> {
+  // ── Exhibit resolver ─────────────────────────────────────────────────────────
+  //
+  // Returns the full evidence payload for a NOTING resolution:
+  //   - vaultDoc: signed download URL for Path A (BoardOS vault)
+  //   - externalDoc: URL + platform label for Path B
+  //   - physical: boolean + evidence text for Path C
+  //
+  // The frontend uses this to render the correct evidence UI and gate
+  // "Place on Record" until one path is confirmed.
+
+  private async resolveExhibitDoc(resolution: any): Promise<{
+    // Path A — vault/meeting document
+    fileName?:      string;
+    downloadUrl?:   string;
+    vaultDocType?:  string;
+    vaultDocLabel?: string;
+    vaultDocId?:    string;
+    // Path B — external platform
+    externalDocUrl?:      string;
+    externalDocPlatform?: string;
+    // Path C — physical presence
+    physicallyPresent?: boolean;
+    physicalEvidence?:  string;
+  } | null> {
     if (resolution.type !== 'NOTING') return null;
 
-    // Vault document takes priority (statutory docs like COI, MOA, AOA)
+    const result: any = {};
+
+    // Path A: vault document (statutory docs — COI, MOA, AOA, etc.)
     if (resolution.vaultDoc?.fileUrl) {
       try {
         const { Storage } = require('@google-cloud/storage');
@@ -512,16 +616,20 @@ export class ResolutionService {
         const bucket  = process.env.GCS_BUCKET_NAME ?? 'boardos-vault';
         const [url]   = await storage.bucket(bucket).file(resolution.vaultDoc.fileUrl).getSignedUrl({
           version: 'v4', action: 'read',
-          expires: Date.now() + 60 * 60 * 1000, // 1 hour
+          expires: Date.now() + 60 * 60 * 1000,
         });
-        return { fileName: resolution.vaultDoc.fileName, downloadUrl: url };
+        result.fileName      = resolution.vaultDoc.fileName;
+        result.downloadUrl   = url;
+        result.vaultDocType  = resolution.vaultDoc.docType;
+        result.vaultDocLabel = resolution.vaultDoc.label;
+        result.vaultDocId    = resolution.vaultDoc.id;
       } catch {
-        return { fileName: resolution.vaultDoc.fileName, downloadUrl: `__proxy__:${resolution.vaultDoc.fileUrl}` };
+        result.fileName    = resolution.vaultDoc.fileName;
+        result.downloadUrl = `__proxy__:${resolution.vaultDoc.fileUrl}`;
+        result.vaultDocId  = resolution.vaultDoc.id;
       }
-    }
-
-    // Meeting document (supporting papers, custom docs)
-    if (resolution.meetingDoc?.fileUrl) {
+    } else if (resolution.meetingDoc?.fileUrl) {
+      // Path A fallback: meeting paper
       try {
         const { Storage } = require('@google-cloud/storage');
         const storage = new Storage({ projectId: process.env.GCS_PROJECT_ID });
@@ -530,13 +638,29 @@ export class ResolutionService {
           version: 'v4', action: 'read',
           expires: Date.now() + 60 * 60 * 1000,
         });
-        return { fileName: resolution.meetingDoc.fileName, downloadUrl: url };
+        result.fileName    = resolution.meetingDoc.fileName;
+        result.downloadUrl = url;
       } catch {
-        return { fileName: resolution.meetingDoc.fileName, downloadUrl: `__proxy__:${resolution.meetingDoc.fileUrl}` };
+        result.fileName    = resolution.meetingDoc.fileName;
+        result.downloadUrl = `__proxy__:${resolution.meetingDoc.fileUrl}`;
       }
     }
 
-    return null;
+    // Path B: external platform URL
+    if (resolution.externalDocUrl) {
+      result.externalDocUrl      = resolution.externalDocUrl;
+      result.externalDocPlatform = resolution.externalDocPlatform ?? 'Other';
+    }
+
+    // Path C: physical presence
+    if (resolution.physicallyPresent) {
+      result.physicallyPresent = true;
+      result.physicalEvidence  = resolution.physicalEvidence ?? null;
+    }
+
+    // Return null only if no evidence path has any data at all
+    const hasAny = result.fileName || result.externalDocUrl || result.physicallyPresent;
+    return hasAny ? result : null;
   }
 
 }

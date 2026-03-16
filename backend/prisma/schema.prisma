@@ -285,6 +285,7 @@ model Meeting {
   videoUrl      String?
   videoMeetingId String?
 
+  calledBy              String?  // userId of director who created/called this meeting
   chairpersonId         String?  // Director elected as chairperson for this specific meeting
   minutesRecorderId     String?  // Director authorised to record proceedings for this meeting (SS-1)
   // Chairperson nomination — persisted so all directors see the same pending nomination
@@ -390,6 +391,12 @@ model Resolution {
   agendaItemId String?
   vaultDocId   String?  // exhibit: vault document linked to this NOTING resolution
   meetingDocId String?  // exhibit: meeting document linked to this NOTING resolution
+  // Document evidence for NOTING resolutions — one of three paths must be confirmed
+  // before the resolution can be placed on record.
+  externalDocUrl      String?  // Path B: URL on MCA21, Google Drive, Dropbox, etc.
+  externalDocPlatform String?  // "MCA21" | "Google Drive" | "Dropbox" | "OneDrive" | "Other"
+  physicallyPresent   Boolean? // Path C: chairperson confirms doc present at deemed venue
+  physicalEvidence    String?  // auto-text: "physically present at [venue] on [date]" 
   title        String
   text         String           // Full legal resolution text
   status       ResolutionStatus @default(DRAFT)
