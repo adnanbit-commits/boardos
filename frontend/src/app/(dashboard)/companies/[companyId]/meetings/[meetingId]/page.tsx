@@ -485,23 +485,39 @@ function ChairpersonModal({ companyId, meetingId, jwt, currentUserId, onElected,
   const [loadError,  setLoadError]  = useState('');
   const [saving,     setSaving]     = useState(false);
   const [recId,      setRecId]      = useState('');
+  const mountedRef  = useRef(true);
+  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
-  // Load nomination state from DB
+  // Load nomination state from DB — only update state if still mounted
   const loadNomination = useCallback(async () => {
     try {
       const n = await meetings.getNomination(companyId, meetingId, jwt);
+      if (!mountedRef.current) return;
+      // Stop polling once chairperson is elected
+      if (n.chairpersonId && intervalRef.current) {
+        clearInterval(intervalRef.current);
+        intervalRef.current = null;
+      }
       setNomination(n);
       setLoadError('');
     } catch {
+      if (!mountedRef.current) return;
       setLoadError('Could not load nomination state. Please try again.');
     }
   }, [companyId, meetingId, jwt]);
 
   useEffect(() => {
+    mountedRef.current = true;
     loadNomination();
     // Poll every 3s so Director B sees Director A's nomination in real time
-    const interval = setInterval(loadNomination, 3000);
-    return () => clearInterval(interval);
+    intervalRef.current = setInterval(loadNomination, 3000);
+    return () => {
+      mountedRef.current = false;
+      if (intervalRef.current) {
+        clearInterval(intervalRef.current);
+        intervalRef.current = null;
+      }
+    };
   }, [loadNomination]);
 
   async function nominate(nomineeId: string) {
@@ -526,6 +542,11 @@ function ChairpersonModal({ companyId, meetingId, jwt, currentUserId, onElected,
 
   async function elect() {
     if (!nomination?.nomineeId || !nomination.isMajority) return;
+    // Stop polling immediately before any async work to prevent stale updates
+    if (intervalRef.current) {
+      clearInterval(intervalRef.current);
+      intervalRef.current = null;
+    }
     setSaving(true);
     try {
       await meetings.electChairperson(companyId, meetingId, nomination.nomineeId, jwt);
@@ -533,7 +554,8 @@ function ChairpersonModal({ companyId, meetingId, jwt, currentUserId, onElected,
       await onElected();
     } catch (err: any) {
       alert(err?.body?.message ?? 'Could not elect chairperson.');
-    } finally { setSaving(false); }
+      setSaving(false);
+    }
   }
 
   async function withdrawNomination() {
