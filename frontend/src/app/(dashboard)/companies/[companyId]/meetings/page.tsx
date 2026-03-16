@@ -589,104 +589,55 @@ export default function MeetingsPage() {
                     </p>
                     <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
                       {agendaItems.map((item, idx) => {
-                        const srcItem = selectedTplItems[idx];
-                        const workItems = srcItem?.workItems ?? (item as any).workItems ?? [];
-                        const itemType  = (srcItem?.itemType ?? (item as any).itemType ?? 'STANDARD') as string;
-                        const isFromTpl = !!srcItem || workItems.length > 0 || (itemType && itemType !== 'STANDARD');
-                        const motionCount  = workItems.filter((w: any) => w.type === 'RESOLUTION_VOTING').length;
-                        const notingCount  = workItems.filter((w: any) => w.type === 'DOCUMENT_NOTING' || w.type === 'NOTING_VAULT_DOC').length;
-                        const complianceCount = workItems.filter((w: any) => w.type === 'NOTING_COMPLIANCE_FORM').length;
+                        const srcItem     = selectedTplItems[idx];
+                        const workItems   = (srcItem?.workItems ?? (item as any).workItems ?? []) as any[];
+                        const itemType    = (srcItem?.itemType ?? (item as any).itemType ?? 'STANDARD') as string;
+                        const isFromTpl   = !!srcItem || workItems.length > 0 || (itemType !== 'STANDARD');
+                        const motionCount    = workItems.filter(w => w.type === 'RESOLUTION_VOTING').length;
+                        const notingCount    = workItems.filter(w => w.type === 'DOCUMENT_NOTING' || w.type === 'NOTING_VAULT_DOC').length;
+                        const complianceCount = workItems.filter(w => w.type === 'NOTING_COMPLIANCE_FORM').length;
                         const typeColor: Record<string,string> = { COMPLIANCE_NOTING:'#10B981', DOCUMENT_NOTING:'#3B82F6', CHAIRPERSON_ELECTION:'#8B5CF6', QUORUM_CONFIRMATION:'#8B5CF6' };
-                        const typeLabel: Record<string,string> = { COMPLIANCE_NOTING:'Compliance Noting', DOCUMENT_NOTING:'Document Noting', CHAIRPERSON_ELECTION:'Procedural', QUORUM_CONFIRMATION:'Procedural', STANDARD:'Standard' };
+                        const typeLabel: Record<string,string> = { COMPLIANCE_NOTING:'Compliance Noting', DOCUMENT_NOTING:'Document Noting', CHAIRPERSON_ELECTION:'Procedural', QUORUM_CONFIRMATION:'Procedural' };
                         const borderCol = isFromTpl ? '#1B2D45' : '#232830';
                         const accentCol = typeColor[itemType] ?? '#4F7FFF';
                         return (
-                          // Determine what's pre-configured from the template for this item
-                          const srcItem = selectedTplItems[idx];
-                          const workItems = srcItem?.workItems ?? item.workItems ?? [];
-                          const itemType  = srcItem?.itemType ?? item.itemType ?? 'STANDARD';
-                          const isFromTpl = !!srcItem || workItems.length > 0 || (itemType && itemType !== 'STANDARD');
-                          const motionCount  = workItems.filter((w: any) => w.type === 'RESOLUTION_VOTING').length;
-                          const notingCount  = workItems.filter((w: any) => w.type === 'DOCUMENT_NOTING' || w.type === 'NOTING_VAULT_DOC').length;
-                          const complianceCount = workItems.filter((w: any) => w.type === 'NOTING_COMPLIANCE_FORM').length;
-
-                          const typeColor: Record<string, string> = {
-                            COMPLIANCE_NOTING: '#10B981', DOCUMENT_NOTING: '#3B82F6',
-                            CHAIRPERSON_ELECTION: '#8B5CF6', QUORUM_CONFIRMATION: '#8B5CF6',
-                          };
-                          const typeLabel: Record<string, string> = {
-                            COMPLIANCE_NOTING: 'Compliance Noting', DOCUMENT_NOTING: 'Document Noting',
-                            CHAIRPERSON_ELECTION: 'Procedural', QUORUM_CONFIRMATION: 'Procedural',
-                            STANDARD: 'Standard',
-                          };
-                          const borderCol = isFromTpl ? '#1B2D45' : '#232830';
-                          const accentCol = typeColor[itemType] ?? '#4F7FFF';
-
-                          return (
-                            <div key={item.id} className="agenda-card" style={{ background: '#13161B', border: `1px solid ${borderCol}`, borderRadius: 12, overflow: 'hidden' }}>
-                              {/* Accent line for template items */}
-                              {isFromTpl && <div style={{ height: 2, background: accentCol, opacity: 0.6 }} />}
-                              <div style={{ background: '#1a1e26', borderBottom: '1px solid #232830', padding: '8px 14px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                                  <span style={{ fontSize: 10, fontWeight: 700, color: '#4F7FFF', textTransform: 'uppercase', letterSpacing: '0.1em' }}>
-                                    Agenda {idx + 1}
+                          <div key={item.id} className="agenda-card" style={{ background: '#13161B', border: `1px solid ${borderCol}`, borderRadius: 12, overflow: 'hidden' }}>
+                            {isFromTpl && <div style={{ height: 2, background: accentCol, opacity: 0.6 }} />}
+                            <div style={{ background: '#1a1e26', borderBottom: '1px solid #232830', padding: '8px 14px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                                <span style={{ fontSize: 10, fontWeight: 700, color: '#4F7FFF', textTransform: 'uppercase', letterSpacing: '0.1em' }}>
+                                  Agenda {idx + 1}
+                                </span>
+                                {isFromTpl && typeLabel[itemType] && (
+                                  <span style={{ fontSize: 9, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em',
+                                    color: accentCol, background: `${accentCol}18`, border: `1px solid ${accentCol}40`,
+                                    padding: '1px 6px', borderRadius: 20 }}>
+                                    {typeLabel[itemType]}
                                   </span>
-                                  {isFromTpl && itemType !== 'STANDARD' && (
-                                    <span style={{ fontSize: 9, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em',
-                                      color: accentCol, background: `${accentCol}18`, border: `1px solid ${accentCol}40`,
-                                      padding: '1px 6px', borderRadius: 20 }}>
-                                      {typeLabel[itemType] ?? itemType}
-                                    </span>
-                                  )}
-                                </div>
-                                {agendaItems.length > 1 && (
-                                  <button onClick={() => removeAgendaItem(item.id)}
-                                    style={{ background: 'none', border: 'none', color: '#4B5563', cursor: 'pointer', fontSize: 16, lineHeight: 1, padding: '0 2px' }}>
-                                    ×
-                                  </button>
                                 )}
                               </div>
-                              <div style={{ padding: '12px 14px', display: 'flex', flexDirection: 'column', gap: 8 }}>
-                                <input value={item.title} onChange={e => updateAgendaItem(item.id, 'title', e.target.value)}
-                                  placeholder="e.g. Financial Review (20 mins)"
-                                  style={{ ...inputStyle, fontSize: 14, fontWeight: 600, padding: '9px 12px' }} />
-
-                                {/* Pre-configured content badges */}
-                                {isFromTpl && (motionCount > 0 || notingCount > 0 || complianceCount > 0) && (
-                                  <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-                                    {motionCount > 0 && (
-                                      <span style={{ fontSize: 10, color: '#60A5FA', background: 'rgba(59,130,246,0.08)',
-                                        border: '1px solid rgba(59,130,246,0.2)', borderRadius: 20, padding: '2px 8px' }}>
-                                        {motionCount} motion{motionCount > 1 ? 's' : ''} pre-configured
-                                      </span>
-                                    )}
-                                    {notingCount > 0 && (
-                                      <span style={{ fontSize: 10, color: '#34D399', background: 'rgba(52,211,153,0.08)',
-                                        border: '1px solid rgba(52,211,153,0.2)', borderRadius: 20, padding: '2px 8px' }}>
-                                        {notingCount} document{notingCount > 1 ? 's' : ''} to note
-                                      </span>
-                                    )}
-                                    {complianceCount > 0 && (
-                                      <span style={{ fontSize: 10, color: '#34D399', background: 'rgba(52,211,153,0.08)',
-                                        border: '1px solid rgba(52,211,153,0.2)', borderRadius: 20, padding: '2px 8px' }}>
-                                        {complianceCount} compliance form{complianceCount > 1 ? 's' : ''}
-                                      </span>
-                                    )}
-                                    {(itemType === 'CHAIRPERSON_ELECTION' || itemType === 'QUORUM_CONFIRMATION') && (
-                                      <span style={{ fontSize: 10, color: '#A78BFA', background: 'rgba(167,139,250,0.08)',
-                                        border: '1px solid rgba(167,139,250,0.2)', borderRadius: 20, padding: '2px 8px' }}>
-                                        handled automatically
-                                      </span>
-                                    )}
-                                  </div>
-                                )}
-
-                                <textarea value={item.goal} onChange={e => updateAgendaItem(item.id, 'goal', e.target.value)}
-                                  placeholder="Notes for CS (optional)"
-                                  rows={isFromTpl ? 1 : 2}
-                                  style={{ ...inputStyle, fontSize: 12, color: '#9CA3AF', resize: 'vertical', padding: '8px 12px' }} />
-                              </div>
+                              {agendaItems.length > 1 && (
+                                <button onClick={() => removeAgendaItem(item.id)}
+                                  style={{ background: 'none', border: 'none', color: '#4B5563', cursor: 'pointer', fontSize: 16, lineHeight: 1, padding: '0 2px' }}>×</button>
+                              )}
                             </div>
+                            <div style={{ padding: '12px 14px', display: 'flex', flexDirection: 'column', gap: 8 }}>
+                              <input value={item.title} onChange={e => updateAgendaItem(item.id, 'title', e.target.value)}
+                                placeholder="e.g. Financial Review (20 mins)"
+                                style={{ ...inputStyle, fontSize: 14, fontWeight: 600, padding: '9px 12px' }} />
+                              {isFromTpl && (motionCount > 0 || notingCount > 0 || complianceCount > 0 || itemType === 'CHAIRPERSON_ELECTION' || itemType === 'QUORUM_CONFIRMATION') && (
+                                <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                                  {motionCount > 0 && <span style={{ fontSize: 10, color: '#60A5FA', background: 'rgba(59,130,246,0.08)', border: '1px solid rgba(59,130,246,0.2)', borderRadius: 20, padding: '2px 8px' }}>{motionCount} motion{motionCount > 1 ? 's' : ''} pre-configured</span>}
+                                  {notingCount > 0 && <span style={{ fontSize: 10, color: '#34D399', background: 'rgba(52,211,153,0.08)', border: '1px solid rgba(52,211,153,0.2)', borderRadius: 20, padding: '2px 8px' }}>{notingCount} doc{notingCount > 1 ? 's' : ''} to note</span>}
+                                  {complianceCount > 0 && <span style={{ fontSize: 10, color: '#34D399', background: 'rgba(52,211,153,0.08)', border: '1px solid rgba(52,211,153,0.2)', borderRadius: 20, padding: '2px 8px' }}>{complianceCount} compliance form{complianceCount > 1 ? 's' : ''}</span>}
+                                  {(itemType === 'CHAIRPERSON_ELECTION' || itemType === 'QUORUM_CONFIRMATION') && <span style={{ fontSize: 10, color: '#A78BFA', background: 'rgba(167,139,250,0.08)', border: '1px solid rgba(167,139,250,0.2)', borderRadius: 20, padding: '2px 8px' }}>handled automatically</span>}
+                                </div>
+                              )}
+                              <textarea value={item.goal} onChange={e => updateAgendaItem(item.id, 'goal', e.target.value)}
+                                placeholder="Notes for CS (optional)" rows={isFromTpl ? 1 : 2}
+                                style={{ ...inputStyle, fontSize: 12, color: '#9CA3AF', resize: 'vertical', padding: '8px 12px' }} />
+                            </div>
+                          </div>
                         );
                       })}
                     </div>
