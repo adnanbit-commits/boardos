@@ -588,8 +588,19 @@ export default function MeetingsPage() {
                       Agenda Items
                     </p>
                     <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-                      {agendaItems.map((item, idx) => (
-                        {(() => {
+                      {agendaItems.map((item, idx) => {
+                        const srcItem = selectedTplItems[idx];
+                        const workItems = srcItem?.workItems ?? (item as any).workItems ?? [];
+                        const itemType  = (srcItem?.itemType ?? (item as any).itemType ?? 'STANDARD') as string;
+                        const isFromTpl = !!srcItem || workItems.length > 0 || (itemType && itemType !== 'STANDARD');
+                        const motionCount  = workItems.filter((w: any) => w.type === 'RESOLUTION_VOTING').length;
+                        const notingCount  = workItems.filter((w: any) => w.type === 'DOCUMENT_NOTING' || w.type === 'NOTING_VAULT_DOC').length;
+                        const complianceCount = workItems.filter((w: any) => w.type === 'NOTING_COMPLIANCE_FORM').length;
+                        const typeColor: Record<string,string> = { COMPLIANCE_NOTING:'#10B981', DOCUMENT_NOTING:'#3B82F6', CHAIRPERSON_ELECTION:'#8B5CF6', QUORUM_CONFIRMATION:'#8B5CF6' };
+                        const typeLabel: Record<string,string> = { COMPLIANCE_NOTING:'Compliance Noting', DOCUMENT_NOTING:'Document Noting', CHAIRPERSON_ELECTION:'Procedural', QUORUM_CONFIRMATION:'Procedural', STANDARD:'Standard' };
+                        const borderCol = isFromTpl ? '#1B2D45' : '#232830';
+                        const accentCol = typeColor[itemType] ?? '#4F7FFF';
+                        return (
                           // Determine what's pre-configured from the template for this item
                           const srcItem = selectedTplItems[idx];
                           const workItems = srcItem?.workItems ?? item.workItems ?? [];
@@ -676,9 +687,8 @@ export default function MeetingsPage() {
                                   style={{ ...inputStyle, fontSize: 12, color: '#9CA3AF', resize: 'vertical', padding: '8px 12px' }} />
                               </div>
                             </div>
-                          );
-                        })()}
-                      ))}
+                        );
+                      })}
                     </div>
                     <button onClick={addAgendaItem}
                       style={{ marginTop: 10, background: 'none', border: '1px dashed #2A3040', borderRadius: 10, color: '#4F7FFF', fontSize: 12, fontWeight: 600, cursor: 'pointer', padding: '9px 0', width: '100%' }}
