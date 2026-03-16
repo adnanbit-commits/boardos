@@ -127,7 +127,10 @@ export interface NominationState {
 export interface Resolution {
   id: string; meetingId: string | null; agendaItemId: string | null;
   type?: 'MEETING' | 'CIRCULAR' | 'NOTING';
-  title: string; text: string; status: string;
+  title: string;
+  text: string;             // Motion text — what directors see during discussion/voting
+  resolutionText?: string | null;  // Enacted text — "RESOLVED THAT..." shown after APPROVED
+  status: string;
   tally?: { APPROVE: number; REJECT: number; ABSTAIN: number };
   votes?: Vote[];
   directorCount?: number;
@@ -363,7 +366,7 @@ export const resolutions = {
     get<Resolution[]>(`/companies/${companyId}/resolutions${params?.status ? `?status=${params.status}` : ''}`, token),
   listForMeeting: (companyId: string, meetingId: string, token: string) =>
     get<Resolution[]>(`/companies/${companyId}/meetings/${meetingId}/resolutions`, token),
-  create: (companyId: string, meetingId: string, body: { title: string; text: string; agendaItemId?: string; type?: 'MEETING' | 'NOTING'; vaultDocId?: string; meetingDocId?: string }, token: string) =>
+  create: (companyId: string, meetingId: string, body: { title: string; text: string; resolutionText?: string; agendaItemId?: string; type?: 'MEETING' | 'NOTING'; vaultDocId?: string; meetingDocId?: string }, token: string) =>
     post<Resolution>(`/companies/${companyId}/meetings/${meetingId}/resolutions`, body, token),
   update: (companyId: string, resolutionId: string, body: Partial<{ title: string; text: string }>, token: string) =>
     patch<Resolution>(`/companies/${companyId}/resolutions/${resolutionId}`, body, token),
