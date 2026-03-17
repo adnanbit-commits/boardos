@@ -1712,21 +1712,43 @@ function ResolutionCard({ resolution, index, companyId, jwt, currentUserId, meet
 
       {expanded && (
         <div className="px-6 pb-5 fade-up space-y-4 border-t border-[#232830] pt-4">
-          {/* Resolution text — label differs by status */}
-          <div className="bg-[#13161B] border-l-2 border-zinc-700 pl-4 py-3 pr-3 rounded-r-xl">
-            {!isNoting && (
-              <p className="text-zinc-600 text-[10px] uppercase tracking-widest font-semibold mb-1.5">
-                {resolution.status === 'APPROVED'
-                  ? 'Resolution'
-                  : resolution.status === 'REJECTED'
-                  ? 'Rejected Motion'
-                  : resolution.status === 'VOTING'
-                  ? 'Motion before the Board'
-                  : 'Draft Motion Text'}
-              </p>
-            )}
-            <p className="text-zinc-400 text-xs leading-relaxed whitespace-pre-wrap">{resolution.text}</p>
-          </div>
+          {/* Motion text (pre-vote) OR Resolution text (post-approval) */}
+          {!isNoting && (() => {
+            const isApproved = resolution.status === 'APPROVED';
+            const showResText = isApproved && resolution.resolutionText;
+            const displayText = showResText ? resolution.resolutionText : resolution.text;
+            const label = isApproved
+              ? 'Resolution (passed)'
+              : resolution.status === 'REJECTED'
+              ? 'Rejected Motion'
+              : resolution.status === 'VOTING'
+              ? 'Motion before the Board'
+              : 'Motion';
+            const borderColor = isApproved ? 'border-green-700' : resolution.status === 'REJECTED' ? 'border-red-800' : 'border-zinc-700';
+            return (
+              <div className={`bg-[#13161B] border-l-2 ${borderColor} pl-4 py-3 pr-3 rounded-r-xl`}>
+                <p className={`text-[10px] uppercase tracking-widest font-semibold mb-1.5 ${isApproved ? 'text-green-600' : resolution.status === 'REJECTED' ? 'text-red-700' : 'text-zinc-600'}`}>
+                  {label}
+                </p>
+                <p className="text-zinc-400 text-xs leading-relaxed whitespace-pre-wrap">{displayText}</p>
+                {/* If approved and resolutionText exists, also show the motion text collapsed */}
+                {isApproved && resolution.resolutionText && resolution.text && (
+                  <details className="mt-2">
+                    <summary className="text-zinc-700 text-[10px] cursor-pointer hover:text-zinc-500">
+                      Original motion text
+                    </summary>
+                    <p className="text-zinc-600 text-[10px] leading-relaxed whitespace-pre-wrap mt-1">{resolution.text}</p>
+                  </details>
+                )}
+              </div>
+            );
+          })()}
+          {isNoting && (
+            <div className="bg-[#13161B] border-l-2 border-zinc-700 pl-4 py-3 pr-3 rounded-r-xl">
+              <p className="text-zinc-600 text-[10px] uppercase tracking-widest font-semibold mb-1.5">Noting</p>
+              <p className="text-zinc-400 text-xs leading-relaxed whitespace-pre-wrap">{resolution.text}</p>
+            </div>
+          )}
 
           {/* ── Document Evidence Section (NOTING type only) ──────────────── */}
           {isNoting && resolution.status === 'DRAFT' && (
@@ -2093,25 +2115,42 @@ function ProposeAgendaForm({ companyId, meetingId, jwt, isChairperson, meetingSt
 }
 
 function AddResolutionForm({ companyId, meetingId, agendaItemId, jwt, onAdded, vaultDocs }: any) {
-  const [title,      setTitle]      = useState('');
-  const [text,       setText]       = useState('RESOLVED THAT the Board of Directors of [Company] hereby ');
-  const [type,       setType]       = useState<'MEETING'|'NOTING'>('MEETING');
-  const [vaultDocId, setVaultDocId] = useState('');
-  const [loading,    setLoading]    = useState(false);
-  const [error,      setError]      = useState('');
+  const [title,          setTitle]          = useState('');
+  const [motionText,     setMotionText]     = useState('I move that the Board authorise ');
+  const [resolutionText, setResolutionText] = useState('RESOLVED THAT ');
+  const [type,           setType]           = useState<'MEETING'|'NOTING'>('MEETING');
+  const [vaultDocId,     setVaultDocId]     = useState('');
+  const [loading,        setLoading]        = useState(false);
+  const [error,          setError]          = useState('');
+
+  function switchType(t: 'MEETING'|'NOTING') {
+    setType(t);
+    if (t === 'NOTING') {
+      setMotionText('');
+      setResolutionText('');
+    } else {
+      setMotionText('I move that the Board authorise ');
+      setResolutionText('RESOLVED THAT ');
+    }
+  }
 
   async function submit(e: React.FormEvent) {
     (e as any).preventDefault();
-    if (!title.trim() || !text.trim()) return;
+    if (!title.trim()) return;
+    if (type === 'MEETING' && !motionText.trim()) return;
     setLoading(true); setError('');
     try {
       await resApi.create(companyId, meetingId, {
-        title, text, agendaItemId, type,
+        title,
+        text:           type === 'NOTING' ? 'Noting item' : motionText.trim(),
+        resolutionText: type === 'MEETING' && resolutionText.trim() ? resolutionText.trim() : undefined,
+        agendaItemId,
+        type,
         ...(type === 'NOTING' && vaultDocId ? { vaultDocId } : {}),
       }, jwt);
       onAdded();
     }
-    catch (err: any) { setError((err as any).body?.message ?? 'Could not create resolution'); }
+    catch (err: any) { setError((err as any).body?.message ?? 'Could not create motion'); }
     finally { setLoading(false); }
   }
 
@@ -2122,7 +2161,7 @@ function AddResolutionForm({ companyId, meetingId, agendaItemId, jwt, onAdded, v
       {/* Type selector */}
       <div className="flex gap-2">
         {[{v:'MEETING',l:'Motion (requires vote)'},{v:'NOTING',l:'Noting Item (on record)'}].map(t => (
-          <button key={t.v} type="button" onClick={() => { setType(t.v as any); if (t.v === 'NOTING') setText('The Board takes note of '); else setText('RESOLVED THAT the Board of Directors of [Company] hereby '); }}
+          <button key={t.v} type="button" onClick={() => switchType(t.v as any)}
             className={`flex-1 py-2 text-[11px] font-semibold rounded-lg border transition-all ${type === t.v
               ? 'bg-blue-950/60 border-blue-700 text-blue-300'
               : 'bg-transparent border-zinc-700 text-zinc-500 hover:text-zinc-300'}`}>
@@ -2131,41 +2170,47 @@ function AddResolutionForm({ companyId, meetingId, agendaItemId, jwt, onAdded, v
         ))}
       </div>
 
+      {/* Title */}
       <div>
         <label className="text-zinc-600 text-[10px] uppercase tracking-widest block mb-1.5">Title</label>
-        <input value={title} onChange={e => setTitle((e as any).target.value)} placeholder="e.g. Take Note of Certificate of Incorporation" required
-          className="w-full bg-[#0D0F12] border border-[#232830] rounded-lg px-3.5 py-2.5 text-sm text-zinc-200 placeholder:text-zinc-700 focus:outline-none focus:border-blue-600"/>
+        <input value={title} onChange={e => setTitle(e.target.value)}
+          placeholder={type === 'NOTING' ? 'e.g. Noting of Certificate of Incorporation' : 'e.g. Opening of Bank Account'}
+          required className="w-full bg-[#0D0F12] border border-[#232830] rounded-lg px-3.5 py-2.5 text-sm text-zinc-200 placeholder:text-zinc-700 focus:outline-none focus:border-blue-600"/>
       </div>
-      <div>
-        <label className="text-zinc-600 text-[10px] uppercase tracking-widest block mb-1.5">
-          {type === 'NOTING' ? 'Item Description' : 'Resolution Text'}
-        </label>
-        <Textarea value={text} onChange={e => setText((e as any).target.value)} rows={4} required minLength={20} placeholder={type === 'NOTING' ? 'The Board takes note of...' : 'RESOLVED THAT...'} />
-        {type === 'MEETING' && <p className="text-zinc-700 text-[10px] mt-1">Must begin with "RESOLVED THAT". Minimum 50 characters.</p>}
-      </div>
-      {/* Vault doc picker — only for NOTING items */}
+
+      {type === 'MEETING' && (<>
+        {/* Motion text — what directors vote on */}
+        <div>
+          <label className="text-zinc-600 text-[10px] uppercase tracking-widest block mb-1">Motion Text</label>
+          <p className="text-zinc-700 text-[10px] mb-1.5">Shown to directors while voting. Use plain proposal language — no "RESOLVED THAT".</p>
+          <Textarea value={motionText} onChange={e => setMotionText(e.target.value)} rows={3} required minLength={10}
+            placeholder='I move that the Board authorise the opening of a current account with [Bank Name]...' />
+        </div>
+
+        {/* Resolution text — what goes in minutes if passed */}
+        <div>
+          <label className="text-zinc-600 text-[10px] uppercase tracking-widest block mb-1">Resolution Text <span className="text-zinc-700 normal-case tracking-normal">(if motion passes)</span></label>
+          <p className="text-zinc-700 text-[10px] mb-1.5">Printed in minutes and certified copies. Use "RESOLVED THAT..." format.</p>
+          <Textarea value={resolutionText} onChange={e => setResolutionText(e.target.value)} rows={4}
+            placeholder='RESOLVED THAT the Company be and is hereby authorised to open a current account with [Bank Name]...' />
+        </div>
+      </>)}
+
       {type === 'NOTING' && vaultDocs?.length > 0 && (
         <div>
           <label className="text-zinc-600 text-[10px] uppercase tracking-widest block mb-1.5">
             Link Exhibit Document <span className="text-zinc-700">(optional)</span>
           </label>
-          <select
-            value={vaultDocId}
-            onChange={e => setVaultDocId(e.target.value)}
-            className="w-full bg-[#0D0F12] border border-[#232830] rounded-lg px-3 py-2 text-sm text-zinc-200 focus:outline-none focus:border-blue-600"
-          >
+          <select value={vaultDocId} onChange={e => setVaultDocId(e.target.value)}
+            className="w-full bg-[#0D0F12] border border-[#232830] rounded-lg px-3 py-2 text-sm text-zinc-200 focus:outline-none focus:border-blue-600">
             <option value="">No document linked</option>
             {(vaultDocs as any[]).map((d: any) => (
               <option key={d.id} value={d.id}>{d.label || d.fileName} ({d.docType})</option>
             ))}
           </select>
-          {vaultDocId && (
-            <p className="text-zinc-600 text-[10px] mt-1">
-              Chairperson must open this document before placing the resolution on record.
-            </p>
-          )}
         </div>
       )}
+
       {error && <p className="text-red-400 text-xs">{error}</p>}
       <div className="flex gap-2 pt-1">
         <Button type="submit" size="sm" loading={loading}>Add {type === 'NOTING' ? 'Noting Item' : 'Motion'}</Button>
