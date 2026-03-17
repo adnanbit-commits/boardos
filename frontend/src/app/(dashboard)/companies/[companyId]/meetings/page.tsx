@@ -225,6 +225,7 @@ export default function MeetingsPage() {
       );
 
       const validItems = agendaItems.filter(a => a.title.trim());
+      const createErrors: string[] = [];
       for (let i = 0; i < validItems.length; i++) {
         const item = validItems[i];
 
@@ -283,8 +284,10 @@ export default function MeetingsPage() {
                   type:          'NOTING',
                   agendaItemId:  agendaItem.id,
                 }, token);
-              } catch (e) {
-                console.error('[applyTemplate] Failed to create dynamic work item:', wi.title, e);
+              } catch (e: any) {
+                const msg = e?.body?.message ?? e?.message ?? String(e);
+                console.error('[applyTemplate] dynamic item failed:', wi.title, msg);
+                createErrors.push(`${wi.title}: ${msg}`);
               }
             }
           } else {
@@ -307,11 +310,21 @@ export default function MeetingsPage() {
                 agendaItemId:   agendaItem.id,
                 ...(vaultDocId ? { vaultDocId } : {}),
               }, token);
-            } catch (e) {
-              console.error('[applyTemplate] Failed to create work item:', wi.title, 'type:', wi.type, 'agendaItemId:', agendaItem.id, e);
+            } catch (e: any) {
+              const msg = e?.body?.message ?? e?.message ?? String(e);
+              console.error('[applyTemplate] work item failed:', wi.title, 'agendaItemId:', agendaItem.id, 'error:', msg);
+              createErrors.push(`${wi.title}: ${msg}`);
             }
           }
         }
+      }
+
+      // Surface any work item creation errors to the user
+      if (createErrors.length > 0) {
+        console.warn('[applyTemplate] Some items failed:', createErrors);
+        // Don't block — meeting and agenda were created successfully
+        // Show a warning but still close modal and navigate
+        setCreateErr(`Meeting created but ${createErrors.length} item(s) could not be pre-filled: ${createErrors[0]}${createErrors.length > 1 ? ` (+${createErrors.length - 1} more)` : ''}. Check browser console for details.`);
       }
 
       // Record template usage
@@ -320,7 +333,11 @@ export default function MeetingsPage() {
       }
 
       setMeetings(prev => [meeting, ...prev]);
-      closeModal();
+      if (createErrors.length === 0) {
+        closeModal();
+      } else {
+        setCreating(false); // allow retry/close
+      }
     } catch (err: any) {
       setCreateErr(err?.body?.message ?? 'Failed to create meeting.');
     } finally { setCreating(false); }
