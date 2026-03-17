@@ -8,8 +8,8 @@ steps:
   - name: 'gcr.io/cloud-builders/docker'
     args: ['build',
       '--build-arg', 'API_INTERNAL_URL=http://backend:3001',
-      '--build-arg', 'NEXT_PUBLIC_API_URL=http://34.180.29.29:3001',
-      '--build-arg', 'NEXT_PUBLIC_APP_URL=http://34.180.29.29:3000',
+      '--build-arg', 'NEXT_PUBLIC_API_URL=http://$_VM_IP:3001',
+      '--build-arg', 'NEXT_PUBLIC_APP_URL=http://$_VM_IP:3000',
       '-t', 'gcr.io/$PROJECT_ID/boardos-frontend:$COMMIT_SHA',
       './frontend']
 

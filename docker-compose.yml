@@ -68,15 +68,16 @@ services:
       dockerfile: Dockerfile
       args:
         - API_INTERNAL_URL=http://backend:3001
-        - NEXT_PUBLIC_API_URL=http://34.180.29.29:3001
-        - NEXT_PUBLIC_APP_URL=http://34.180.29.29:3000
+        - NEXT_PUBLIC_API_URL=${VM_IP}:3001
+        - NEXT_PUBLIC_APP_URL=${VM_IP}:3000
     container_name: boardos_frontend
     restart: unless-stopped
     ports:
       - "3000:3000"
     environment:
-      NEXT_PUBLIC_API_URL: http://34.47.225.65:3001
+      # API_INTERNAL_URL is read at runtime by Next.js rewrites (container-to-container)
       API_INTERNAL_URL: http://backend:3001
+      # NEXT_PUBLIC_* are baked at build time — runtime env has no effect on them
     depends_on:
       - backend
 
