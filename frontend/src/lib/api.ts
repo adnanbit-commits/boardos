@@ -128,8 +128,13 @@ export interface Resolution {
   id: string; meetingId: string | null; agendaItemId: string | null;
   type?: 'MEETING' | 'CIRCULAR' | 'NOTING';
   title: string;
-  text: string;             // Motion text — what directors see during discussion/voting
-  resolutionText?: string | null;  // Enacted text — "RESOLVED THAT..." shown after APPROVED
+  text: string;             // Full resolution text — motion wording merged with enacted wording at write time
+  /**
+   * @deprecated NOT a DB column. The backend merges resolutionText into `text`
+   * before writing. This field may appear on frontend state objects but will
+   * never be returned from the API. Read `text` instead.
+   */
+  resolutionText?: string | null;
   status: string;
   tally?: { APPROVE: number; REJECT: number; ABSTAIN: number };
   votes?: Vote[];

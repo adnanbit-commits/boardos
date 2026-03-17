@@ -27,6 +27,34 @@ import { CreateResolutionDto } from './dto/create-resolution.dto';
 import { UpdateResolutionDto } from './dto/update-resolution.dto';
 import { BulkOpenVotingDto } from './dto/bulk-open-voting.dto';
 
+// ── Sanitizer ────────────────────────────────────────────────────────────────
+//
+// Strips fields that exist in the DTO / frontend payload but are NOT present
+// in the Prisma Resolution model, preventing "Unknown argument" runtime errors.
+//
+// resolutionText — conceptually the enacted wording; the DB has only `text`.
+//   If both are provided we merge them so the intent is preserved.
+//   See STEP 2 in the schema-mismatch refactor spec.
+//
+function sanitizeResolutionInput(dto: Record<string, any>): Record<string, any> {
+  const safe = { ...dto };
+
+  // Merge resolutionText into text before stripping it
+  if (safe.resolutionText !== undefined && safe.resolutionText !== null && String(safe.resolutionText).trim()) {
+    const base = safe.text ? String(safe.text).trimEnd() : '';
+    safe.text = base
+      ? `${base}\n\n---\nFINAL RESOLUTION:\n${safe.resolutionText}`
+      : String(safe.resolutionText);
+  }
+  delete safe.resolutionText;
+
+  // These fields are defined in the schema — keep them.
+  // Any other non-schema fields passed by the frontend must be removed here.
+  // type, vaultDocId, meetingDocId ARE in the backend schema, so they stay.
+
+  return safe;
+}
+
 // Legal forward-only transitions. Withdraw (PROPOSED → DRAFT) is handled separately.
 const ALLOWED_TRANSITIONS: Partial<Record<ResolutionStatus, ResolutionStatus[]>> = {
   DRAFT:    ['PROPOSED'],
@@ -150,19 +178,21 @@ export class ResolutionService {
       }
     }
 
+    // Sanitize: strip resolutionText (not in DB schema) and merge into text
+    const sanitized = sanitizeResolutionInput(dto as any);
+
     const resolution = await this.prisma.resolution.create({
       data: {
         companyId,
         meetingId,
-        agendaItemId:   dto.agendaItemId ?? null,
-        title:          dto.title,
-        text:           dto.text,            // motion text
-        resolutionText: (dto as any).resolutionText ?? null,  // enacted text
-        type:           dto.type ?? 'MEETING',
+        agendaItemId:   sanitized.agendaItemId ?? null,
+        title:          sanitized.title,
+        text:           sanitized.text,
+        type:           sanitized.type ?? 'MEETING',
         status:         ResolutionStatus.DRAFT,
-        vaultDocId:     dto.vaultDocId    ?? null,
-        meetingDocId:   dto.meetingDocId  ?? null,
-      } as any,
+        vaultDocId:     sanitized.vaultDocId    ?? null,
+        meetingDocId:   sanitized.meetingDocId  ?? null,
+      },
       include: {
         meeting:   { select: { title: true } },
         agendaItem: { select: { title: true } },
@@ -195,9 +225,12 @@ export class ResolutionService {
       );
     }
 
+    // Sanitize: strip resolutionText (not in DB schema) and merge into text
+    const sanitized = sanitizeResolutionInput(dto as any);
+
     const updated = await this.prisma.resolution.update({
       where: { id },
-      data: dto,
+      data: sanitized,
     });
 
     await this.audit.log({
@@ -250,12 +283,10 @@ export class ResolutionService {
       );
     }
 
-    // When motion passes → store resolutionText as the enacted record
-    // If resolutionText was pre-set (from template), keep it. Otherwise use text field.
+    // When motion passes the full resolution wording is already in `text`
+    // (merged there by sanitizeResolutionInput at create/update time).
+    // No extra field write needed.
     const extraData: any = { status: targetStatus as ResolutionStatus };
-    if (targetStatus === 'APPROVED' && !(resolution as any).resolutionText) {
-      extraData.resolutionText = resolution.text;
-    }
 
     const updated = await this.prisma.resolution.update({
       where: { id },

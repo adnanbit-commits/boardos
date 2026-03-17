@@ -195,11 +195,9 @@ export class MinutesService {
       const abstainLine  = abstentions.length > 0
         ? `<p><strong>Directors who abstained:</strong> ${abstentions.join(', ')}</p>` : '';
 
-      // Use resolutionText (enacted "RESOLVED THAT..." form) for approved items;
-      // fall back to text (motion text) if resolutionText not stored
-      const minutesText = res.status === 'APPROVED'
-        ? (res.resolutionText || res.text)
-        : res.text;
+      // `text` already contains the final wording (resolutionText was merged into
+      // it by sanitizeResolutionInput at create/update time — see resolution.service.ts).
+      const minutesText = res.text;
 
       return `
         <div class="resolution">

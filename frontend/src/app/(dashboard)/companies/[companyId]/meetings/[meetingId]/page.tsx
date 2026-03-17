@@ -1715,8 +1715,9 @@ function ResolutionCard({ resolution, index, companyId, jwt, currentUserId, meet
           {/* Motion text (pre-vote) OR Resolution text (post-approval) */}
           {!isNoting && (() => {
             const isApproved = resolution.status === 'APPROVED';
-            const showResText = isApproved && resolution.resolutionText;
-            const displayText = showResText ? resolution.resolutionText : resolution.text;
+            // resolutionText is no longer returned from the API — the backend merges
+            // it into `text` at write time. Always read from `text`.
+            const displayText = resolution.text;
             const label = isApproved
               ? 'Resolution (passed)'
               : resolution.status === 'REJECTED'
@@ -1731,15 +1732,6 @@ function ResolutionCard({ resolution, index, companyId, jwt, currentUserId, meet
                   {label}
                 </p>
                 <p className="text-zinc-400 text-xs leading-relaxed whitespace-pre-wrap">{displayText}</p>
-                {/* If approved and resolutionText exists, also show the motion text collapsed */}
-                {isApproved && resolution.resolutionText && resolution.text && (
-                  <details className="mt-2">
-                    <summary className="text-zinc-700 text-[10px] cursor-pointer hover:text-zinc-500">
-                      Original motion text
-                    </summary>
-                    <p className="text-zinc-600 text-[10px] leading-relaxed whitespace-pre-wrap mt-1">{resolution.text}</p>
-                  </details>
-                )}
               </div>
             );
           })()}

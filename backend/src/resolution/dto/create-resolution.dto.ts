@@ -10,6 +10,16 @@ export class CreateResolutionDto {
   @MinLength(10)
   text: string;
 
+  /**
+   * Optional enacted wording ("RESOLVED THAT…").
+   * NOT stored as a separate DB column — the backend merges this into `text`
+   * before the Prisma write (see sanitizeResolutionInput in resolution.service.ts).
+   * Kept here so the frontend can keep sending it without TS errors.
+   */
+  @IsOptional()
+  @IsString()
+  resolutionText?: string;
+
   @IsOptional()
   @IsUUID()
   agendaItemId?: string;
