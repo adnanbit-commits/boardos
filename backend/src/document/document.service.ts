@@ -130,16 +130,13 @@ export class DocumentService {
   // ── Puppeteer helper ──────────────────────────────────────────────────────
   private async htmlToPdf(html: string): Promise<Buffer> {
     const browser = await puppeteer.launch({
-      executablePath: process.env.PUPPETEER_EXECUTABLE_PATH ?? '/usr/bin/chromium',
+      // Use Puppeteer's own bundled Chromium — system Chromium has crashpad
+      // issues in containerised environments on Debian bookworm.
       args: [
         '--no-sandbox',
         '--disable-setuid-sandbox',
         '--disable-dev-shm-usage',
-        '--disable-crash-reporter',
-        '--disable-extensions',
         '--disable-gpu',
-        '--single-process',
-        '--no-zygote',
       ],
       headless: true,
     });

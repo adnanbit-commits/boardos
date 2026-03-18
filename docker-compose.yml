@@ -58,7 +58,6 @@ services:
       FRONTEND_URL:          ${FRONTEND_URL:-}
       GCS_PROJECT_ID:        ${GCS_PROJECT_ID:-boardos-333}
       GCS_BUCKET_NAME:       ${GCS_BUCKET_NAME:-boardos-vault}
-      PUPPETEER_EXECUTABLE_PATH: /usr/bin/chromium
       PUPPETEER_NO_SANDBOX:  true
     depends_on:
       postgres:
