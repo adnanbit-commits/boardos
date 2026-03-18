@@ -11,7 +11,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
-import { archive as archiveApi, minutesApi, type ArchiveEntry } from '@/lib/api';
+import { archive as archiveApi, minutesApi, resolveDownloadUrl, type ArchiveEntry } from '@/lib/api';
 import { getToken, getUser } from '@/lib/auth';
 
 function formatDate(iso: string) {
@@ -49,7 +49,8 @@ function ArchiveCard({
     setExporting(true);
     try {
       const r = await minutesApi.exportPdf(companyId, meeting.id, jwt);
-      const url = (r as any).downloadUrl ?? (r as any).s3Url;
+      const raw = (r as any).downloadUrl ?? (r as any).s3Url;
+      const url = resolveDownloadUrl(raw, jwt);
       if (url) { setExportUrl(url); window.open(url, '_blank'); }
     } catch (err: any) {
       alert(err?.body?.message ?? 'PDF export failed. Please try again.');
@@ -68,7 +69,8 @@ function ArchiveCard({
     setCertifying(true);
     try {
       const r = await archiveApi.certify(companyId, meeting.id, jwt);
-      const url = (r as any).downloadUrl ?? (r as any).s3Url;
+      const raw = (r as any).downloadUrl ?? (r as any).s3Url;
+      const url = resolveDownloadUrl(raw, jwt);
       if (url) window.open(url, '_blank');
       else alert('Certified copy issued.');
     }
