@@ -478,6 +478,8 @@ export const archive = {
     post<Meeting>(`/companies/${companyId}/archive/meetings/${meetingId}/lock`, undefined, token),
   certify: (companyId: string, meetingId: string, token: string) =>
     post<Document>(`/companies/${companyId}/archive/meetings/${meetingId}/certify`, undefined, token),
+  certifyResolution: (companyId: string, resolutionId: string, token: string) =>
+    post<{ downloadUrl: string; signatureHash: string; id: string }>(`/companies/${companyId}/resolutions/${resolutionId}/certify`, undefined, token),
   verify: (companyId: string, documentId: string, token: string) =>
     get<{ verified: boolean; storedHash?: string; computedHash?: string; reason: string }>(
       `/companies/${companyId}/archive/documents/${documentId}/verify`, token,

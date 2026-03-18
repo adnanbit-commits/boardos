@@ -42,6 +42,7 @@ function ArchiveCard({
   const [exporting, setExporting] = useState(false);
   const [locking,   setLocking]   = useState(false);
   const [certifying,setCertifying]= useState(false);
+  const [certifyingId,setCertifyingId] = useState<string|null>(null);
   const [exportUrl, setExportUrl] = useState<string|null>(null);
   const d = new Date(meeting.scheduledAt);
 
@@ -76,6 +77,19 @@ function ArchiveCard({
     }
     catch (err: any) { alert(err?.body?.message ?? 'Could not issue certified copy.'); }
     finally { setCertifying(false); }
+  }
+
+  async function handleCertifyResolution(resolutionId: string) {
+    setCertifyingId(resolutionId);
+    try {
+      const r = await archiveApi.certifyResolution(companyId, resolutionId, jwt);
+      const raw = (r as any).downloadUrl ?? (r as any).s3Url;
+      const url = resolveDownloadUrl(raw, jwt);
+      if (url && url !== '#') window.open(url, '_blank');
+      else alert('Certified copy issued but download URL unavailable. Refresh and try again.');
+    }
+    catch (err: any) { alert(err?.body?.message ?? 'Could not issue certified copy.'); }
+    finally { setCertifyingId(null); }
   }
 
   const sections = [
@@ -265,7 +279,7 @@ function ArchiveCard({
                           </span>
                         </div>
                         {r.type !== 'NOTING' && (
-                          <div className="flex items-center gap-4 text-xs text-zinc-500">
+                          <div className="flex items-center gap-4 text-xs text-zinc-500 flex-wrap">
                             <span className="text-green-400">✓ {r.tally.APPROVE} For</span>
                             {r.tally.REJECT > 0 && <span className="text-red-400">✕ {r.tally.REJECT} Against</span>}
                             {r.tally.ABSTAIN > 0 && <span>◎ {r.tally.ABSTAIN} Abstain</span>}
@@ -275,9 +289,19 @@ function ArchiveCard({
                               </span>
                             )}
                             {r.certifiedCopiesCount > 0 && (
-                              <span className="text-blue-400 ml-auto">
-                                {r.certifiedCopiesCount} certified {r.certifiedCopiesCount === 1 ? 'copy' : 'copies'}
+                              <span className="text-blue-400">
+                                {r.certifiedCopiesCount} certified {r.certifiedCopiesCount === 1 ? 'copy' : 'copies'} issued
                               </span>
+                            )}
+                            {r.status === 'APPROVED' && isAdmin && (
+                              <button
+                                onClick={() => handleCertifyResolution(r.id)}
+                                disabled={certifyingId === r.id}
+                                className="ml-auto flex items-center gap-1.5 bg-blue-950/40 border border-blue-800/40 hover:border-blue-600 text-blue-300 text-[10px] font-semibold px-3 py-1 rounded-lg transition-colors disabled:opacity-40"
+                              >
+                                {certifyingId === r.id ? <Spinner /> : '⬡'}
+                                {certifyingId === r.id ? 'Generating…' : 'Get Certified Copy'}
+                              </button>
                             )}
                           </div>
                         )}
@@ -324,16 +348,7 @@ function ArchiveCard({
                     {exporting ? 'Generating…' : exportUrl ? '↗ Open PDF' : 'Download Minutes PDF'}
                   </button>
 
-                  {isAdmin && (
-                    <button
-                      onClick={handleCertify}
-                      disabled={certifying || !['SIGNED','LOCKED'].includes(meeting.status)}
-                      className="flex items-center gap-2 bg-[#13161B] border border-[#232830] hover:border-zinc-500 text-zinc-300 text-sm font-semibold px-4 py-2 rounded-lg transition-colors disabled:opacity-40"
-                    >
-                      {certifying ? <Spinner /> : '⬡'}
-                      {certifying ? 'Issuing…' : 'Issue Certified Copy'}
-                    </button>
-                  )}
+
 
                   {isAdmin && meeting.status === 'SIGNED' && (
                     <button
