@@ -1,4 +1,4 @@
-
+version: '3.9'
 
 services:
 
@@ -56,6 +56,8 @@ services:
       GOOGLE_CLIENT_SECRET:  ${GOOGLE_CLIENT_SECRET:-}
       GOOGLE_CALLBACK_URL:   ${GOOGLE_CALLBACK_URL:-}
       FRONTEND_URL:          ${FRONTEND_URL:-}
+      GCS_PROJECT_ID:        ${GCS_PROJECT_ID:-boardos-333}
+      GCS_BUCKET_NAME:       ${GCS_BUCKET_NAME:-boardos-vault}
     depends_on:
       postgres:
         condition: service_healthy
