@@ -99,7 +99,7 @@ export default function ResolutionsPage() {
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 10 }}>
                     <div style={{ flex: 1, minWidth: 0, marginRight: 16 }}>
                       <p style={{ fontSize: 14, fontWeight: 600, color: '#F0F2F5', marginBottom: 4 }}>{r.title}</p>
-                      <p style={{ fontSize: 12, color: '#6B7280', lineHeight: 1.5, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{r.text}</p>
+                      <p style={{ fontSize: 12, color: '#6B7280', lineHeight: 1.5, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{r.motionText}</p>
                     </div>
                     <span style={{ background: s.bg, color: s.color, padding: '3px 10px', borderRadius: 20, fontSize: 10, fontWeight: 700, letterSpacing: '0.06em', flexShrink: 0 }}>
                       {s.label}

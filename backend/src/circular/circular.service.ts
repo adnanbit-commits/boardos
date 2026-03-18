@@ -11,7 +11,8 @@ import { ResolutionStatus, ResolutionType, CircularSignatureValue, UserRole } fr
 
 export interface CreateCircularDto {
   title:           string;
-  text:            string;
+  text:            string;   // motion text — maps to motionText on the model
+  resolutionText?: string;   // enacted wording — optional
   circulationNote: string;   // Required — SS-1 mandates explanatory note
   deadline?:       string;
 }
