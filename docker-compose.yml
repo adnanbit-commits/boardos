@@ -59,6 +59,8 @@ services:
       GCS_PROJECT_ID:        ${GCS_PROJECT_ID:-boardos-333}
       GCS_BUCKET_NAME:       ${GCS_BUCKET_NAME:-boardos-vault}
       PUPPETEER_NO_SANDBOX:  true
+      XDG_CONFIG_HOME:       /tmp/.chromium
+      XDG_CACHE_HOME:        /tmp/.chromium
     depends_on:
       postgres:
         condition: service_healthy
