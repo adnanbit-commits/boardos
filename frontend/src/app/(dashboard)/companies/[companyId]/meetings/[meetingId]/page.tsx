@@ -48,6 +48,8 @@ export default function MeetingWorkspacePage() {
 
   // Chairperson election modal
   const [showChairModal, setShowChairModal] = useState(false);
+  const [guidedMode,     setGuidedMode]     = useState(false);
+  const [guidedStep,     setGuidedStep]     = useState(0);
 
 
   const reload = useCallback(async () => {
@@ -232,6 +234,17 @@ export default function MeetingWorkspacePage() {
                 ◎ {(meeting as any).deemedVenue}
               </span>
             )}
+            {meeting.status === 'IN_PROGRESS' && (
+              <button
+                onClick={() => { setGuidedMode(g => !g); setGuidedStep(0); }}
+                className={`flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-lg border transition-all ${
+                  guidedMode
+                    ? 'bg-blue-600 border-blue-500 text-white'
+                    : 'bg-[#13161B] border-[#232830] text-zinc-400 hover:text-zinc-200 hover:border-zinc-500'
+                }`}>
+                {guidedMode ? '✕ Exit Guided' : '▶ Guided Mode'}
+              </button>
+            )}
             {canAdvance && next && (
               <Button onClick={advanceMeeting} loading={advancing} size="sm"
                 variant={next === 'SIGNED' ? 'outline' : 'primary'}>
@@ -243,7 +256,117 @@ export default function MeetingWorkspacePage() {
         <WorkflowProgress status={meeting.status as MeetingStatus} />
       </header>
 
-      <div className="flex flex-1 overflow-hidden">
+      {/* ── Guided Mode ────────────────────────────────────────────────────── */}
+      {guidedMode && meeting.status === 'IN_PROGRESS' && (() => {
+        const PROCEDURAL = ['CHAIRPERSON_ELECTION', 'QUORUM_CONFIRMATION'];
+        const steps = meeting.agendaItems.filter((a: any) => !PROCEDURAL.includes(a.itemType ?? 'STANDARD'));
+        const currentItem = steps[guidedStep];
+        if (!currentItem) return null;
+        const itemRes = resolutions.filter((r: any) => r.agendaItemId === currentItem.id);
+        const stepDone = itemRes.length > 0 && itemRes.every((r: any) => ['APPROVED','REJECTED','NOTED'].includes(r.status));
+        const isLast = guidedStep >= steps.length - 1;
+        return (
+          <div className="flex flex-1 overflow-hidden">
+            {/* Step progress rail */}
+            <div className="w-56 flex-shrink-0 bg-[#13161B] border-r border-[#232830] flex flex-col overflow-y-auto p-3">
+              <p className="text-zinc-600 text-[10px] uppercase tracking-widest font-semibold mb-3 px-1">
+                Step {guidedStep + 1} of {steps.length}
+              </p>
+              {steps.map((item: any, idx: number) => {
+                const iRes = resolutions.filter((r: any) => r.agendaItemId === item.id);
+                const done = iRes.length > 0 && iRes.every((r: any) => ['APPROVED','REJECTED','NOTED'].includes(r.status));
+                const active = idx === guidedStep;
+                const locked = idx > guidedStep;
+                return (
+                  <button key={item.id} onClick={() => !locked && setGuidedStep(idx)}
+                    disabled={locked}
+                    className={`w-full text-left px-3 py-2.5 rounded-lg mb-1 flex items-start gap-2.5 transition-all ${
+                      active ? 'bg-blue-950/60 border border-blue-800/50'
+                      : locked ? 'opacity-30 cursor-not-allowed border border-transparent'
+                      : 'hover:bg-[#191D24] border border-transparent cursor-pointer'
+                    }`}>
+                    <span className={`flex-shrink-0 w-5 h-5 rounded-full border text-[10px] font-bold flex items-center justify-center mt-0.5 ${
+                      done ? 'bg-green-950 border-green-700 text-green-400'
+                      : active ? 'bg-blue-950 border-blue-700 text-blue-400'
+                      : 'bg-zinc-900 border-zinc-700 text-zinc-500'
+                    }`}>{done ? '✓' : idx + 1}</span>
+                    <p className={`text-xs font-medium leading-tight ${active ? 'text-blue-300' : done ? 'text-zinc-400' : 'text-zinc-500'}`}>
+                      {item.title}
+                    </p>
+                  </button>
+                );
+              })}
+            </div>
+
+            {/* Main guided step area */}
+            <div className="flex-1 flex flex-col overflow-hidden">
+              {/* Step header */}
+              <div className="border-b border-[#232830] px-8 py-4 flex items-center justify-between">
+                <div>
+                  <p className="text-zinc-600 text-[10px] uppercase tracking-widest font-semibold mb-1">
+                    Agenda Item {guidedStep + 1} of {steps.length}
+                  </p>
+                  <h2 className="text-[#F0F2F5] font-bold text-lg">{currentItem.title}</h2>
+                  {currentItem.description && (
+                    <p className="text-zinc-500 text-sm mt-0.5">{currentItem.description}</p>
+                  )}
+                </div>
+                {stepDone && (
+                  <span className="text-green-400 text-sm font-semibold bg-green-950/40 border border-green-800/40 px-3 py-1.5 rounded-lg">
+                    ✓ Complete
+                  </span>
+                )}
+              </div>
+
+              {/* Step content — reuse existing ResolutionsPanel */}
+              <div className="flex-1 overflow-y-auto p-6">
+                <ResolutionsPanel
+                  companyId={companyId} meetingId={meetingId} jwt={jwt}
+                  meeting={meeting} resolutions={resolutions}
+                  activeAgendaItem={currentItem}
+                  currentUserId={me?.id ?? ''} onRefresh={reload}
+                  isAdmin={isAdmin} isChairperson={isChairpersonUser}
+                  vaultDocs={vaultDocs}
+                />
+              </div>
+
+              {/* Step navigation */}
+              <div className="border-t border-[#232830] px-8 py-4 flex items-center justify-between">
+                <button
+                  onClick={() => setGuidedStep(s => Math.max(0, s - 1))}
+                  disabled={guidedStep === 0}
+                  className="text-sm font-semibold text-zinc-400 hover:text-zinc-200 disabled:opacity-30 disabled:cursor-not-allowed transition-colors">
+                  ← Previous
+                </button>
+                <div className="flex gap-1.5">
+                  {steps.map((_: any, idx: number) => (
+                    <div key={idx} className={`w-1.5 h-1.5 rounded-full transition-all ${
+                      idx === guidedStep ? 'bg-blue-500 w-4' : idx < guidedStep ? 'bg-green-600' : 'bg-zinc-700'
+                    }`} />
+                  ))}
+                </div>
+                {isLast ? (
+                  <button
+                    onClick={() => setGuidedMode(false)}
+                    className="text-sm font-semibold text-green-400 hover:text-green-300 transition-colors">
+                    Finish ✓
+                  </button>
+                ) : (
+                  <button
+                    onClick={() => setGuidedStep(s => Math.min(steps.length - 1, s + 1))}
+                    disabled={!stepDone}
+                    className="text-sm font-semibold text-blue-400 hover:text-blue-300 disabled:opacity-30 disabled:cursor-not-allowed transition-colors">
+                    {stepDone ? 'Next →' : 'Complete item to continue'}
+                  </button>
+                )}
+              </div>
+            </div>
+          </div>
+        );
+      })()}
+
+      {/* ── Normal workspace layout ─────────────────────────────────────────── */}
+      {!guidedMode && <div className="flex flex-1 overflow-hidden">
         {/* ── Sidebar ─────────────────────────────────────────────────────────── */}
         <aside className="w-60 flex-shrink-0 bg-[#13161B] border-r border-[#232830] flex flex-col overflow-y-auto">
           <div className="px-4 pt-5 pb-2">
@@ -1976,7 +2099,7 @@ function ResolutionCard({ resolution, index, companyId, jwt, currentUserId, meet
             </div>
           )}
         </div>
-      )}
+      </div>}
     </div>
   );
 }
