@@ -50,11 +50,13 @@ export default function NewCompanyPage() {
   const [name, setName] = useState('');
   const [cin, setCin] = useState('');
   const [error, setError] = useState('');
-  const [step, setStep] = useState<'form'|'results'|'creating'>('form');
+  const [step, setStep] = useState<'form'|'results'|'manual'|'creating'>('form');
   const [cinLoading, setCinLoading] = useState(false);
   const [cinResult, setCinResult] = useState<CinLookupResult | null>(null);
   const [dirState, setDirState] = useState<Record<string, { selected: boolean; email: string }>>({});
   const [submitting, setSubmitting] = useState(false);
+  // Manual entry fallback — used when MCA is unavailable
+  const [manualDirs, setManualDirs] = useState([{ name: '', din: '', designation: 'Director', email: '' }]);
 
   async function handleLookup() {
     if (!name.trim()) { setError('Company name is required.'); return; }
@@ -71,7 +73,9 @@ export default function NewCompanyPage() {
       setDirState(init);
       setStep('results');
     } catch (err: any) {
-      setError(err?.body?.message ?? err?.message ?? 'CIN lookup failed. You can skip and create manually.');
+      // MCA unavailable — drop into manual entry with the CIN pre-filled
+      setError('');
+      setStep('manual');
     } finally {
       setCinLoading(false);
     }
@@ -102,6 +106,29 @@ export default function NewCompanyPage() {
   }
 
   const selectedWithEmail = Object.values(dirState).filter(d => d.selected && d.email.trim()).length;
+
+  async function doCreateManual() {
+    if (!token || !name.trim()) return;
+    setSubmitting(true); setStep('creating'); setError('');
+    try {
+      const company = await companiesApi.create(
+        { name: name.trim(), ...(cin.trim() ? { cin: cin.trim().toUpperCase() } : {}) },
+        token,
+      );
+      // Send invites to any manual directors who have email
+      await Promise.all(
+        manualDirs
+          .filter(d => d.name.trim() && d.email.trim())
+          .map(d => invitationsApi.send(company.id, { email: d.email.trim(), role: 'DIRECTOR' }, token).catch(() => {}))
+      );
+      router.push(`/companies/${company.id}`);
+    } catch (err: any) {
+      setError(err?.body?.message ?? 'Failed to create workspace.');
+      setStep('manual');
+    } finally {
+      setSubmitting(false);
+    }
+  }
 
   if (step === 'creating') return (
     <div style={{ minHeight:'100%', display:'flex', alignItems:'center', justifyContent:'center' }}>
@@ -206,6 +233,81 @@ export default function NewCompanyPage() {
             <button onClick={() => doCreate(cinResult)} disabled={submitting}
               style={{ ...S.primary, opacity:submitting?0.6:1, cursor:submitting?'not-allowed':'pointer' }}>
               {submitting ? 'Creating…' : selectedWithEmail > 0 ? `Create & Invite ${selectedWithEmail} Director${selectedWithEmail>1?'s':''}` : 'Create Workspace'}
+            </button>
+          </div>
+        </div>
+      )}
+
+      {step === 'manual' && (
+        <div style={{ ...S.card, maxWidth:640 }}>
+          <div style={{ marginBottom:28, paddingBottom:24, borderBottom:'1px solid #232830' }}>
+            <div style={{ display:'flex', alignItems:'center', gap:10, marginBottom:8 }}>
+              <div style={{ width:32, height:32, background:'#2D1515', borderRadius:8, display:'flex', alignItems:'center', justifyContent:'center', fontSize:14 }}>⚠</div>
+              <h1 style={{ fontSize:18, fontWeight:700, color:'#F0F2F5', margin:0 }}>MCA data temporarily unavailable</h1>
+            </div>
+            <p style={{ fontSize:13, color:'#6B7280', lineHeight:1.6, margin:0 }}>
+              The MCA registry is currently unreachable. Enter your company details manually from your Certificate of Incorporation — you can re-sync from MCA later once it's back online.
+            </p>
+          </div>
+
+          <div style={{ display:'flex', flexDirection:'column', gap:16, marginBottom:24 }}>
+            <div>
+              <label style={S.label}>Company Name *</label>
+              <input type='text' value={name} onChange={e => setName(e.target.value)} placeholder='Acme Private Limited' style={S.input} />
+            </div>
+            {cin && (
+              <div>
+                <label style={S.label}>CIN</label>
+                <input type='text' value={cin} readOnly style={{ ...S.input, color:'#6B7280' }} />
+              </div>
+            )}
+          </div>
+
+          <div style={{ marginBottom:24 }}>
+            <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:12 }}>
+              <div>
+                <h2 style={{ fontSize:14, fontWeight:700, color:'#F0F2F5', margin:0 }}>Directors</h2>
+                <p style={{ fontSize:12, color:'#6B7280', margin:'3px 0 0' }}>Add from your Certificate of Incorporation. Email optional — can be added later.</p>
+              </div>
+              <button onClick={() => setManualDirs(d => [...d, { name:'', din:'', designation:'Director', email:'' }])}
+                style={{ fontSize:12, fontWeight:600, color:'#4F7FFF', background:'transparent', border:'1px solid #2A3A6A', borderRadius:8, padding:'5px 12px', cursor:'pointer' }}>
+                + Add Director
+              </button>
+            </div>
+            {manualDirs.map((d, i) => (
+              <div key={i} style={{ background:'#13161B', border:'1px solid #232830', borderRadius:12, padding:'14px 16px', marginBottom:8 }}>
+                <div style={{ display:'flex', gap:8, marginBottom:8 }}>
+                  <div style={{ flex:2 }}>
+                    <label style={{ ...S.label, marginBottom:4 }}>Name *</label>
+                    <input type='text' value={d.name} onChange={e => setManualDirs(dirs => dirs.map((x,j) => j===i?{...x,name:e.target.value}:x))}
+                      placeholder='Director full name' style={{ ...S.input, fontSize:13, padding:'8px 12px' }} />
+                  </div>
+                  <div style={{ flex:1 }}>
+                    <label style={{ ...S.label, marginBottom:4 }}>DIN</label>
+                    <input type='text' value={d.din} onChange={e => setManualDirs(dirs => dirs.map((x,j) => j===i?{...x,din:e.target.value}:x))}
+                      placeholder='00000000' style={{ ...S.input, fontSize:13, padding:'8px 12px', fontFamily:'monospace' }} maxLength={8} />
+                  </div>
+                  {manualDirs.length > 1 && (
+                    <button onClick={() => setManualDirs(dirs => dirs.filter((_,j) => j!==i))}
+                      style={{ alignSelf:'flex-end', width:32, height:36, background:'transparent', border:'1px solid #374151', borderRadius:8, color:'#6B7280', cursor:'pointer', fontSize:16 }}>×</button>
+                  )}
+                </div>
+                <div>
+                  <label style={{ ...S.label, marginBottom:4 }}>Email <span style={{ fontWeight:400, textTransform:'none', letterSpacing:0, color:'#374151' }}>(optional — to send invite)</span></label>
+                  <input type='email' value={d.email} onChange={e => setManualDirs(dirs => dirs.map((x,j) => j===i?{...x,email:e.target.value}:x))}
+                    placeholder='director@company.com' style={{ ...S.input, fontSize:13, padding:'8px 12px' }} />
+                </div>
+              </div>
+            ))}
+          </div>
+
+          {error && <div style={{ background:'#2D1515', border:'1px solid #7F1D1D', borderRadius:8, padding:'10px 14px', color:'#FCA5A5', fontSize:13, marginBottom:16 }}>{error}</div>}
+
+          <div style={{ display:'flex', gap:10 }}>
+            <button onClick={() => setStep('form')} style={S.secondary}>← Back</button>
+            <button onClick={doCreateManual} disabled={submitting || !name.trim()}
+              style={{ ...S.primary, opacity:submitting||!name.trim()?0.6:1, cursor:submitting?'not-allowed':'pointer' }}>
+              {submitting ? 'Creating…' : 'Create Workspace'}
             </button>
           </div>
         </div>

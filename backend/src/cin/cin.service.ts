@@ -42,7 +42,11 @@ export class CinService {
   async lookup(cin: string): Promise<CinLookupResult> {
     const apiKey    = process.env.SANDBOX_API_KEY;
     const apiSecret = process.env.SANDBOX_API_SECRET;
-    if (!apiKey || !apiSecret) return this.mockResult(cin);
+    if (!apiKey || !apiSecret) {
+      throw new ServiceUnavailableException(
+        'MCA lookup is not configured on this server. Please enter your company details manually.'
+      );
+    }
 
     const clean = cin.trim().toUpperCase();
     if (!/^[A-Z][0-9]{5}[A-Z]{2}[0-9]{4}[A-Z]{3}[0-9]{6}$/.test(clean))
@@ -57,7 +61,12 @@ export class CinService {
       return this.parse(res, clean);
     } catch (err: any) {
       if (err instanceof BadRequestException) throw err;
-      throw new ServiceUnavailableException(`Could not fetch MCA data: ${err.message}. Try again or fill in manually.`);
+      // Parse Sandbox error for a user-friendly message
+      const isSandboxDown = err.message?.includes('504') || err.message?.includes('Network error');
+      const msg = isSandboxDown
+        ? 'MCA data is temporarily unavailable (the government registry is down). Please enter your company details manually — you can re-sync from MCA later.'
+        : 'Could not fetch MCA data. Please enter your company details manually.';
+      throw new ServiceUnavailableException(msg);
     }
   }
 
@@ -91,19 +100,6 @@ export class CinService {
         designation: d.designation ?? 'Director',
         appointedOn: d.begin_date ?? null,
       })),
-    };
-  }
-
-  private mockResult(cin: string): CinLookupResult {
-    return {
-      cin, companyName: 'Acme Private Limited', status: 'Active',
-      incorporatedOn: '01/01/2020', registeredAddress: '123 Example Street, Mumbai 400001',
-      companyEmail: 'registered@acme.in',
-      directors: [
-        { din: '00000001', name: 'Adnan Khan',   designation: 'Director',          appointedOn: '01/01/2020' },
-        { din: '00000002', name: 'Rahul Sharma', designation: 'Managing Director', appointedOn: '01/01/2020' },
-        { din: '00000003', name: 'Priya Mehta',  designation: 'Director',          appointedOn: '15/06/2021' },
-      ],
     };
   }
 
