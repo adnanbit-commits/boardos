@@ -257,15 +257,17 @@ export default function MeetingWorkspacePage() {
       </header>
 
       {/* ── Guided Mode ────────────────────────────────────────────────────── */}
-      {guidedMode && meeting.status === 'IN_PROGRESS' && (() => {
-        const PROCEDURAL = ['CHAIRPERSON_ELECTION', 'QUORUM_CONFIRMATION'];
-        const steps = meeting.agendaItems.filter((a: any) => !PROCEDURAL.includes(a.itemType ?? 'STANDARD'));
-        const currentItem = steps[guidedStep];
-        if (!currentItem) return null;
-        const itemRes = resolutions.filter((r: any) => r.agendaItemId === currentItem.id);
-        const stepDone = itemRes.length > 0 && itemRes.every((r: any) => ['APPROVED','REJECTED','NOTED'].includes(r.status));
-        const isLast = guidedStep >= steps.length - 1;
-        return (
+      {guidedMode && meeting.status === 'IN_PROGRESS' && <GuidedMeetingView
+        meeting={meeting} resolutions={resolutions} guidedStep={guidedStep}
+        setGuidedStep={setGuidedStep} setGuidedMode={setGuidedMode}
+        companyId={companyId} meetingId={meetingId} jwt={jwt}
+        currentUserId={me?.id ?? ''} isAdmin={isAdmin}
+        isChairperson={isChairpersonUser} vaultDocs={vaultDocs}
+        onRefresh={reload}
+      />}
+
+      {/* ── Normal workspace layout ─────────────────────────────────────────── */}
+      {!guidedMode && (
           <div className="flex flex-1 overflow-hidden">
             {/* Step progress rail */}
             <div className="w-56 flex-shrink-0 bg-[#13161B] border-r border-[#232830] flex flex-col overflow-y-auto p-3">
@@ -358,15 +360,8 @@ export default function MeetingWorkspacePage() {
                     className="text-sm font-semibold text-blue-400 hover:text-blue-300 disabled:opacity-30 disabled:cursor-not-allowed transition-colors">
                     {stepDone ? 'Next →' : 'Complete item to continue'}
                   </button>
-                )}
-              </div>
-            </div>
-          </div>
-        );
-      })()}
-
       {/* ── Normal workspace layout ─────────────────────────────────────────── */}
-      {!guidedMode && <div className="flex flex-1 overflow-hidden">
+      {!guidedMode && (<div className="flex flex-1 overflow-hidden">
         {/* ── Sidebar ─────────────────────────────────────────────────────────── */}
         <aside className="w-60 flex-shrink-0 bg-[#13161B] border-r border-[#232830] flex flex-col overflow-y-auto">
           <div className="px-4 pt-5 pb-2">
@@ -2099,7 +2094,7 @@ function ResolutionCard({ resolution, index, companyId, jwt, currentUserId, meet
             </div>
           )}
         </div>
-      </div>}
+      </div>)}
     </div>
   );
 }
@@ -2609,4 +2604,133 @@ function MeetingDocumentsPanel({
     </div>
   );
 }
+// ── Guided Meeting Walk-Through ───────────────────────────────────────────────
+// Replaces the sidebar+main layout with a step-by-step flow when guidedMode=true.
+// Each agenda item is a step. Next is locked until current item is fully resolved.
+function GuidedMeetingView({
+  meeting, resolutions, guidedStep, setGuidedStep, setGuidedMode,
+  companyId, meetingId, jwt, currentUserId, isAdmin, isChairperson, vaultDocs, onRefresh,
+}: any) {
+  const PROCEDURAL = ['CHAIRPERSON_ELECTION', 'QUORUM_CONFIRMATION'];
+  const steps = (meeting.agendaItems ?? []).filter(
+    (a: any) => !PROCEDURAL.includes(a.itemType ?? 'STANDARD')
+  );
+  const currentItem = steps[guidedStep] ?? steps[0];
+  if (!currentItem) return (
+    <div className="flex flex-1 items-center justify-center text-zinc-600 text-sm">
+      No agenda items to walk through.
+    </div>
+  );
 
+  const itemRes  = resolutions.filter((r: any) => r.agendaItemId === currentItem.id);
+  const stepDone = itemRes.length > 0 && itemRes.every(
+    (r: any) => ['APPROVED','REJECTED','NOTED'].includes(r.status)
+  );
+  const isLast   = guidedStep >= steps.length - 1;
+  const safeStep = Math.min(Math.max(guidedStep, 0), steps.length - 1);
+
+  return (
+    <div className="flex flex-1 overflow-hidden">
+      {/* ── Step rail ── */}
+      <div className="w-56 flex-shrink-0 bg-[#13161B] border-r border-[#232830] flex flex-col overflow-y-auto p-3">
+        <p className="text-zinc-600 text-[10px] uppercase tracking-widest font-semibold mb-3 px-1">
+          Step {safeStep + 1} of {steps.length}
+        </p>
+        {steps.map((item: any, idx: number) => {
+          const iRes   = resolutions.filter((r: any) => r.agendaItemId === item.id);
+          const done   = iRes.length > 0 && iRes.every((r: any) => ['APPROVED','REJECTED','NOTED'].includes(r.status));
+          const active = idx === safeStep;
+          const locked = idx > safeStep;
+          return (
+            <button key={item.id}
+              onClick={() => { if (!locked) setGuidedStep(idx); }}
+              disabled={locked}
+              className={`w-full text-left px-3 py-2.5 rounded-lg mb-1 flex items-start gap-2.5 transition-all border ${
+                active  ? 'bg-blue-950/60 border-blue-800/50'
+                : locked ? 'opacity-30 cursor-not-allowed border-transparent'
+                : 'hover:bg-[#191D24] border-transparent cursor-pointer'
+              }`}>
+              <span className={`flex-shrink-0 w-5 h-5 rounded-full border text-[10px] font-bold flex items-center justify-center mt-0.5 ${
+                done   ? 'bg-green-950 border-green-700 text-green-400'
+                : active ? 'bg-blue-950 border-blue-700 text-blue-400'
+                : 'bg-zinc-900 border-zinc-700 text-zinc-500'
+              }`}>{done ? '✓' : idx + 1}</span>
+              <p className={`text-xs font-medium leading-tight ${
+                active ? 'text-blue-300' : done ? 'text-zinc-400' : 'text-zinc-500'
+              }`}>{item.title}</p>
+            </button>
+          );
+        })}
+      </div>
+
+      {/* ── Main step area ── */}
+      <div className="flex-1 flex flex-col overflow-hidden">
+        {/* Step header */}
+        <div className="border-b border-[#232830] px-8 py-4 flex items-center justify-between">
+          <div>
+            <p className="text-zinc-600 text-[10px] uppercase tracking-widest font-semibold mb-1">
+              Agenda Item {safeStep + 1} of {steps.length}
+            </p>
+            <h2 className="text-[#F0F2F5] font-bold text-lg">{currentItem.title}</h2>
+            {currentItem.description && (
+              <p className="text-zinc-500 text-sm mt-0.5">{currentItem.description}</p>
+            )}
+          </div>
+          {stepDone && (
+            <span className="text-green-400 text-sm font-semibold bg-green-950/40 border border-green-800/40 px-3 py-1.5 rounded-lg">
+              ✓ Complete
+            </span>
+          )}
+        </div>
+
+        {/* Step content — reuses ResolutionsPanel */}
+        <div className="flex-1 overflow-y-auto p-6">
+          <ResolutionsPanel
+            companyId={companyId} meetingId={meetingId} jwt={jwt}
+            meeting={meeting} resolutions={resolutions}
+            activeAgendaItem={currentItem}
+            currentUserId={currentUserId} onRefresh={onRefresh}
+            isAdmin={isAdmin} isChairperson={isChairperson}
+            vaultDocs={vaultDocs}
+          />
+        </div>
+
+        {/* Step navigation */}
+        <div className="border-t border-[#232830] px-8 py-4 flex items-center justify-between">
+          <button
+            onClick={() => setGuidedStep((s: number) => Math.max(0, s - 1))}
+            disabled={safeStep === 0}
+            className="text-sm font-semibold text-zinc-400 hover:text-zinc-200 disabled:opacity-30 disabled:cursor-not-allowed transition-colors">
+            ← Previous
+          </button>
+
+          {/* Dot progress */}
+          <div className="flex gap-1.5 items-center">
+            {steps.map((_: any, idx: number) => (
+              <div key={idx} className={`h-1.5 rounded-full transition-all duration-300 ${
+                idx === safeStep ? 'bg-blue-500 w-4'
+                : idx < safeStep ? 'bg-green-600 w-1.5'
+                : 'bg-zinc-700 w-1.5'
+              }`} />
+            ))}
+          </div>
+
+          {isLast ? (
+            <button
+              onClick={() => setGuidedMode(false)}
+              className="text-sm font-semibold text-green-400 hover:text-green-300 transition-colors">
+              Finish ✓
+            </button>
+          ) : (
+            <button
+              onClick={() => setGuidedStep((s: number) => Math.min(steps.length - 1, s + 1))}
+              disabled={!stepDone}
+              className="text-sm font-semibold text-blue-400 hover:text-blue-300 disabled:opacity-30 disabled:cursor-not-allowed transition-colors">
+              {stepDone ? 'Next →' : 'Complete item to continue'}
+            </button>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
