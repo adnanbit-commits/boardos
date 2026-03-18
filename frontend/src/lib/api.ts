@@ -42,7 +42,7 @@ export interface User {
 }
 
 export interface CompanyWithMeta {
-  id: string; name: string; cin?: string;
+  id: string; name: string; cin?: string; mcaDirectors?: { din: string; name: string; designation: string; appointedOn: string | null }[];
   registeredAt?: string | null;  // registered office address
   myRole: 'DIRECTOR' | 'COMPANY_SECRETARY' | 'AUDITOR' | 'OBSERVER';
   isWorkspaceAdmin: boolean; createdAt: string;
@@ -57,6 +57,7 @@ export interface CompanyDetail extends CompanyWithMeta {
 
 export interface CompanyMember {
   id: string; userId: string; role: string; isWorkspaceAdmin: boolean;
+  din?: string | null;
   additionalDesignation?: string; designationLabel?: string;
   acceptedAt: string | null;
   user: { id: string; name: string; email: string };
@@ -242,8 +243,10 @@ export const companies = {
     get<CompanyWithMeta[]>('/companies', token),
   findOne: (id: string, token: string) =>
     get<CompanyDetail>(`/companies/${id}`, token),
-  create: (body: { name: string; cin?: string }, token: string) =>
+  create: (body: { name: string; cin?: string; mcaDirectors?: any[] }, token: string) =>
     post<CompanyWithMeta>('/companies', body, token),
+  claimSeat: (companyId: string, din: string, token: string) =>
+    post<any>(`/companies/${companyId}/claim-seat`, { din }, token),
   update: (id: string, body: Partial<{ name: string; cin: string }>, token: string) =>
     patch<CompanyWithMeta>(`/companies/${id}`, body, token),
   listMembers: (companyId: string, token: string) =>

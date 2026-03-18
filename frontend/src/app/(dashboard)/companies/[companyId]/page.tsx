@@ -16,6 +16,7 @@ import {
   type AuditLog,
 } from '@/lib/api';
 import { getToken, getUser } from '@/lib/auth';
+import ClaimSeatPrompt from '@/components/ClaimSeatPrompt';
 
 // ── Designation config ────────────────────────────────────────────────────────
 
@@ -186,6 +187,7 @@ export default function CompanyWorkspacePage() {
 
   // Transfer admin modal
   const [showTransfer,    setShowTransfer]    = useState(false);
+  const [claimDismissed,  setClaimDismissed]  = useState(false);
   const [transferTarget,  setTransferTarget]  = useState('');
   const [transferring,    setTransferring]    = useState(false);
   const [transferErr,     setTransferErr]     = useState('');
@@ -319,6 +321,16 @@ export default function CompanyWorkspacePage() {
       {/* ── OVERVIEW ─────────────────────────────────────────────────────────── */}
       {tab === 'overview' && (
         <div className="space-y-5">
+          {/* ── Seat claiming prompt ─────────────────────────────────────────── */}
+          {!claimDismissed && myMem && !(myMem as any).din && company && (
+            <ClaimSeatPrompt
+              companyId={companyId}
+              currentUserName={me?.name ?? ''}
+              mcaDirectors={(company as any).mcaDirectors ?? null}
+              onClaimed={() => { setClaimDismissed(true); load(); }}
+              onDismiss={() => setClaimDismissed(true)}
+            />
+          )}
           <div className="grid grid-cols-4 gap-4">
             {[
               { l: 'Meetings',    v: company?._count.meetings    ?? 0, a: '#4F7FFF' },

@@ -205,6 +205,9 @@ model Company {
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 
+  mcaDirectors      Json?    // Director list from MCA at workspace creation time
+                             // [{din, name, designation, appointedOn}]
+
   // Relations
   companyUsers      CompanyUser[]
   meetings          Meeting[]
@@ -236,6 +239,8 @@ model CompanyUser {
   // Additional designation — sub-category shown in minutes and documents
   additionalDesignation DesignationEnum? @map("additional_designation")
   designationLabel      String?          @map("designation_label")
+
+  din        String?  @map("din")  // Director Identification Number — set when director claims MCA seat
 
   invitedAt  DateTime @default(now())
   acceptedAt DateTime?

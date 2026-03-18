@@ -74,7 +74,14 @@ export class CompanyService {
     }
 
     const result = await this.prisma.$transaction(async (tx) => {
-      const company = await tx.company.create({ data: dto });
+      // Strip mcaDirectors from the main dto before creating — it's stored separately
+      const { mcaDirectors, ...companyData } = dto as any;
+      const company = await tx.company.create({
+        data: {
+          ...companyData,
+          ...(mcaDirectors?.length ? { mcaDirectors } : {}),
+        },
+      });
 
       await tx.companyUser.create({
         data: {
@@ -270,6 +277,43 @@ export class CompanyService {
   // Called by archive.service when a meeting is locked.
   // Sets firstBoardMeetingLockedId on the company — this suppresses all
   // "first meeting only" items from subsequent meeting templates.
+
+  /**
+   * Claim a director seat — links the current user to an MCA director record.
+   * Stores the DIN against the CompanyUser record.
+   * If a name is provided and no mcaDirectors exist, stores it as a freeform claim.
+   */
+  async claimSeat(
+    companyId: string,
+    userId: string,
+    din: string,
+  ) {
+    // Verify user is a member
+    const membership = await this.prisma.companyUser.findUnique({
+      where: { userId_companyId: { userId, companyId } },
+    });
+    if (!membership) throw new NotFoundException('You are not a member of this company');
+
+    // Check DIN not already claimed by another member
+    const alreadyClaimed = await this.prisma.companyUser.findFirst({
+      where: { companyId, din, userId: { not: userId } },
+    });
+    if (alreadyClaimed) throw new ConflictException('This director seat has already been claimed by another member');
+
+    const updated = await this.prisma.companyUser.update({
+      where: { userId_companyId: { userId, companyId } },
+      data: { din },
+    });
+
+    await this.audit.log({
+      companyId, userId,
+      action: 'DIRECTOR_SEAT_CLAIMED',
+      entity: 'CompanyUser', entityId: updated.id,
+      metadata: { din },
+    });
+
+    return updated;
+  }
 
   async setFirstMeetingLocked(companyId: string, meetingId: string) {
     const company = await this.prisma.company.findUnique({ where: { id: companyId } });

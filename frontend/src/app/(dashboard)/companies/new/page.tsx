@@ -86,7 +86,11 @@ export default function NewCompanyPage() {
     setSubmitting(true); setStep('creating'); setError('');
     try {
       const company = await companiesApi.create(
-        { name: cinData?.companyName ?? name.trim(), ...(cin.trim() ? { cin: cin.trim().toUpperCase() } : {}) },
+        {
+          name: cinData?.companyName ?? name.trim(),
+          ...(cin.trim() ? { cin: cin.trim().toUpperCase() } : {}),
+          ...(cinData?.directors?.length ? { mcaDirectors: cinData.directors } : {}),
+        },
         token,
       );
       if (cinData) {

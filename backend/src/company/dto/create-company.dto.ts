@@ -1,4 +1,4 @@
-import { IsString, IsOptional, Length, Matches } from 'class-validator';
+import { IsString, IsOptional, IsArray, Length, Matches } from 'class-validator';
 
 export class CreateCompanyDto {
   @IsString()
@@ -23,4 +23,13 @@ export class CreateCompanyDto {
   @IsOptional()
   @IsString()
   logoUrl?: string;
+
+  @IsOptional()
+  @IsArray()
+  mcaDirectors?: {
+    din: string;
+    name: string;
+    designation: string;
+    appointedOn: string | null;
+  }[];
 }

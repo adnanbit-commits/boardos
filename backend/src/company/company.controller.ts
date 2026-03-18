@@ -156,6 +156,20 @@ export class CompanyController {
     return this.inviteService.accept(token, req.user.userId);
   }
 
+  // ── Seat claiming ────────────────────────────────────────────────────────────
+
+  /** Director claims their MCA seat — links userId to DIN */
+  @Post(':companyId/claim-seat')
+  @UseGuards(CompanyGuard)
+  @HttpCode(200)
+  claimSeat(
+    @Param('companyId') companyId: string,
+    @Body() body: { din: string },
+    @Req() req: any,
+  ) {
+    return this.companyService.claimSeat(companyId, req.user.userId, body.din);
+  }
+
   // ── Audit ───────────────────────────────────────────────────────────────────
 
   /** Full audit trail for a company */
