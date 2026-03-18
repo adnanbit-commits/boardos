@@ -6,9 +6,10 @@ import { MinutesController }  from './minutes.controller';
 import { AuditModule }        from '../audit/audit.module';
 import { StorageModule }      from '../storage/storage.module';
 import { NotificationModule } from '../notification/notification.module';
+import { RealtimeModule } from '../realtime/realtime.module';
 
 @Module({
-  imports:     [AuditModule, StorageModule, NotificationModule],
+  imports:     [AuditModule, StorageModule, NotificationModule, RealtimeModule],
   controllers: [MinutesController],
   providers:   [MinutesService],
   exports:     [MinutesService],

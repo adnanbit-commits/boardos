@@ -6,6 +6,7 @@ import { NotificationService } from '../notification/notification.service';
 import { CreateMeetingDto } from './dto/create-meeting.dto';
 import { UpdateMeetingDto } from './dto/update-meeting.dto';
 import { AddAgendaItemDto } from './dto/add-agenda-item.dto';
+import { MeetingGateway } from '../realtime/meeting.gateway';
 
 const ALLOWED_TRANSITIONS: Record<MeetingStatus, MeetingStatus[]> = {
   DRAFT:              ['SCHEDULED'],
@@ -24,6 +25,7 @@ export class MeetingService {
     private readonly prisma: PrismaService,
     private readonly audit: AuditService,
     private readonly notificationService: NotificationService,
+    private readonly gateway: MeetingGateway,
   ) {}
 
   findAll(companyId: string) {

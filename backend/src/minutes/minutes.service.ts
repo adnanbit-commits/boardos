@@ -19,6 +19,7 @@ import { PrismaService }       from '../prisma/prisma.service';
 import { AuditService }        from '../audit/audit.service';
 import { StorageService }      from '../storage/storage.service';
 import { NotificationService } from '../notification/notification.service';
+import { MeetingGateway } from '../realtime/meeting.gateway';
 
 @Injectable()
 export class MinutesService {
@@ -27,6 +28,7 @@ export class MinutesService {
     private readonly audit:         AuditService,
     private readonly storage:       StorageService,
     private readonly notifications: NotificationService,
+    private readonly gateway:       MeetingGateway,
   ) {}
 
   async generate(companyId: string, meetingId: string, userId: string) {
@@ -58,6 +60,7 @@ export class MinutesService {
       : await this.prisma.minutes.create({ data: { meetingId, content } });
 
     await this.audit.log({ companyId, userId, action: 'MINUTES_GENERATED', entity: 'Minutes', entityId: minutes.id });
+    this.gateway.broadcastMinutesUpdated(meetingId);
     return minutes;
   }
 

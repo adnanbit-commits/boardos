@@ -26,6 +26,7 @@ import { NotificationService } from '../notification/notification.service';
 import { CreateResolutionDto } from './dto/create-resolution.dto';
 import { UpdateResolutionDto } from './dto/update-resolution.dto';
 import { BulkOpenVotingDto } from './dto/bulk-open-voting.dto';
+import { MeetingGateway } from '../realtime/meeting.gateway';
 
 // Legal forward-only transitions. Withdraw (PROPOSED → DRAFT) is handled separately.
 const ALLOWED_TRANSITIONS: Partial<Record<ResolutionStatus, ResolutionStatus[]>> = {
@@ -43,6 +44,7 @@ export class ResolutionService {
     private readonly prisma: PrismaService,
     private readonly audit: AuditService,
     private readonly notification: NotificationService,
+    private readonly gateway: MeetingGateway,
   ) {}
 
   // ── Queries ─────────────────────────────────────────────────────────────────
@@ -177,6 +179,7 @@ export class ResolutionService {
       metadata: { title: dto.title, meetingId },
     });
 
+    if (resolution.meetingId) this.gateway.broadcastResolutionUpdated(resolution.meetingId);
     return resolution;
   }
 
@@ -215,6 +218,8 @@ export class ResolutionService {
       metadata: dto,
     });
 
+    const r = await this.assertExists(companyId, id);
+    if (r.meetingId) this.gateway.broadcastResolutionUpdated(r.meetingId);
     return updated;
   }
 
@@ -277,6 +282,7 @@ export class ResolutionService {
       metadata: { from: resolution.status, to: targetStatus },
     });
 
+    if (resolution.meetingId) this.gateway.broadcastResolutionUpdated(resolution.meetingId);
     return updated;
   }
 
@@ -331,6 +337,7 @@ export class ResolutionService {
       metadata: { meetingId: resolution.meetingId },
     });
 
+    if (resolution.meetingId) this.gateway.broadcastResolutionUpdated(resolution.meetingId);
     return updated;
   }
 

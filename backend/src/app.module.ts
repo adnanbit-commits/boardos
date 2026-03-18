@@ -19,6 +19,7 @@ import { NotificationModule } from './notification/notification.module';
 import { CinModule } from './cin/cin.module';
 import { CircularModule } from './circular/circular.module';
 import { PrismaModule } from './prisma/prisma.module';
+import { RealtimeModule } from './realtime/realtime.module';
 
 @Module({
   imports: [
@@ -34,6 +35,7 @@ import { PrismaModule } from './prisma/prisma.module';
     }),
 
     PrismaModule,
+    RealtimeModule,
     AuthModule,
     CompanyModule,
     MeetingModule,

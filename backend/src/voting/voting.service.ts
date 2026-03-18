@@ -5,12 +5,14 @@ import { VoteValue, ResolutionStatus } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { AuditService } from '../audit/audit.service';
 import { CastVoteDto } from './dto/cast-vote.dto';
+import { MeetingGateway } from '../realtime/meeting.gateway';
 
 @Injectable()
 export class VotingService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly audit: AuditService,
+    private readonly gateway: MeetingGateway,
   ) {}
 
   async getTally(companyId: string, resolutionId: string) {
@@ -86,6 +88,13 @@ export class VotingService {
 
     // Check if all directors have voted — auto-finalize if so
     await this.checkAndFinalizeResolution(companyId, resolutionId);
+
+    // Broadcast vote + any auto-finalize status change
+    const res = await this.getResolution(companyId, resolutionId);
+    if (res.meetingId) {
+      this.gateway.broadcastVoteCast(res.meetingId);
+      this.gateway.broadcastResolutionUpdated(res.meetingId);
+    }
 
     return vote;
   }

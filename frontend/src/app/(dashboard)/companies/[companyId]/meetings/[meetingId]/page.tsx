@@ -3,6 +3,7 @@ import { useEffect, useState, useCallback, useRef } from 'react';
 import { useParams } from 'next/navigation';
 import { meetings, resolutions as resApi, voting, minutesApi, vault as vaultApi, resolveDownloadUrl } from '@/lib/api';
 import { getToken, getUser } from '@/lib/auth';
+import { useMeetingSocket } from '@/hooks/useMeetingSocket';
 import type {
   MeetingDetail, Resolution, AgendaItem, MeetingStatus,
   AttendanceRecord, AttendanceMode,
@@ -79,6 +80,19 @@ export default function MeetingWorkspacePage() {
   }, [companyId, meetingId, jwt, me?.id]);
 
   useEffect(() => { reload(); }, [reload]);
+
+  // ── Real-time sync ────────────────────────────────────────────────────────
+  // Any mutation by any director in this meeting triggers the relevant reload
+  // so all participants see changes instantly without manual refresh.
+  useMeetingSocket(meetingId, jwt, {
+    onMeetingUpdated:     reload,
+    onResolutionUpdated:  reload,
+    onVoteCast:           reload,
+    onAttendanceUpdated:  reload,
+    onDeclarationUpdated: reload,
+    onNominationUpdated:  reload,
+    onMinutesUpdated:     reload,
+  });
 
   // Auto-focus: guide user to the right panel for current status
   useEffect(() => {
@@ -578,14 +592,11 @@ function ChairpersonModal({ companyId, meetingId, jwt, currentUserId, onElected,
   useEffect(() => {
     mountedRef.current = true;
     loadNomination();
-    // Poll every 3s so Director B sees Director A's nomination in real time
-    intervalRef.current = setInterval(loadNomination, 3000);
+    // Real-time updates handled by useMeetingSocket in parent page —
+    // onNominationUpdated calls the parent reload which re-renders this modal.
+    // No polling needed.
     return () => {
       mountedRef.current = false;
-      if (intervalRef.current) {
-        clearInterval(intervalRef.current);
-        intervalRef.current = null;
-      }
     };
   }, [loadNomination]);
 
