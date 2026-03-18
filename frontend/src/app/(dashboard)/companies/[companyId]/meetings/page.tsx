@@ -277,11 +277,11 @@ export default function MeetingsPage() {
               const dynamicRes    = rawResText ? substituteTemplateVars(rawResText, vars) : undefined;
               try {
                 await resApi.create(companyId, meeting.id, {
-                  title:         substituteTemplateVars(wi.title, vars),
-                  text:          dynamicMotion || 'Form noted.',
-                  resolutionText:dynamicRes,
-                  type:          'NOTING',
-                  agendaItemId:  agendaItem.id,
+                  title:          substituteTemplateVars(wi.title, vars),
+                  motionText:     dynamicMotion || 'Form noted.',
+                  resolutionText: dynamicRes,
+                  type:           'NOTING',
+                  agendaItemId:   agendaItem.id,
                 }, token);
               } catch (e) {
                 console.error('[applyTemplate] dynamic item failed:', wi.title, e);
@@ -301,7 +301,7 @@ export default function MeetingsPage() {
             try {
               await resApi.create(companyId, meeting.id, {
                 title:          substituteTemplateVars(wi.title, templateVars),
-                text:           motionText,
+                motionText:     motionText,
                 resolutionText: resolutionText,
                 type:           resType as 'MEETING' | 'NOTING',
                 agendaItemId:   agendaItem.id,

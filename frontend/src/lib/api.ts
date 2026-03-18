@@ -128,14 +128,9 @@ export interface Resolution {
   id: string; meetingId: string | null; agendaItemId: string | null;
   type?: 'MEETING' | 'CIRCULAR' | 'NOTING';
   title: string;
-  text: string;             // Full resolution text — motion wording merged with enacted wording at write time
-  /**
-   * @deprecated NOT a DB column. The backend merges resolutionText into `text`
-   * before writing. This field may appear on frontend state objects but will
-   * never be returned from the API. Read `text` instead.
-   */
-  resolutionText?: string | null;
-  status: string;
+  motionText: string;        // What is proposed — shown during discussion and voting
+  resolutionText?: string | null;  // Enacted wording — set when passed
+    status: string;
   tally?: { APPROVE: number; REJECT: number; ABSTAIN: number };
   votes?: Vote[];
   directorCount?: number;
@@ -387,9 +382,9 @@ export const resolutions = {
     get<Resolution[]>(`/companies/${companyId}/resolutions${params?.status ? `?status=${params.status}` : ''}`, token),
   listForMeeting: (companyId: string, meetingId: string, token: string) =>
     get<Resolution[]>(`/companies/${companyId}/meetings/${meetingId}/resolutions`, token),
-  create: (companyId: string, meetingId: string, body: { title: string; text: string; resolutionText?: string; agendaItemId?: string; type?: 'MEETING' | 'NOTING'; vaultDocId?: string; meetingDocId?: string }, token: string) =>
+  create: (companyId: string, meetingId: string, body: { title: string; motionText: string; resolutionText?: string; agendaItemId?: string; type?: 'MEETING' | 'NOTING'; vaultDocId?: string; meetingDocId?: string }, token: string) =>
     post<Resolution>(`/companies/${companyId}/meetings/${meetingId}/resolutions`, body, token),
-  update: (companyId: string, resolutionId: string, body: Partial<{ title: string; text: string }>, token: string) =>
+  update: (companyId: string, resolutionId: string, body: Partial<{ title: string; motionText: string; resolutionText: string }>, token: string) =>
     patch<Resolution>(`/companies/${companyId}/resolutions/${resolutionId}`, body, token),
   remove: (companyId: string, resolutionId: string, token: string) =>
     del<{ message: string }>(`/companies/${companyId}/resolutions/${resolutionId}`, token),
@@ -553,7 +548,8 @@ export interface CircularResolution {
   id:                string;
   companyId:         string;
   title:             string;
-  text:              string;
+  motionText:        string;
+  resolutionText?:   string | null;
   circulationNote:   string | null;
   deadline:          string | null;
   serialNumber:      string | null;

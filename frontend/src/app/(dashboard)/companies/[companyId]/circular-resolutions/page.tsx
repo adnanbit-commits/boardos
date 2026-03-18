@@ -155,7 +155,7 @@ function ResolutionCard({ res, companyId, currentUserId, onRefresh }: {
   const [remarks,  setRemarks]    = useState('');
   const [loading,  setLoading]    = useState(false);
   const [editTitle, setEditTitle] = useState(res.title);
-  const [editText,  setEditText]  = useState(res.text);
+  const [editText,  setEditText]  = useState(res.motionText);
   const [editNote,  setEditNote]  = useState(res.circulationNote ?? '');
 
   const mySignature   = res.signatures.find(s => s.userId === currentUserId);
@@ -291,7 +291,7 @@ function ResolutionCard({ res, companyId, currentUserId, onRefresh }: {
             <p style={{ fontSize:11, fontWeight:700, color:'#6B7280', textTransform:'uppercase',
               letterSpacing:'0.06em', marginBottom:8 }}>Resolution Text</p>
             <p style={{ fontSize:13, color:'#D1D5DB', lineHeight:1.8, margin:0, fontFamily:'monospace',
-              whiteSpace:'pre-wrap' }}>{res.text}</p>
+              whiteSpace:'pre-wrap' }}>{res.resolutionText || res.motionText}</p>
           </div>
 
           {/* Signatures */}

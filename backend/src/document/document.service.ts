@@ -191,7 +191,7 @@ export class DocumentService {
           </div>
 
           <p><strong>Resolution Text:</strong></p>
-          <div class="resolution-text">${resolution.text}</div>
+          <div class="resolution-text">${resolution.resolutionText || resolution.motionText}</div>
 
           <div class="footer">
             <p>This is a certified true copy of the resolution passed at the Board Meeting of ${resolution.meeting.company.name}.</p>

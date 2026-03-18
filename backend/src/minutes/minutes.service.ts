@@ -181,7 +181,7 @@ export class MinutesService {
         return `
           <div class="resolution noting">
             <h3>Item ${idx + 1}: ${res.title} <span style="font-size:10pt;color:#6b7280">[Taken on Record]</span></h3>
-            <div class="resolution-text">${res.text}</div>
+            <div class="resolution-text">${res.motionText}</div>
             <p><strong>Status:</strong> ${res.status === 'NOTED' ? 'Placed on record' : res.status}</p>
           </div>`;
       }
@@ -195,9 +195,10 @@ export class MinutesService {
       const abstainLine  = abstentions.length > 0
         ? `<p><strong>Directors who abstained:</strong> ${abstentions.join(', ')}</p>` : '';
 
-      // `text` already contains the final wording (resolutionText was merged into
-      // it by sanitizeResolutionInput at create/update time — see resolution.service.ts).
-      const minutesText = res.text;
+      // Use resolutionText (enacted wording) if available, fall back to motionText
+      const minutesText = res.status === 'APPROVED'
+        ? (res.resolutionText || res.motionText)
+        : res.motionText;
 
       return `
         <div class="resolution">

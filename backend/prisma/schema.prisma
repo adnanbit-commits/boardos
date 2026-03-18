@@ -397,9 +397,10 @@ model Resolution {
   externalDocPlatform String?  // "MCA21" | "Google Drive" | "Dropbox" | "OneDrive" | "Other"
   physicallyPresent   Boolean? // Path C: chairperson confirms doc present at deemed venue
   physicalEvidence    String?  // auto-text: "physically present at [venue] on [date]" 
-  title        String
-  text         String           // Full legal resolution text
-  status       ResolutionStatus @default(DRAFT)
+  title          String
+  motionText     String           // What is proposed — shown during discussion and voting
+  resolutionText String?          // Enacted wording — "RESOLVED THAT..." — null until drafted or passed
+  status         ResolutionStatus @default(DRAFT)
   createdAt    DateTime         @default(now())
   updatedAt    DateTime         @updatedAt
 

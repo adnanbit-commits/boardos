@@ -1715,9 +1715,10 @@ function ResolutionCard({ resolution, index, companyId, jwt, currentUserId, meet
           {/* Motion text (pre-vote) OR Resolution text (post-approval) */}
           {!isNoting && (() => {
             const isApproved = resolution.status === 'APPROVED';
-            // resolutionText is no longer returned from the API — the backend merges
-            // it into `text` at write time. Always read from `text`.
-            const displayText = resolution.text;
+            // Show resolutionText (enacted wording) when approved, motionText during voting
+            const displayText = (isApproved && resolution.resolutionText)
+              ? resolution.resolutionText
+              : resolution.motionText;
             const label = isApproved
               ? 'Resolution (passed)'
               : resolution.status === 'REJECTED'
@@ -1738,7 +1739,7 @@ function ResolutionCard({ resolution, index, companyId, jwt, currentUserId, meet
           {isNoting && (
             <div className="bg-[#13161B] border-l-2 border-zinc-700 pl-4 py-3 pr-3 rounded-r-xl">
               <p className="text-zinc-600 text-[10px] uppercase tracking-widest font-semibold mb-1.5">Noting</p>
-              <p className="text-zinc-400 text-xs leading-relaxed whitespace-pre-wrap">{resolution.text}</p>
+              <p className="text-zinc-400 text-xs leading-relaxed whitespace-pre-wrap">{resolution.motionText}</p>
             </div>
           )}
 
@@ -2134,7 +2135,7 @@ function AddResolutionForm({ companyId, meetingId, agendaItemId, jwt, onAdded, v
     try {
       await resApi.create(companyId, meetingId, {
         title,
-        text:           type === 'NOTING' ? 'Noting item' : motionText.trim(),
+        motionText:     type === 'NOTING' ? 'Noting item' : motionText.trim(),
         resolutionText: type === 'MEETING' && resolutionText.trim() ? resolutionText.trim() : undefined,
         agendaItemId,
         type,
