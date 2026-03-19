@@ -710,17 +710,15 @@ export default function TemplatesPage() {
       </div>
 
       {/* Variable Define Dialog */}
-      {defineVar && (
+      {defineVar && (() => {
+        const _dvWi = bItems.find(i => i.id === defineVar.itemId)?.workItems.find(w => w.id === defineVar.wiId);
+        const _dvLabel = _dvWi?.variables.find(v => v.key === defineVar.key)?.label ?? '';
+        const _dvType  = (_dvWi?.variables.find(v => v.key === defineVar.key)?.type ?? 'text') as VariableType;
+        return (
         <VariableDefineDialog
           initialKey={defineVar.key ?? ''}
-          initialLabel={(() => {
-            const wi = bItems.find(i => i.id === defineVar.itemId)?.workItems.find(w => w.id === defineVar.wiId);
-            return wi?.variables.find(v => v.key === defineVar.key)?.label ?? '';
-          })()}
-          initialType={(() => {
-            const wi = bItems.find(i => i.id === defineVar.itemId)?.workItems.find(w => w.id === defineVar.wiId);
-            return (wi?.variables.find(v => v.key === defineVar.key)?.type ?? 'text') as VariableType;
-          })()}
+          initialLabel={_dvLabel}
+          initialType={_dvType}
           onSave={(key, label, type) => {
             const item = bItems.find(i => i.id === defineVar.itemId);
             if (!item) return;
@@ -749,7 +747,8 @@ export default function TemplatesPage() {
           }}
           onClose={() => setDefineVar(null)}
         />
-      )}
+        );
+      })()}
     </>
   );
   }
