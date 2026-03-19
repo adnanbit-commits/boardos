@@ -278,6 +278,9 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                 <div style={{ height: 1, background: '#232830', margin: '6px 4px' }} />
                 {/* Company switcher in sidebar */}
                 <div style={{ padding: '2px 4px 4px' }}>
+                  <p style={{ fontSize:9, fontWeight:700, color:'#4B5563', textTransform:'uppercase', letterSpacing:'0.08em', marginBottom:4, paddingLeft:2 }}>
+                    Your Workspaces
+                  </p>
                   <select
                     value={company.id}
                     onChange={e => {
