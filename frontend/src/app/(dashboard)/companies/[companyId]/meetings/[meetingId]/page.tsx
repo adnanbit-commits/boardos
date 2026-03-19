@@ -1593,7 +1593,7 @@ function DocumentNotingInline({ companyId, meetingId, jwt, meeting, resolutions,
         {notingResolutions.map((res: Resolution, idx: number) => (
           <ResolutionCard key={res.id} resolution={res} index={idx + 1}
             companyId={companyId} jwt={jwt} currentUserId=""
-            meeting={meeting} isAdmin={false} isChairperson={isChairperson} onRefresh={onRefresh} activeAgendaItem={activeAgendaItem} />
+            meeting={meeting} isAdmin={false} isChairperson={isChairperson} onRefresh={onRefresh} activeAgendaItem={agendaItem} />
         ))}
       </div>
     </div>
