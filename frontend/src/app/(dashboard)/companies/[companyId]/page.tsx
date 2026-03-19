@@ -167,7 +167,6 @@ type TabId = 'overview' | 'members' | 'audit';
 
 export default function CompanyWorkspacePage() {
   const { companyId } = useParams<{ companyId: string }>();
-  if (companyId === 'new') return null;
   const jwt = getToken()!;
   const me  = getUser();
 
