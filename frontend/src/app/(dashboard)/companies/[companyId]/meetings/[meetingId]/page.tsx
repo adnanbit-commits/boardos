@@ -1778,7 +1778,7 @@ function ResolutionCard({ resolution, index, companyId, jwt, currentUserId, meet
                   onFill={async (key, value) => {
                     if (!activeAgendaItem) return;
                     try {
-                      await meetings.updateVariableValues(companyId, meetingId, activeAgendaItem.id, { [key]: value }, jwt);
+                      await meetings.updateVariableValues(companyId, meeting.id, activeAgendaItem.id, { [key]: value }, jwt);
                       await reload();
                     } catch {}
                   }}
