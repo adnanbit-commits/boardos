@@ -1334,7 +1334,7 @@ function ResolutionsPanel({ companyId, meetingId, jwt, meeting, resolutions, act
         {resolutions.map((res: Resolution, idx: number) => (
           <ResolutionCard key={res.id} resolution={res} index={idx + 1}
             companyId={companyId} jwt={jwt} currentUserId={currentUserId}
-            meeting={meeting} isAdmin={isAdmin} isChairperson={isChairperson} onRefresh={onRefresh} />
+            meeting={meeting} isAdmin={isAdmin} isChairperson={isChairperson} onRefresh={onRefresh} activeAgendaItem={activeAgendaItem} />
         ))}
       </div>
     </div>
@@ -1593,7 +1593,7 @@ function DocumentNotingInline({ companyId, meetingId, jwt, meeting, resolutions,
         {notingResolutions.map((res: Resolution, idx: number) => (
           <ResolutionCard key={res.id} resolution={res} index={idx + 1}
             companyId={companyId} jwt={jwt} currentUserId=""
-            meeting={meeting} isAdmin={false} isChairperson={isChairperson} onRefresh={onRefresh} />
+            meeting={meeting} isAdmin={false} isChairperson={isChairperson} onRefresh={onRefresh} activeAgendaItem={activeAgendaItem} />
         ))}
       </div>
     </div>
@@ -1615,7 +1615,7 @@ const PLATFORM_META: Record<string, { label: string; icon: string; urlHint: stri
 };
 const PLATFORMS = Object.keys(PLATFORM_META);
 
-function ResolutionCard({ resolution, index, companyId, jwt, currentUserId, meeting, isAdmin, isChairperson, onRefresh }: any) {
+function ResolutionCard({ resolution, index, companyId, jwt, currentUserId, meeting, isAdmin, isChairperson, onRefresh, activeAgendaItem }: any) {
   const [expanded,  setExpanded]  = useState(resolution.status === 'VOTING');
   const [isVoting,  setIsVoting]  = useState(false);
   const [myVote,    setMyVote]    = useState<string | null>(null);
