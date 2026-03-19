@@ -3,7 +3,6 @@ import { useEffect, useState, useCallback, useRef } from 'react';
 import { useParams } from 'next/navigation';
 import { meetings, resolutions as resApi, voting, minutesApi, vault as vaultApi, resolveDownloadUrl } from '@/lib/api';
 import { getToken, getUser } from '@/lib/auth';
-import { useMeetingSocket } from '@/hooks/useMeetingSocket';
 import type {
   MeetingDetail, Resolution, AgendaItem, MeetingStatus,
   AttendanceRecord, AttendanceMode,
@@ -82,19 +81,6 @@ export default function MeetingWorkspacePage() {
   }, [companyId, meetingId, jwt, me?.id]);
 
   useEffect(() => { reload(); }, [reload]);
-
-  // ── Real-time sync ────────────────────────────────────────────────────────
-  // Any mutation by any director in this meeting triggers the relevant reload
-  // so all participants see changes instantly without manual refresh.
-  useMeetingSocket(meetingId, jwt, {
-    onMeetingUpdated:     reload,
-    onResolutionUpdated:  reload,
-    onVoteCast:           reload,
-    onAttendanceUpdated:  reload,
-    onDeclarationUpdated: reload,
-    onNominationUpdated:  reload,
-    onMinutesUpdated:     reload,
-  });
 
   // Auto-focus: guide user to the right panel for current status
   useEffect(() => {
@@ -256,7 +242,6 @@ export default function MeetingWorkspacePage() {
         <WorkflowProgress status={meeting.status as MeetingStatus} />
       </header>
 
-      {/* ── Guided Mode ────────────────────────────────────────────────────── */}
       {guidedMode && meeting.status === 'IN_PROGRESS' && <GuidedMeetingView
         meeting={meeting} resolutions={resolutions} guidedStep={guidedStep}
         setGuidedStep={setGuidedStep} setGuidedMode={setGuidedMode}
@@ -265,103 +250,7 @@ export default function MeetingWorkspacePage() {
         isChairperson={isChairpersonUser} vaultDocs={vaultDocs}
         onRefresh={reload}
       />}
-
-      {/* ── Normal workspace layout ─────────────────────────────────────────── */}
-      {!guidedMode && (
-          <div className="flex flex-1 overflow-hidden">
-            {/* Step progress rail */}
-            <div className="w-56 flex-shrink-0 bg-[#13161B] border-r border-[#232830] flex flex-col overflow-y-auto p-3">
-              <p className="text-zinc-600 text-[10px] uppercase tracking-widest font-semibold mb-3 px-1">
-                Step {guidedStep + 1} of {steps.length}
-              </p>
-              {steps.map((item: any, idx: number) => {
-                const iRes = resolutions.filter((r: any) => r.agendaItemId === item.id);
-                const done = iRes.length > 0 && iRes.every((r: any) => ['APPROVED','REJECTED','NOTED'].includes(r.status));
-                const active = idx === guidedStep;
-                const locked = idx > guidedStep;
-                return (
-                  <button key={item.id} onClick={() => !locked && setGuidedStep(idx)}
-                    disabled={locked}
-                    className={`w-full text-left px-3 py-2.5 rounded-lg mb-1 flex items-start gap-2.5 transition-all ${
-                      active ? 'bg-blue-950/60 border border-blue-800/50'
-                      : locked ? 'opacity-30 cursor-not-allowed border border-transparent'
-                      : 'hover:bg-[#191D24] border border-transparent cursor-pointer'
-                    }`}>
-                    <span className={`flex-shrink-0 w-5 h-5 rounded-full border text-[10px] font-bold flex items-center justify-center mt-0.5 ${
-                      done ? 'bg-green-950 border-green-700 text-green-400'
-                      : active ? 'bg-blue-950 border-blue-700 text-blue-400'
-                      : 'bg-zinc-900 border-zinc-700 text-zinc-500'
-                    }`}>{done ? '✓' : idx + 1}</span>
-                    <p className={`text-xs font-medium leading-tight ${active ? 'text-blue-300' : done ? 'text-zinc-400' : 'text-zinc-500'}`}>
-                      {item.title}
-                    </p>
-                  </button>
-                );
-              })}
-            </div>
-
-            {/* Main guided step area */}
-            <div className="flex-1 flex flex-col overflow-hidden">
-              {/* Step header */}
-              <div className="border-b border-[#232830] px-8 py-4 flex items-center justify-between">
-                <div>
-                  <p className="text-zinc-600 text-[10px] uppercase tracking-widest font-semibold mb-1">
-                    Agenda Item {guidedStep + 1} of {steps.length}
-                  </p>
-                  <h2 className="text-[#F0F2F5] font-bold text-lg">{currentItem.title}</h2>
-                  {currentItem.description && (
-                    <p className="text-zinc-500 text-sm mt-0.5">{currentItem.description}</p>
-                  )}
-                </div>
-                {stepDone && (
-                  <span className="text-green-400 text-sm font-semibold bg-green-950/40 border border-green-800/40 px-3 py-1.5 rounded-lg">
-                    ✓ Complete
-                  </span>
-                )}
-              </div>
-
-              {/* Step content — reuse existing ResolutionsPanel */}
-              <div className="flex-1 overflow-y-auto p-6">
-                <ResolutionsPanel
-                  companyId={companyId} meetingId={meetingId} jwt={jwt}
-                  meeting={meeting} resolutions={resolutions}
-                  activeAgendaItem={currentItem}
-                  currentUserId={me?.id ?? ''} onRefresh={reload}
-                  isAdmin={isAdmin} isChairperson={isChairpersonUser}
-                  vaultDocs={vaultDocs}
-                />
-              </div>
-
-              {/* Step navigation */}
-              <div className="border-t border-[#232830] px-8 py-4 flex items-center justify-between">
-                <button
-                  onClick={() => setGuidedStep(s => Math.max(0, s - 1))}
-                  disabled={guidedStep === 0}
-                  className="text-sm font-semibold text-zinc-400 hover:text-zinc-200 disabled:opacity-30 disabled:cursor-not-allowed transition-colors">
-                  ← Previous
-                </button>
-                <div className="flex gap-1.5">
-                  {steps.map((_: any, idx: number) => (
-                    <div key={idx} className={`w-1.5 h-1.5 rounded-full transition-all ${
-                      idx === guidedStep ? 'bg-blue-500 w-4' : idx < guidedStep ? 'bg-green-600' : 'bg-zinc-700'
-                    }`} />
-                  ))}
-                </div>
-                {isLast ? (
-                  <button
-                    onClick={() => setGuidedMode(false)}
-                    className="text-sm font-semibold text-green-400 hover:text-green-300 transition-colors">
-                    Finish ✓
-                  </button>
-                ) : (
-                  <button
-                    onClick={() => setGuidedStep(s => Math.min(steps.length - 1, s + 1))}
-                    disabled={!stepDone}
-                    className="text-sm font-semibold text-blue-400 hover:text-blue-300 disabled:opacity-30 disabled:cursor-not-allowed transition-colors">
-                    {stepDone ? 'Next →' : 'Complete item to continue'}
-                  </button>
-      {/* ── Normal workspace layout ─────────────────────────────────────────── */}
-      {!guidedMode && (<div className="flex flex-1 overflow-hidden">
+      {!guidedMode && <div className="flex flex-1 overflow-hidden">
         {/* ── Sidebar ─────────────────────────────────────────────────────────── */}
         <aside className="w-60 flex-shrink-0 bg-[#13161B] border-r border-[#232830] flex flex-col overflow-y-auto">
           <div className="px-4 pt-5 pb-2">
@@ -621,7 +510,7 @@ export default function MeetingWorkspacePage() {
             />
           )}
         </main>
-      </div>
+      </div>}
     </div>
   );
 }
@@ -710,11 +599,14 @@ function ChairpersonModal({ companyId, meetingId, jwt, currentUserId, onElected,
   useEffect(() => {
     mountedRef.current = true;
     loadNomination();
-    // Real-time updates handled by useMeetingSocket in parent page —
-    // onNominationUpdated calls the parent reload which re-renders this modal.
-    // No polling needed.
+    // Poll every 3s so Director B sees Director A's nomination in real time
+    intervalRef.current = setInterval(loadNomination, 3000);
     return () => {
       mountedRef.current = false;
+      if (intervalRef.current) {
+        clearInterval(intervalRef.current);
+        intervalRef.current = null;
+      }
     };
   }, [loadNomination]);
 
@@ -1844,10 +1736,8 @@ function ResolutionCard({ resolution, index, companyId, jwt, currentUserId, meet
           {/* Motion text (pre-vote) OR Resolution text (post-approval) */}
           {!isNoting && (() => {
             const isApproved = resolution.status === 'APPROVED';
-            // Show resolutionText (enacted wording) when approved, motionText during voting
-            const displayText = (isApproved && resolution.resolutionText)
-              ? resolution.resolutionText
-              : resolution.motionText;
+            const showResText = isApproved && resolution.resolutionText;
+            const displayText = showResText ? resolution.resolutionText : resolution.text;
             const label = isApproved
               ? 'Resolution (passed)'
               : resolution.status === 'REJECTED'
@@ -1862,13 +1752,22 @@ function ResolutionCard({ resolution, index, companyId, jwt, currentUserId, meet
                   {label}
                 </p>
                 <p className="text-zinc-400 text-xs leading-relaxed whitespace-pre-wrap">{displayText}</p>
+                {/* If approved and resolutionText exists, also show the motion text collapsed */}
+                {isApproved && resolution.resolutionText && resolution.text && (
+                  <details className="mt-2">
+                    <summary className="text-zinc-700 text-[10px] cursor-pointer hover:text-zinc-500">
+                      Original motion text
+                    </summary>
+                    <p className="text-zinc-600 text-[10px] leading-relaxed whitespace-pre-wrap mt-1">{resolution.text}</p>
+                  </details>
+                )}
               </div>
             );
           })()}
           {isNoting && (
             <div className="bg-[#13161B] border-l-2 border-zinc-700 pl-4 py-3 pr-3 rounded-r-xl">
               <p className="text-zinc-600 text-[10px] uppercase tracking-widest font-semibold mb-1.5">Noting</p>
-              <p className="text-zinc-400 text-xs leading-relaxed whitespace-pre-wrap">{resolution.motionText}</p>
+              <p className="text-zinc-400 text-xs leading-relaxed whitespace-pre-wrap">{resolution.text}</p>
             </div>
           )}
 
@@ -2094,7 +1993,7 @@ function ResolutionCard({ resolution, index, companyId, jwt, currentUserId, meet
             </div>
           )}
         </div>
-      </div>)}
+      )}
     </div>
   );
 }
@@ -2264,7 +2163,7 @@ function AddResolutionForm({ companyId, meetingId, agendaItemId, jwt, onAdded, v
     try {
       await resApi.create(companyId, meetingId, {
         title,
-        motionText:     type === 'NOTING' ? 'Noting item' : motionText.trim(),
+        text:           type === 'NOTING' ? 'Noting item' : motionText.trim(),
         resolutionText: type === 'MEETING' && resolutionText.trim() ? resolutionText.trim() : undefined,
         agendaItemId,
         type,
@@ -2604,9 +2503,9 @@ function MeetingDocumentsPanel({
     </div>
   );
 }
+
+
 // ── Guided Meeting Walk-Through ───────────────────────────────────────────────
-// Replaces the sidebar+main layout with a step-by-step flow when guidedMode=true.
-// Each agenda item is a step. Next is locked until current item is fully resolved.
 function GuidedMeetingView({
   meeting, resolutions, guidedStep, setGuidedStep, setGuidedMode,
   companyId, meetingId, jwt, currentUserId, isAdmin, isChairperson, vaultDocs, onRefresh,
@@ -2615,23 +2514,21 @@ function GuidedMeetingView({
   const steps = (meeting.agendaItems ?? []).filter(
     (a: any) => !PROCEDURAL.includes(a.itemType ?? 'STANDARD')
   );
-  const currentItem = steps[guidedStep] ?? steps[0];
+  const safeStep   = Math.min(Math.max(guidedStep, 0), Math.max(steps.length - 1, 0));
+  const currentItem = steps[safeStep];
   if (!currentItem) return (
     <div className="flex flex-1 items-center justify-center text-zinc-600 text-sm">
       No agenda items to walk through.
     </div>
   );
-
   const itemRes  = resolutions.filter((r: any) => r.agendaItemId === currentItem.id);
   const stepDone = itemRes.length > 0 && itemRes.every(
     (r: any) => ['APPROVED','REJECTED','NOTED'].includes(r.status)
   );
-  const isLast   = guidedStep >= steps.length - 1;
-  const safeStep = Math.min(Math.max(guidedStep, 0), steps.length - 1);
+  const isLast = safeStep >= steps.length - 1;
 
   return (
     <div className="flex flex-1 overflow-hidden">
-      {/* ── Step rail ── */}
       <div className="w-56 flex-shrink-0 bg-[#13161B] border-r border-[#232830] flex flex-col overflow-y-auto p-3">
         <p className="text-zinc-600 text-[10px] uppercase tracking-widest font-semibold mb-3 px-1">
           Step {safeStep + 1} of {steps.length}
@@ -2662,10 +2559,7 @@ function GuidedMeetingView({
           );
         })}
       </div>
-
-      {/* ── Main step area ── */}
       <div className="flex-1 flex flex-col overflow-hidden">
-        {/* Step header */}
         <div className="border-b border-[#232830] px-8 py-4 flex items-center justify-between">
           <div>
             <p className="text-zinc-600 text-[10px] uppercase tracking-widest font-semibold mb-1">
@@ -2682,8 +2576,6 @@ function GuidedMeetingView({
             </span>
           )}
         </div>
-
-        {/* Step content — reuses ResolutionsPanel */}
         <div className="flex-1 overflow-y-auto p-6">
           <ResolutionsPanel
             companyId={companyId} meetingId={meetingId} jwt={jwt}
@@ -2694,8 +2586,6 @@ function GuidedMeetingView({
             vaultDocs={vaultDocs}
           />
         </div>
-
-        {/* Step navigation */}
         <div className="border-t border-[#232830] px-8 py-4 flex items-center justify-between">
           <button
             onClick={() => setGuidedStep((s: number) => Math.max(0, s - 1))}
@@ -2703,8 +2593,6 @@ function GuidedMeetingView({
             className="text-sm font-semibold text-zinc-400 hover:text-zinc-200 disabled:opacity-30 disabled:cursor-not-allowed transition-colors">
             ← Previous
           </button>
-
-          {/* Dot progress */}
           <div className="flex gap-1.5 items-center">
             {steps.map((_: any, idx: number) => (
               <div key={idx} className={`h-1.5 rounded-full transition-all duration-300 ${
@@ -2714,10 +2602,8 @@ function GuidedMeetingView({
               }`} />
             ))}
           </div>
-
           {isLast ? (
-            <button
-              onClick={() => setGuidedMode(false)}
+            <button onClick={() => setGuidedMode(false)}
               className="text-sm font-semibold text-green-400 hover:text-green-300 transition-colors">
               Finish ✓
             </button>
