@@ -504,10 +504,9 @@ export default function CompanyWorkspacePage() {
             }
           </div>
         </div>
-      )}
 
-      {/* ── INVITES ───────────────────────────────────────────────────────────── */}
-        <div className="space-y-4 mt-4">
+          {/* ── Invite & Pending Invitations ─────────────────────────────────── */}
+          <div className="space-y-4 mt-2">
           {isAdmin && (
             <div className="bg-[#191D24] border border-[#232830] rounded-2xl p-6">
               <h2 className="text-[#F0F2F5] font-semibold text-sm mb-5">Invite a Member</h2>
