@@ -1275,7 +1275,9 @@ function AttendancePanel({ companyId, meetingId, jwt, meeting, attendance, curre
 }
 // ── Resolutions Panel ─────────────────────────────────────────────────────────
 
-function ResolutionsPanel({ companyId, meetingId, jwt, meeting, resolutions, activeAgendaItem, currentUserId, onRefresh, isAdmin, isChairperson, vaultDocs }: any) {
+function ResolutionsPanel({ companyId, meetingId: meetingIdProp, jwt, meeting, resolutions, activeAgendaItem, currentUserId, onRefresh, isAdmin, isChairperson, vaultDocs }: any) {
+  const meetingId = meetingIdProp as string;
+  const reload = onRefresh;
   const [showAdd, setShowAdd] = useState(false);
   const canAdd = !['VOTING','MINUTES_DRAFT','MINUTES_CIRCULATED','SIGNED','LOCKED'].includes(meeting.status);
 
