@@ -60,7 +60,7 @@ export function VariableFillDialog({ variable, currentValue, onSave, onLater, on
         <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 20 }}>
           <div>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
-              <span style={{ fontSize: 14, background: '#F59E0B22', color: '#F59E0B', border: '1px solid #F59E0B44', borderRadius: 6, padding: '1px 8px', fontWeight: 700, fontSize: 10, textTransform: 'uppercase', letterSpacing: '0.06em' }}>{variable.type}</span>
+              <span style={{ background: '#F59E0B22', color: '#F59E0B', border: '1px solid #F59E0B44', borderRadius: 6, padding: '1px 8px', fontWeight: 700, fontSize: 10, textTransform: 'uppercase' as const, letterSpacing: '0.06em' }}>{variable.type}</span>
               <span style={{ fontSize: 10, color: '#4B5563', fontFamily: 'monospace' }}>{variable.key}</span>
             </div>
             <h3 style={{ fontSize: 15, fontWeight: 700, color: '#F0F2F5', margin: 0 }}>{variable.label}</h3>
