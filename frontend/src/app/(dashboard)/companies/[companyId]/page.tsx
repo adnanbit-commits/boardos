@@ -442,7 +442,7 @@ export default function CompanyWorkspacePage() {
       )}
 
       {/* ── INVITES ───────────────────────────────────────────────────────────── */}
-      {tab === 'invites' && (
+      {tab === 'members' && (
         <div className="space-y-5">
           {isAdmin && (
             <div className="bg-[#191D24] border border-[#232830] rounded-2xl p-6">
