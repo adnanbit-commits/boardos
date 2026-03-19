@@ -81,6 +81,8 @@ export interface AgendaItem {
   legalBasis?: string | null;
   guidanceNote?: string | null;
   isAob?: boolean;
+  variables?:      { key: string; label: string; type: string; required: boolean }[] | null;
+  variableValues?: Record<string, string> | null;
 }
 
 export type MeetingStatus =
@@ -297,6 +299,8 @@ export const meetings = {
     post<AgendaItem>(`/companies/${companyId}/meetings/${meetingId}/agenda/propose-aob`, body, token),
   admitAob: (companyId: string, meetingId: string, itemId: string, token: string) =>
     patch<AgendaItem>(`/companies/${companyId}/meetings/${meetingId}/agenda/${itemId}/admit`, undefined, token),
+  updateVariableValues: (companyId: string, meetingId: string, itemId: string, values: Record<string, string>, token: string) =>
+    patch<AgendaItem>(`/companies/${companyId}/meetings/${meetingId}/agenda/${itemId}/variables`, { values }, token),
   getAttendance: (companyId: string, meetingId: string, token: string) =>
     get<AttendanceRecord[]>(`/companies/${companyId}/meetings/${meetingId}/attendance`, token),
   recordAttendance: (companyId: string, meetingId: string, body: { userId: string; mode: AttendanceMode; location?: string; noThirdParty?: boolean }, token: string) =>

@@ -6,6 +6,8 @@ import { useState, useEffect, useCallback } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { meetingTemplates as templatesApi, type MeetingTemplate } from '@/lib/api';
 import { SYSTEM_TEMPLATES, type SystemTemplate } from '@/lib/meeting-templates';
+import { parseAllVariables, buildToken, type TemplateVariable, type VariableType } from '@/lib/template-variables';
+import { VariableDefineDialog } from '@/components/VariableFillDialog';
 import { getToken } from '@/lib/auth';
 
 
@@ -16,7 +18,8 @@ interface WorkItemDraft {
   title:          string;   // Noun phrase: "Appointment of CFO"
   motionText:     string;   // "The Board is moved to..."
   resolutionText: string;   // "RESOLVED THAT..." (after passing)
-  hasPlaceholders:boolean;
+  // Variable system — replaces hasPlaceholders boolean
+  variables:      TemplateVariable[];  // parsed from {{...}} tokens in text
 }
 
 interface AgendaDraft {
@@ -102,6 +105,8 @@ export default function TemplatesPage() {
   const [bCategory, setBCategory] = useState('BOARD');
   const [bItems,    setBItems]    = useState<AgendaDraft[]>([{ id: uid(), title: '', description: '', itemType: 'STANDARD', workItems: [], vaultDocType: '', customVaultDocId: '', docLabel: '', externalDocUrl: '', externalDocPlatform: 'MCA21', physicalPresence: false, complianceScope: 'ALL', specificDirectors: [] }]);
   const [bSaving,   setBSaving]   = useState(false);
+  // Variable define dialog state
+  const [defineVar,  setDefineVar]  = useState<{ itemId: string; wiId: string; field: 'motionText'|'resolutionText'; key?: string } | null>(null);
   const [bErr,      setBErr]      = useState('');
 
   const [filterCat, setFilterCat] = useState<string>('ALL');
@@ -133,7 +138,7 @@ export default function TemplatesPage() {
       setBName(tpl.name);
       setBDesc(tpl.description ?? '');
       setBCategory(tpl.category);
-      setBItems((tpl.agendaItems as any[]).map(a => ({ id: uid(), title: a.title, description: a.description ?? '', itemType: a.itemType ?? 'STANDARD', workItems: (a.workItems ?? []).map((wi: any) => ({ id: uid(), title: wi.title ?? '', motionText: wi.motionText ?? wi.textTemplate ?? '', resolutionText: wi.resolutionText ?? wi.resolutionTextTemplate ?? '', hasPlaceholders: wi.hasPlaceholders ?? false })), vaultDocType: a.vaultDocType ?? '', customVaultDocId: a.customVaultDocId ?? '', docLabel: a.docLabel ?? '', externalDocUrl: a.externalDocUrl ?? '', externalDocPlatform: a.externalDocPlatform ?? 'MCA21', physicalPresence: a.physicalPresence ?? false, complianceScope: a.complianceScope ?? 'ALL', specificDirectors: a.specificDirectors ?? [] })));
+      setBItems((tpl.agendaItems as any[]).map(a => ({ id: uid(), title: a.title, description: a.description ?? '', itemType: a.itemType ?? 'STANDARD', workItems: (a.workItems ?? []).map((wi: any) => ({ id: uid(), title: wi.title ?? '', motionText: wi.motionText ?? wi.textTemplate ?? '', resolutionText: wi.resolutionText ?? wi.resolutionTextTemplate ?? '', variables: parseAllVariables(wi.motionText ?? wi.textTemplate ?? '', wi.resolutionText ?? wi.resolutionTextTemplate ?? '') })), vaultDocType: a.vaultDocType ?? '', customVaultDocId: a.customVaultDocId ?? '', docLabel: a.docLabel ?? '', externalDocUrl: a.externalDocUrl ?? '', externalDocPlatform: a.externalDocPlatform ?? 'MCA21', physicalPresence: a.physicalPresence ?? false, complianceScope: a.complianceScope ?? 'ALL', specificDirectors: a.specificDirectors ?? [] })));
     } else {
       setEditingTpl(null);
       setBName(''); setBDesc(''); setBCategory('BOARD');
@@ -160,7 +165,7 @@ export default function TemplatesPage() {
           title: wi.title ?? '',
           motionText: wi.textTemplate ?? '',
           resolutionText: (wi as any).resolutionTextTemplate ?? '',
-          hasPlaceholders: wi.hasPlaceholders ?? false,
+          variables: parseAllVariables(wi.textTemplate ?? '', (wi as any).resolutionTextTemplate ?? ''),
         })),
       vaultDocType: (a.workItems?.[0] as any)?.vaultDocType ?? '',
       customVaultDocId: '',
@@ -194,6 +199,19 @@ export default function TemplatesPage() {
     const validItems = bItems.filter(a => a.title.trim());
     if (validItems.length === 0) { setBErr('At least one agenda item is required.'); return; }
 
+    // Validate all variables have question labels
+    const missingLabels: string[] = [];
+    bItems.forEach(item => {
+      item.workItems.forEach(wi => {
+        wi.variables.forEach(v => {
+          if (!v.label.trim()) missingLabels.push(v.key);
+        });
+      });
+    });
+    if (missingLabels.length > 0) {
+      setBErr('Fill in question labels for all variables before saving: ' + missingLabels.join(', '));
+      return;
+    }
     setBSaving(true); setBErr('');
     try {
       const payload = {
@@ -210,7 +228,7 @@ export default function TemplatesPage() {
                                       title:          wi.title.trim(),
                                       motionText:     wi.motionText.trim(),
                                       resolutionText: wi.resolutionText.trim(),
-                                      hasPlaceholders:wi.hasPlaceholders,
+                                      hasPlaceholders: wi.variables.length > 0,
                                       // shape matches TemplateWorkItem so applyTemplate reads it directly
                                       type:            'RESOLUTION_VOTING',
                                       textTemplate:    wi.motionText.trim(),
@@ -552,7 +570,7 @@ export default function TemplatesPage() {
                         <button type="button"
                           onClick={() => updateItem(item.id, 'workItems' as any, [
                             ...item.workItems,
-                            { id: uid(), title: '', motionText: 'The Board is moved to ', resolutionText: 'RESOLVED THAT ', hasPlaceholders: false },
+                            { id: uid(), title: '', motionText: 'The Board is moved to ', resolutionText: 'RESOLVED THAT ', variables: [] },
                           ])}
                           style={{ fontSize: 10, fontWeight: 700, color: '#818CF8', background: 'rgba(79,127,255,0.10)', border: '1px solid rgba(79,127,255,0.25)', borderRadius: 5, padding: '3px 8px', cursor: 'pointer' }}>
                           + Add Motion
@@ -617,19 +635,50 @@ export default function TemplatesPage() {
                             />
                           </div>
 
-                          {/* Placeholders flag */}
-                          <label style={{ display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer' }}>
-                            <input
-                              type="checkbox"
-                              checked={wi.hasPlaceholders}
-                              onChange={e => {
-                                const updated = item.workItems.map((w, i) => i === wiIdx ? { ...w, hasPlaceholders: e.target.checked } : w);
-                                updateItem(item.id, 'workItems' as any, updated);
-                              }}
-                              style={{ accentColor: '#818CF8', width: 12, height: 12 }}
-                            />
-                            <span style={{ fontSize: 10, color: '#6B7280' }}>Contains [PLACEHOLDERS] that must be filled before the meeting</span>
-                          </label>
+                          {/* Variable system */}
+                          {(() => {
+                            const detected = parseAllVariables(wi.motionText, wi.resolutionText);
+                            const hasVars  = detected.length > 0;
+                            return (
+                              <div>
+                                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: hasVars ? 6 : 0 }}>
+                                  <p style={{ fontSize: 9, color: '#818CF8', margin: 0, textTransform: 'uppercase', letterSpacing: '0.05em', fontWeight: 600 }}>
+                                    Variables {hasVars ? `(${detected.length})` : ''}
+                                  </p>
+                                  <button type="button"
+                                    onClick={() => {
+                                      // Insert {{new_variable|question|text}} at end of motionText
+                                      setDefineVar({ itemId: item.id, wiId: wi.id, field: 'motionText' });
+                                    }}
+                                    style={{ fontSize: 9, fontWeight: 700, color: '#818CF8', background: 'rgba(79,127,255,0.10)', border: '1px solid rgba(79,127,255,0.25)', borderRadius: 4, padding: '2px 7px', cursor: 'pointer' }}>
+                                    + Variable
+                                  </button>
+                                </div>
+                                {hasVars ? (
+                                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5 }}>
+                                    {detected.map(v => {
+                                      const defined = wi.variables.find(d => d.key === v.key);
+                                      const label   = defined?.label ?? v.label;
+                                      const hasLabel = label && label !== v.key.replace(/_/g,' ');
+                                      return (
+                                        <button key={v.key} type="button"
+                                          onClick={() => setDefineVar({ itemId: item.id, wiId: wi.id, field: 'motionText', key: v.key })}
+                                          style={{ display: 'flex', alignItems: 'center', gap: 4, padding: '3px 8px', borderRadius: 6, fontSize: 10, fontWeight: 600, cursor: 'pointer', border: `1px solid ${hasLabel ? '#16a34a55' : '#F59E0B66'}`, background: hasLabel ? '#052e1633' : '#F59E0B11', color: hasLabel ? '#22c55e' : '#F59E0B', transition: 'all 0.15s' }}>
+                                          <span style={{ fontFamily: 'monospace' }}>{'{{'}{v.key}{'}}'}</span>
+                                          <span style={{ opacity: 0.7 }}>·</span>
+                                          <span>{hasLabel ? label : '⚠ no question set'}</span>
+                                        </button>
+                                      );
+                                    })}
+                                  </div>
+                                ) : (
+                                  <p style={{ fontSize: 10, color: '#374151', margin: 0, fontStyle: 'italic' }}>
+                                    Type {'{{'+'variable_name}}'} in the text to add a variable, then click it to set the question
+                                  </p>
+                                )}
+                              </div>
+                            );
+                          })()}
                         </div>
                       ))}
                     </div>
@@ -659,6 +708,48 @@ export default function TemplatesPage() {
           </button>
         </div>
       </div>
+
+      {/* Variable Define Dialog */}
+      {defineVar && (
+        <VariableDefineDialog
+          initialKey={defineVar.key ?? ''}
+          initialLabel={(() => {
+            const wi = bItems.find(i => i.id === defineVar.itemId)?.workItems.find(w => w.id === defineVar.wiId);
+            return wi?.variables.find(v => v.key === defineVar.key)?.label ?? '';
+          })()}
+          initialType={(() => {
+            const wi = bItems.find(i => i.id === defineVar.itemId)?.workItems.find(w => w.id === defineVar.wiId);
+            return (wi?.variables.find(v => v.key === defineVar.key)?.type ?? 'text') as VariableType;
+          })()}
+          onSave={(key, label, type) => {
+            const item = bItems.find(i => i.id === defineVar.itemId);
+            if (!item) return;
+            const wi = item.workItems.find(w => w.id === defineVar.wiId);
+            if (!wi) return;
+
+            // If inserting a new variable, append token to the target field
+            const isNew = !defineVar.key;
+            const token = buildToken(key, label, type);
+
+            const updatedWis = item.workItems.map(w => {
+              if (w.id !== defineVar.wiId) return w;
+              const updatedVars = w.variables.filter(v => v.key !== key);
+              updatedVars.push({ key, label, type, required: true });
+              if (isNew) {
+                return {
+                  ...w,
+                  [defineVar.field]: (w[defineVar.field] + ' ' + token).trim(),
+                  variables: updatedVars,
+                };
+              }
+              return { ...w, variables: updatedVars };
+            });
+            updateItem(defineVar.itemId, 'workItems' as any, updatedWis);
+            setDefineVar(null);
+          }}
+          onClose={() => setDefineVar(null)}
+        />
+      )}
     );
   }
 

@@ -93,10 +93,36 @@ export class MeetingService {
         order:       count + 1,
         isAob,
         // Typed item metadata from template application
-        ...(dto.itemType    ? { itemType:    dto.itemType    } : {}),
-        ...(dto.legalBasis  ? { legalBasis:  dto.legalBasis  } : {}),
-        ...(dto.guidanceNote? { guidanceNote:dto.guidanceNote} : {}),
+        ...(dto.itemType      ? { itemType:      dto.itemType      } : {}),
+        ...(dto.legalBasis    ? { legalBasis:    dto.legalBasis    } : {}),
+        ...(dto.guidanceNote  ? { guidanceNote:  dto.guidanceNote  } : {}),
+        // Variable system
+        ...(dto.variables     ? { variables:     dto.variables     } : {}),
+        ...(dto.variableValues? { variableValues:dto.variableValues} : {}),
       } as any,
+    });
+  }
+
+  // ── Variable Values ──────────────────────────────────────────────────────────
+  // Save filled variable values for an agenda item.
+  // Called from the meeting workspace when a director fills a variable token.
+  async updateVariableValues(
+    companyId: string,
+    meetingId: string,
+    itemId:    string,
+    values:    Record<string, string>,
+  ) {
+    const item = await this.prisma.agendaItem.findFirst({
+      where: { id: itemId, meetingId },
+    });
+    if (!item) throw new NotFoundException('Agenda item not found');
+
+    const existing = (item as any).variableValues as Record<string, string> ?? {};
+    const merged   = { ...existing, ...values };
+
+    return this.prisma.agendaItem.update({
+      where: { id: itemId },
+      data:  { variableValues: merged } as any,
     });
   }
 

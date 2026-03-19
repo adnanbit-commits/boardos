@@ -57,6 +57,17 @@ export class MeetingController {
     return this.meetingService.proposeAobItem(companyId, meetingId, dto, req.user.userId);
   }
 
+  @Patch(':id/agenda/:itemId/variables')
+  @RequireRole('DIRECTOR')
+  updateVariableValues(
+    @Param('companyId') companyId: string,
+    @Param('id') meetingId: string,
+    @Param('itemId') itemId: string,
+    @Body() body: { values: Record<string, string> },
+  ) {
+    return this.meetingService.updateVariableValues(companyId, meetingId, itemId, body.values);
+  }
+
   @Patch(':id/agenda/:itemId/admit')
   @RequireRole('DIRECTOR')
   admitAobItem(

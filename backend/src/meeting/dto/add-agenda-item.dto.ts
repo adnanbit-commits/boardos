@@ -1,4 +1,4 @@
-import { IsString, IsOptional, IsBoolean } from 'class-validator';
+import { IsString, IsOptional, IsBoolean, IsArray, IsObject } from 'class-validator';
 
 export class AddAgendaItemDto {
   @IsString()
@@ -21,4 +21,13 @@ export class AddAgendaItemDto {
   @IsOptional()
   @IsString()
   guidanceNote?: string;  // operational note for CS, never in minutes
+
+  // Variable system — parsed from motionText/resolutionText tokens
+  @IsOptional()
+  @IsArray()
+  variables?: { key: string; label: string; type: string; required: boolean }[];
+
+  @IsOptional()
+  @IsObject()
+  variableValues?: Record<string, string>;
 }

@@ -372,6 +372,12 @@ model AgendaItem {
   legalBasis   String?  @map("legal_basis")    // shown to CS, never in minutes
   guidanceNote String?  @map("guidance_note")  // shown to CS, never in minutes
 
+  // Template variable system
+  // variables:      [{key, label, type}] — defined at template/item creation
+  // variableValues: {key: value}         — filled before/during meeting
+  variables      Json?  @map("variables")
+  variableValues Json?  @map("variable_values")
+
   createdAt   DateTime @default(now())
 
   meeting     Meeting      @relation(fields: [meetingId], references: [id], onDelete: Cascade)

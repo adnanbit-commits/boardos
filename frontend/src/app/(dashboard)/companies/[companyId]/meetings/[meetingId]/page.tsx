@@ -11,6 +11,8 @@ import type {
   NominationState,
 } from '@/lib/api';
 import { StatusBadge, VoteBar, Spinner, Button, Textarea } from '@/components/ui';
+import VariableTokenText from '@/components/VariableTokenText';
+import { countUnfilled } from '@/lib/template-variables';
 
 const STATUS_ORDER: MeetingStatus[] = [
   'DRAFT','SCHEDULED','IN_PROGRESS','MINUTES_DRAFT','MINUTES_CIRCULATED','SIGNED','LOCKED',
@@ -149,6 +151,12 @@ export default function MeetingWorkspacePage() {
   const declWarning     = declarations.length > 0 && !allDeclReceived &&
     ['SCHEDULED', 'IN_PROGRESS'].includes(meeting.status);
 
+  // Unfilled variables across all agenda items
+  const unfilledVarCount = meeting.agendaItems.reduce((total: number, item: any) => {
+    if (!item.variables?.length) return total;
+    return total + countUnfilled(item.motionText ?? '', item.resolutionText ?? '', item.variableValues ?? {});
+  }, 0);
+
   // Directors for chairperson/recorder selection
   const directors = members.filter((m: any) => ['DIRECTOR','COMPANY_SECRETARY'].includes(m.role));
 
@@ -240,6 +248,16 @@ export default function MeetingWorkspacePage() {
           </div>
         </div>
         <WorkflowProgress status={meeting.status as MeetingStatus} />
+        {/* Unfilled variables banner */}
+        {unfilledVarCount > 0 && meeting.status === 'IN_PROGRESS' && (
+          <div className="flex items-center gap-3 px-6 py-2.5 bg-amber-950/30 border-b border-amber-800/30">
+            <span className="text-amber-400 text-sm">⚠</span>
+            <p className="text-amber-300 text-xs flex-1">
+              <span className="font-semibold">{unfilledVarCount} agenda item{unfilledVarCount !== 1 ? 's have' : ' has'} unfilled details</span>
+              {' '}— click the amber tokens in each motion to fill them before the meeting.
+            </p>
+          </div>
+        )}
       </header>
 
       {guidedMode && meeting.status === 'IN_PROGRESS' && <GuidedMeetingView
@@ -1751,7 +1769,19 @@ function ResolutionCard({ resolution, index, companyId, jwt, currentUserId, meet
                 <p className={`text-[10px] uppercase tracking-widest font-semibold mb-1.5 ${isApproved ? 'text-green-600' : resolution.status === 'REJECTED' ? 'text-red-700' : 'text-zinc-600'}`}>
                   {label}
                 </p>
-                <p className="text-zinc-400 text-xs leading-relaxed whitespace-pre-wrap">{displayText}</p>
+                <VariableTokenText
+                  text={displayText ?? ''}
+                  variables={(activeAgendaItem as any)?.variables}
+                  values={(activeAgendaItem as any)?.variableValues ?? {}}
+                  onFill={async (key, value) => {
+                    if (!activeAgendaItem) return;
+                    try {
+                      await meetings.updateVariableValues(companyId, meetingId, activeAgendaItem.id, { [key]: value }, jwt);
+                      await reload();
+                    } catch {}
+                  }}
+                  editable={canAdvance || isAdmin}
+                />
                 {/* If approved and resolutionText exists, also show the motion text collapsed */}
                 {isApproved && resolution.resolutionText && resolution.text && (
                   <details className="mt-2">
