@@ -561,6 +561,7 @@ export default function CompanyWorkspacePage() {
                 })
             }
           </div>
+          </div>
         </div>
       )}
 
