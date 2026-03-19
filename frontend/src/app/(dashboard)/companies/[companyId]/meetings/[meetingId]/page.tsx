@@ -2163,7 +2163,7 @@ function AddResolutionForm({ companyId, meetingId, agendaItemId, jwt, onAdded, v
     try {
       await resApi.create(companyId, meetingId, {
         title,
-        text:           type === 'NOTING' ? 'Noting item' : motionText.trim(),
+        motionText:     type === 'NOTING' ? 'Noting item' : motionText.trim(),
         resolutionText: type === 'MEETING' && resolutionText.trim() ? resolutionText.trim() : undefined,
         agendaItemId,
         type,
