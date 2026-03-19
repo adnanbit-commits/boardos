@@ -16,7 +16,6 @@ import {
   type AuditLog,
 } from '@/lib/api';
 import { getToken, getUser } from '@/lib/auth';
-import ClaimSeatPrompt from '@/components/ClaimSeatPrompt';
 
 // ── Designation config ────────────────────────────────────────────────────────
 
@@ -98,13 +97,6 @@ function detectConflicts(members: CompanyMember[]): string[] {
 
 // ── Shared atoms ──────────────────────────────────────────────────────────────
 
-const ROLE_SHORT: Record<string, string> = {
-  DIRECTOR:          'Director — votes on resolutions, signs minutes',
-  COMPANY_SECRETARY: 'Company Secretary — records and certifies board actions',
-  AUDITOR:           'Statutory Auditor — independent financial oversight',
-  OBSERVER:          'Observer — attends meetings, no voting rights',
-};
-
 const ROLE_CLS: Record<string, string> = {
   DIRECTOR:          'text-blue-400 bg-blue-950/60 border-blue-800/40',
   COMPANY_SECRETARY: 'text-purple-400 bg-purple-950/60 border-purple-800/40',
@@ -167,6 +159,7 @@ type TabId = 'overview' | 'members' | 'audit';
 
 export default function CompanyWorkspacePage() {
   const { companyId } = useParams<{ companyId: string }>();
+  if (companyId === 'new') return null;
   const jwt = getToken()!;
   const me  = getUser();
 
@@ -193,7 +186,6 @@ export default function CompanyWorkspacePage() {
 
   // Transfer admin modal
   const [showTransfer,    setShowTransfer]    = useState(false);
-  const [claimDismissed,  setClaimDismissed]  = useState(false);
   const [transferTarget,  setTransferTarget]  = useState('');
   const [transferring,    setTransferring]    = useState(false);
   const [transferErr,     setTransferErr]     = useState('');
@@ -279,7 +271,7 @@ export default function CompanyWorkspacePage() {
 
   const TABS: { id: TabId; label: string }[] = [
     { id: 'overview', label: '⬡ Overview' },
-    { id: 'members',  label: `◈ People & Access${pending.length ? ` · ${pending.length} pending` : ''}` },
+    { id: 'members',  label: `◈ People & Access` },
     { id: 'audit',    label: '▣ Audit Log' },
   ];
 
@@ -325,99 +317,43 @@ export default function CompanyWorkspacePage() {
 
       {/* ── OVERVIEW ─────────────────────────────────────────────────────────── */}
       {tab === 'overview' && (
-        <div className="space-y-6">
-
-          {/* Seat claiming prompt */}
-          {!claimDismissed && myMem && !(myMem as any).din && company && (
-            <ClaimSeatPrompt
-              companyId={companyId}
-              currentUserName={me?.name ?? ''}
-              mcaDirectors={(company as any).mcaDirectors ?? null}
-              onClaimed={() => { setClaimDismissed(true); load(); }}
-              onDismiss={() => setClaimDismissed(true)}
-            />
-          )}
-
-          {/* Module cards */}
-          <div>
-            <p className="text-zinc-600 text-[10px] font-semibold uppercase tracking-widest mb-3">What you can do here</p>
-            <div className="grid grid-cols-2 gap-3">
-              {[
-                { icon: '⬡', label: 'Board Meetings',       count: company?._count.meetings    ?? 0, desc: 'Schedule, conduct and sign off board meetings end-to-end. Attendance, voting, minutes — all in one place.', href: `/companies/${companyId}/meetings`,              color: '#4F7FFF', bg: 'bg-blue-950/20 border-blue-800/30' },
-                { icon: '◎', label: 'Resolutions',           count: company?._count.resolutions ?? 0, desc: 'Track every board resolution with vote tallies, dissent records, and certified copies for banks and regulators.', href: `/companies/${companyId}/resolutions`,            color: '#F59E0B', bg: 'bg-amber-950/20 border-amber-800/30' },
-                { icon: '⬡', label: 'Document Vault',        count: company?._count.documents   ?? 0, desc: 'Secure storage for statutory documents — MOA, AOA, incorporation certificate, board papers, and compliance filings.', href: `/companies/${companyId}/vault`,             color: '#A78BFA', bg: 'bg-purple-950/20 border-purple-800/30' },
-                { icon: '↻', label: 'Circular Resolutions',  count: 0,                               desc: 'Pass urgent resolutions without a meeting — circulate to all directors and collect approvals digitally per Sec. 175.', href: `/companies/${companyId}/circular-resolutions`, color: '#22C55E', bg: 'bg-green-950/20 border-green-800/30' },
-              ].map(mod => (
-                <Link key={mod.label} href={mod.href}
-                  className={`flex flex-col gap-3 p-5 rounded-2xl border ${mod.bg} hover:brightness-110 transition-all group`}>
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2.5">
-                      <span style={{ color: mod.color }} className="text-lg">{mod.icon}</span>
-                      <span className="text-[#F0F2F5] font-semibold text-sm">{mod.label}</span>
-                    </div>
-                    <span className="font-bold text-lg font-mono" style={{ color: mod.color }}>{mod.count}</span>
+        <div className="space-y-5">
+          <div className="grid grid-cols-4 gap-4">
+            {[
+              { l: 'Meetings',    v: company?._count.meetings    ?? 0, a: '#4F7FFF' },
+              { l: 'Resolutions', v: company?._count.resolutions ?? 0, a: '#F59E0B' },
+              { l: 'Members',     v: members.length,                   a: '#22C55E' },
+              { l: 'Documents',   v: company?._count.documents   ?? 0, a: '#A78BFA' },
+            ].map(s => (
+              <div key={s.l} className="bg-[#191D24] border border-[#232830] rounded-2xl p-5">
+                <p className="text-zinc-500 text-[10px] font-semibold uppercase tracking-widest mb-3">{s.l}</p>
+                <p className="font-bold text-3xl" style={{ color: s.a, fontFamily: 'monospace' }}>{s.v}</p>
+              </div>
+            ))}
+          </div>
+          <div className="bg-[#191D24] border border-[#232830] rounded-2xl p-6">
+            <div className="flex items-center justify-between mb-5">
+              <h2 className="text-[#F0F2F5] font-semibold text-sm">Upcoming Meetings</h2>
+              <Link href={`/companies/${companyId}/meetings`} className="text-blue-400 text-xs hover:text-blue-300">View all →</Link>
+            </div>
+            {upcoming.length === 0
+              ? <p className="text-zinc-600 text-sm text-center py-8">No upcoming meetings.</p>
+              : upcoming.slice(0, 4).map(m => (
+                <Link key={m.id} href={`/companies/${companyId}/meetings/${m.id}`}
+                  className="flex items-center justify-between px-4 py-3 bg-[#13161B] border border-[#232830] rounded-xl hover:border-blue-800/30 transition-colors mb-2.5 group">
+                  <div>
+                    <p className="text-[#F0F2F5] text-sm font-medium group-hover:text-blue-300 transition-colors">{m.title}</p>
+                    <p className="text-zinc-500 text-xs mt-0.5">{new Date(m.scheduledAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}</p>
                   </div>
-                  <p className="text-zinc-500 text-xs leading-relaxed">{mod.desc}</p>
-                  <span className="text-xs font-semibold group-hover:translate-x-0.5 transition-transform" style={{ color: mod.color }}>Open →</span>
+                  <StatusPill status={m.status} />
                 </Link>
-              ))}
-            </div>
+              ))
+            }
           </div>
-
-          {/* Upcoming meetings + Board members */}
-          <div className="grid grid-cols-5 gap-4">
-            <div className="col-span-3 bg-[#191D24] border border-[#232830] rounded-2xl p-6">
-              <div className="flex items-center justify-between mb-2">
-                <h2 className="text-[#F0F2F5] font-semibold text-sm">Upcoming Meetings</h2>
-                <Link href={`/companies/${companyId}/meetings`} className="text-blue-400 text-xs hover:text-blue-300">View all →</Link>
-              </div>
-              <p className="text-zinc-600 text-xs mb-4 leading-relaxed">Board meetings managed end-to-end in full compliance with SS-1.</p>
-              {upcoming.length === 0
-                ? <p className="text-zinc-600 text-sm text-center py-6">No upcoming meetings. Schedule one to get started.</p>
-                : upcoming.slice(0, 4).map(m => (
-                  <Link key={m.id} href={`/companies/${companyId}/meetings/${m.id}`}
-                    className="flex items-center justify-between px-4 py-3 bg-[#13161B] border border-[#232830] rounded-xl hover:border-blue-800/30 transition-colors mb-2 group">
-                    <div>
-                      <p className="text-[#F0F2F5] text-sm font-medium group-hover:text-blue-300 transition-colors">{m.title}</p>
-                      <p className="text-zinc-500 text-xs mt-0.5">{new Date(m.scheduledAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}</p>
-                    </div>
-                    <StatusPill status={m.status} />
-                  </Link>
-                ))
-              }
-            </div>
-            <div className="col-span-2 bg-[#191D24] border border-[#232830] rounded-2xl p-6">
-              <div className="flex items-center justify-between mb-2">
-                <h2 className="text-[#F0F2F5] font-semibold text-sm">Board Members</h2>
-                <button onClick={() => setTab('members')} className="text-blue-400 text-xs hover:text-blue-300">Manage →</button>
-              </div>
-              <p className="text-zinc-600 text-xs mb-4 leading-relaxed">Each role determines what appears in minutes and what they can do in meetings.</p>
-              <div className="space-y-2">
-                {members.slice(0, 6).map(m => (
-                  <div key={m.id} className="flex items-center gap-3 px-3 py-2.5 bg-[#13161B] border border-[#232830] rounded-xl">
-                    <Avatar name={m.user.name} />
-                    <div className="flex-1 min-w-0">
-                      <p className="text-[#F0F2F5] text-xs font-semibold truncate">
-                        {m.user.name}{m.userId === me?.id && <span className="ml-1.5 text-blue-400 text-[9px]">you</span>}
-                      </p>
-                      <p className="text-zinc-600 text-[10px] truncate">
-                        {ROLE_SHORT[m.role as keyof typeof ROLE_SHORT] ?? m.role}
-                      </p>
-                    </div>
-                    {m.isWorkspaceAdmin && (
-                      <span className="text-[9px] font-bold text-amber-400 bg-amber-950/40 border border-amber-800/40 px-1.5 py-0.5 rounded flex-shrink-0">Admin</span>
-                    )}
-                  </div>
-                ))}
-                {members.length > 6 && <p className="text-zinc-600 text-xs text-center pt-1">+{members.length - 6} more</p>}
-              </div>
-            </div>
-          </div>
-
         </div>
       )}
 
-      {/* ── PEOPLE & ACCESS ──────────────────────────────────────────────────── */}
+      {/* ── MEMBERS ──────────────────────────────────────────────────────────── */}
       {tab === 'members' && (
         <div className="space-y-4">
 
@@ -503,9 +439,11 @@ export default function CompanyWorkspacePage() {
             }
           </div>
         </div>
+      )}
 
-          {/* ── Invite & Pending Invitations ─────────────────────────────────── */}
-          <div className="space-y-4 mt-2">
+      {/* ── INVITES ───────────────────────────────────────────────────────────── */}
+      {tab === 'invites' && (
+        <div className="space-y-5">
           {isAdmin && (
             <div className="bg-[#191D24] border border-[#232830] rounded-2xl p-6">
               <h2 className="text-[#F0F2F5] font-semibold text-sm mb-5">Invite a Member</h2>
@@ -560,7 +498,6 @@ export default function CompanyWorkspacePage() {
                   );
                 })
             }
-          </div>
           </div>
         </div>
       )}
@@ -711,5 +648,3 @@ export default function CompanyWorkspacePage() {
     </div>
   );
 }
-
-// v3-1773904931
