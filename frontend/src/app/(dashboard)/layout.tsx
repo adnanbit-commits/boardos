@@ -19,7 +19,7 @@ const NAV_COMPANY = [
   { key: 'resolutions', label: 'Resolutions', icon: '◇' },
   { key: 'circular-resolutions', label: 'Circular Resolutions', icon: '↻' },
   { key: 'archive',     label: 'Archive',     icon: '▤' },
-  { key: '',            label: 'Members & Invites', icon: '◎' },
+  { key: '',            label: 'People & Access',   icon: '◎' },
 ];
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {

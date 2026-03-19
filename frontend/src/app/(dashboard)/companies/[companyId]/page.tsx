@@ -161,7 +161,7 @@ function StatusPill({ status }: { status: string }) {
   );
 }
 
-type TabId = 'overview' | 'members' | 'invites' | 'audit';
+type TabId = 'overview' | 'members' | 'audit';
 
 // ── Page ──────────────────────────────────────────────────────────────────────
 
@@ -280,8 +280,7 @@ export default function CompanyWorkspacePage() {
 
   const TABS: { id: TabId; label: string }[] = [
     { id: 'overview', label: '⬡ Overview' },
-    { id: 'members',  label: `◈ Members (${members.length})` },
-    { id: 'invites',  label: `✉ Invites${pending.length ? ` (${pending.length})` : ''}` },
+    { id: 'members',  label: `◈ People & Access${pending.length ? ` · ${pending.length} pending` : ''}` },
     { id: 'audit',    label: '▣ Audit Log' },
   ];
 
@@ -533,11 +532,9 @@ export default function CompanyWorkspacePage() {
             }
           </div>
         </div>
-      )}
 
-      {/* ── INVITES ───────────────────────────────────────────────────────────── */}
-      {tab === 'invites' && (
-        <div className="space-y-5">
+          {/* ── Invite & Pending ─────────────────────────────────────────────── */}
+          <div className="space-y-5 mt-2">
           {isAdmin && (
             <div className="bg-[#191D24] border border-[#232830] rounded-2xl p-6">
               <h2 className="text-[#F0F2F5] font-semibold text-sm mb-5">Invite a Member</h2>
@@ -592,6 +589,7 @@ export default function CompanyWorkspacePage() {
                   );
                 })
             }
+          </div>
           </div>
         </div>
       )}
