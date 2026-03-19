@@ -1779,7 +1779,7 @@ function ResolutionCard({ resolution, index, companyId, jwt, currentUserId, meet
                     if (!activeAgendaItem) return;
                     try {
                       await meetings.updateVariableValues(companyId, meeting.id, activeAgendaItem.id, { [key]: value }, jwt);
-                      await reload();
+                      await onRefresh();
                     } catch {}
                   }}
                   editable={canAdvance || isAdmin}
