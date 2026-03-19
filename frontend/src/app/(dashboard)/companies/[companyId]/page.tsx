@@ -97,6 +97,13 @@ function detectConflicts(members: CompanyMember[]): string[] {
 
 // ── Shared atoms ──────────────────────────────────────────────────────────────
 
+const ROLE_SHORT: Record<string, string> = {
+  DIRECTOR:          'Director — votes on resolutions, signs minutes',
+  COMPANY_SECRETARY: 'Company Secretary — records and certifies board actions',
+  AUDITOR:           'Statutory Auditor — independent financial oversight',
+  OBSERVER:          'Observer — attends meetings, no voting rights',
+};
+
 const ROLE_CLS: Record<string, string> = {
   DIRECTOR:          'text-blue-400 bg-blue-950/60 border-blue-800/40',
   COMPANY_SECRETARY: 'text-purple-400 bg-purple-950/60 border-purple-800/40',
