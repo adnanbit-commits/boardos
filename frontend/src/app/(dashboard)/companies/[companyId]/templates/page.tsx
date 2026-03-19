@@ -330,7 +330,7 @@ export default function TemplatesPage() {
 
   // ── Builder View ────────────────────────────────────────────────────────────
   if (view === 'builder') {
-    return (
+    return (<>
       <div style={{ padding: '32px 36px', maxWidth: 720, fontFamily: "'DM Sans', system-ui, sans-serif" }}>
         <style>{`@import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Playfair+Display:wght@700&display=swap');
           @keyframes fadeIn { from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:translateY(0)} } .item-row{animation:fadeIn 0.15s ease}`}</style>
@@ -750,7 +750,8 @@ export default function TemplatesPage() {
           onClose={() => setDefineVar(null)}
         />
       )}
-    );
+    </>
+  );
   }
 
   // ── Library View ────────────────────────────────────────────────────────────
