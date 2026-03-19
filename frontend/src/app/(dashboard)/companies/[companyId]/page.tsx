@@ -16,6 +16,7 @@ import {
   type AuditLog,
 } from '@/lib/api';
 import { getToken, getUser } from '@/lib/auth';
+import ClaimSeatPrompt from '@/components/ClaimSeatPrompt';
 
 // ── Designation config ────────────────────────────────────────────────────────
 
@@ -193,6 +194,7 @@ export default function CompanyWorkspacePage() {
 
   // Transfer admin modal
   const [showTransfer,    setShowTransfer]    = useState(false);
+  const [claimDismissed,  setClaimDismissed]  = useState(false);
   const [transferTarget,  setTransferTarget]  = useState('');
   const [transferring,    setTransferring]    = useState(false);
   const [transferErr,     setTransferErr]     = useState('');
@@ -325,6 +327,15 @@ export default function CompanyWorkspacePage() {
       {/* ── OVERVIEW ─────────────────────────────────────────────────────────── */}
       {tab === 'overview' && (
         <div className="space-y-6">
+          {!claimDismissed && myMem && !(myMem as any).din && company && (
+            <ClaimSeatPrompt
+              companyId={companyId}
+              currentUserName={me?.name ?? ''}
+              mcaDirectors={(company as any).mcaDirectors ?? null}
+              onClaimed={() => { setClaimDismissed(true); load(); }}
+              onDismiss={() => setClaimDismissed(true)}
+            />
+          )}
           <div>
             <p className="text-zinc-600 text-[10px] font-semibold uppercase tracking-widest mb-3">What you can do here</p>
             <div className="grid grid-cols-2 gap-3">
