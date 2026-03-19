@@ -15,11 +15,11 @@ const NAV_STATIC = [
   { href: '/dashboard', label: 'Dashboard', icon: '⬡' },
 ];
 const NAV_COMPANY = [
+  { key: '',            label: 'People & Access',   icon: '◎' },
   { key: 'meetings',    label: 'Meetings',    icon: '◈' },
   { key: 'resolutions', label: 'Resolutions', icon: '◇' },
   { key: 'circular-resolutions', label: 'Circular Resolutions', icon: '↻' },
   { key: 'archive',     label: 'Archive',     icon: '▤' },
-  { key: '',            label: 'People & Access',   icon: '◎' },
 ];
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
