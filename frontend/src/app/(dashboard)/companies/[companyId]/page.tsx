@@ -328,7 +328,7 @@ export default function CompanyWorkspacePage() {
       {tab === 'overview' && (
         <div className="space-y-6">
 
-          {/* ── Seat claiming prompt ── */}
+          {/* Seat claiming prompt */}
           {!claimDismissed && myMem && !(myMem as any).din && company && (
             <ClaimSeatPrompt
               companyId={companyId}
@@ -339,60 +339,40 @@ export default function CompanyWorkspacePage() {
             />
           )}
 
-          {/* ── Module cards ── */}
+          {/* Module cards */}
           <div>
             <p className="text-zinc-600 text-[10px] font-semibold uppercase tracking-widest mb-3">What you can do here</p>
             <div className="grid grid-cols-2 gap-3">
               {[
-                {
-                  icon: '⬡', label: 'Board Meetings', count: company?._count.meetings ?? 0,
-                  desc: 'Schedule, conduct and sign off board meetings end-to-end. Attendance, voting, minutes — all in one place.',
-                  href: `/companies/${companyId}/meetings`, color: '#4F7FFF', bg: 'bg-blue-950/20 border-blue-800/30',
-                },
-                {
-                  icon: '◎', label: 'Resolutions', count: company?._count.resolutions ?? 0,
-                  desc: 'Track every board resolution with vote tallies, dissent records, and certified copies for banks and regulators.',
-                  href: `/companies/${companyId}/resolutions`, color: '#F59E0B', bg: 'bg-amber-950/20 border-amber-800/30',
-                },
-                {
-                  icon: '⬡', label: 'Document Vault', count: company?._count.documents ?? 0,
-                  desc: 'Secure storage for statutory documents — MOA, AOA, incorporation certificate, board papers, and compliance filings.',
-                  href: `/companies/${companyId}/vault`, color: '#A78BFA', bg: 'bg-purple-950/20 border-purple-800/30',
-                },
-                {
-                  icon: '◎', label: 'Circular Resolutions', count: 0,
-                  desc: 'Pass urgent resolutions without a meeting — circulate to all directors and collect approvals digitally per Sec. 175.',
-                  href: `/companies/${companyId}/circular-resolutions`, color: '#22C55E', bg: 'bg-green-950/20 border-green-800/30',
-                },
-              ].map(m => (
-                <Link key={m.label} href={m.href}
-                  className={`flex flex-col gap-3 p-5 rounded-2xl border ${m.bg} hover:brightness-110 transition-all group`}>
+                { icon: '⬡', label: 'Board Meetings',       count: company?._count.meetings    ?? 0, desc: 'Schedule, conduct and sign off board meetings end-to-end. Attendance, voting, minutes — all in one place.', href: `/companies/${companyId}/meetings`,              color: '#4F7FFF', bg: 'bg-blue-950/20 border-blue-800/30' },
+                { icon: '◎', label: 'Resolutions',           count: company?._count.resolutions ?? 0, desc: 'Track every board resolution with vote tallies, dissent records, and certified copies for banks and regulators.', href: `/companies/${companyId}/resolutions`,            color: '#F59E0B', bg: 'bg-amber-950/20 border-amber-800/30' },
+                { icon: '⬡', label: 'Document Vault',        count: company?._count.documents   ?? 0, desc: 'Secure storage for statutory documents — MOA, AOA, incorporation certificate, board papers, and compliance filings.', href: `/companies/${companyId}/vault`,             color: '#A78BFA', bg: 'bg-purple-950/20 border-purple-800/30' },
+                { icon: '↻', label: 'Circular Resolutions',  count: 0,                               desc: 'Pass urgent resolutions without a meeting — circulate to all directors and collect approvals digitally per Sec. 175.', href: `/companies/${companyId}/circular-resolutions`, color: '#22C55E', bg: 'bg-green-950/20 border-green-800/30' },
+              ].map(mod => (
+                <Link key={mod.label} href={mod.href}
+                  className={`flex flex-col gap-3 p-5 rounded-2xl border ${mod.bg} hover:brightness-110 transition-all group`}>
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2.5">
-                      <span style={{ color: m.color }} className="text-lg">{m.icon}</span>
-                      <span className="text-[#F0F2F5] font-semibold text-sm">{m.label}</span>
+                      <span style={{ color: mod.color }} className="text-lg">{mod.icon}</span>
+                      <span className="text-[#F0F2F5] font-semibold text-sm">{mod.label}</span>
                     </div>
-                    <span className="font-bold text-lg font-mono" style={{ color: m.color }}>{m.count}</span>
+                    <span className="font-bold text-lg font-mono" style={{ color: mod.color }}>{mod.count}</span>
                   </div>
-                  <p className="text-zinc-500 text-xs leading-relaxed">{m.desc}</p>
-                  <span className="text-xs font-semibold group-hover:translate-x-0.5 transition-transform" style={{ color: m.color }}>Open →</span>
+                  <p className="text-zinc-500 text-xs leading-relaxed">{mod.desc}</p>
+                  <span className="text-xs font-semibold group-hover:translate-x-0.5 transition-transform" style={{ color: mod.color }}>Open →</span>
                 </Link>
               ))}
             </div>
           </div>
 
-          {/* ── Upcoming meetings + Board members side by side ── */}
+          {/* Upcoming meetings + Board members */}
           <div className="grid grid-cols-5 gap-4">
-
-            {/* Upcoming meetings — 3 cols */}
             <div className="col-span-3 bg-[#191D24] border border-[#232830] rounded-2xl p-6">
               <div className="flex items-center justify-between mb-2">
                 <h2 className="text-[#F0F2F5] font-semibold text-sm">Upcoming Meetings</h2>
                 <Link href={`/companies/${companyId}/meetings`} className="text-blue-400 text-xs hover:text-blue-300">View all →</Link>
               </div>
-              <p className="text-zinc-600 text-xs mb-4 leading-relaxed">
-                Board meetings where quorum, declarations, agenda and minutes are managed in full compliance with SS-1.
-              </p>
+              <p className="text-zinc-600 text-xs mb-4 leading-relaxed">Board meetings managed end-to-end in full compliance with SS-1.</p>
               {upcoming.length === 0
                 ? <p className="text-zinc-600 text-sm text-center py-6">No upcoming meetings. Schedule one to get started.</p>
                 : upcoming.slice(0, 4).map(m => (
@@ -407,28 +387,22 @@ export default function CompanyWorkspacePage() {
                 ))
               }
             </div>
-
-            {/* Board members — 2 cols */}
             <div className="col-span-2 bg-[#191D24] border border-[#232830] rounded-2xl p-6">
               <div className="flex items-center justify-between mb-2">
                 <h2 className="text-[#F0F2F5] font-semibold text-sm">Board Members</h2>
                 <button onClick={() => setTab('members')} className="text-blue-400 text-xs hover:text-blue-300">Manage →</button>
               </div>
-              <p className="text-zinc-600 text-xs mb-4 leading-relaxed">
-                Everyone on the board. Each role determines what they can do in meetings and what appears in minutes.
-              </p>
+              <p className="text-zinc-600 text-xs mb-4 leading-relaxed">Each role determines what appears in minutes and what they can do in meetings.</p>
               <div className="space-y-2">
                 {members.slice(0, 6).map(m => (
                   <div key={m.id} className="flex items-center gap-3 px-3 py-2.5 bg-[#13161B] border border-[#232830] rounded-xl">
                     <Avatar name={m.user.name} />
                     <div className="flex-1 min-w-0">
                       <p className="text-[#F0F2F5] text-xs font-semibold truncate">
-                        {m.user.name}
-                        {m.userId === me?.id && <span className="ml-1.5 text-blue-400 text-[9px]">you</span>}
+                        {m.user.name}{m.userId === me?.id && <span className="ml-1.5 text-blue-400 text-[9px]">you</span>}
                       </p>
                       <p className="text-zinc-600 text-[10px] truncate">
                         {ROLE_SHORT[m.role as keyof typeof ROLE_SHORT] ?? m.role}
-                        {(m as any).din && <span className="ml-1.5 text-zinc-700">DIN {(m as any).din}</span>}
                       </p>
                     </div>
                     {m.isWorkspaceAdmin && (
@@ -436,9 +410,7 @@ export default function CompanyWorkspacePage() {
                     )}
                   </div>
                 ))}
-                {members.length > 6 && (
-                  <p className="text-zinc-600 text-xs text-center pt-1">+{members.length - 6} more</p>
-                )}
+                {members.length > 6 && <p className="text-zinc-600 text-xs text-center pt-1">+{members.length - 6} more</p>}
               </div>
             </div>
           </div>
@@ -446,7 +418,7 @@ export default function CompanyWorkspacePage() {
         </div>
       )}
 
-      {/* ── MEMBERS ──────────────────────────────────────────────────────────── */}
+      {/* ── PEOPLE & ACCESS ──────────────────────────────────────────────────── */}
       {tab === 'members' && (
         <div className="space-y-4">
 
@@ -532,9 +504,10 @@ export default function CompanyWorkspacePage() {
             }
           </div>
         </div>
+      )}
 
-          {/* ── Invite & Pending ─────────────────────────────────────────────── */}
-          <div className="space-y-5 mt-2">
+      {/* ── INVITES ───────────────────────────────────────────────────────────── */}
+        <div className="space-y-4 mt-4">
           {isAdmin && (
             <div className="bg-[#191D24] border border-[#232830] rounded-2xl p-6">
               <h2 className="text-[#F0F2F5] font-semibold text-sm mb-5">Invite a Member</h2>
@@ -589,7 +562,6 @@ export default function CompanyWorkspacePage() {
                   );
                 })
             }
-          </div>
           </div>
         </div>
       )}
