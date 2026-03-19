@@ -1782,7 +1782,7 @@ function ResolutionCard({ resolution, index, companyId, jwt, currentUserId, meet
                       await onRefresh();
                     } catch {}
                   }}
-                  editable={canAdvance || isAdmin}
+                  editable={true}
                 />
                 {/* If approved and resolutionText exists, also show the motion text collapsed */}
                 {isApproved && resolution.resolutionText && resolution.text && (
