@@ -1757,7 +1757,7 @@ function ResolutionCard({ resolution, index, companyId, jwt, currentUserId, meet
           {!isNoting && (() => {
             const isApproved = resolution.status === 'APPROVED';
             const showResText = isApproved && resolution.resolutionText;
-            const displayText = showResText ? resolution.resolutionText : resolution.text;
+            const displayText = showResText ? resolution.resolutionText : resolution.motionText;
             const label = isApproved
               ? 'Resolution (passed)'
               : resolution.status === 'REJECTED'
@@ -1785,12 +1785,12 @@ function ResolutionCard({ resolution, index, companyId, jwt, currentUserId, meet
                   editable={true}
                 />
                 {/* If approved and resolutionText exists, also show the motion text collapsed */}
-                {isApproved && resolution.resolutionText && resolution.text && (
+                {isApproved && resolution.resolutionText && resolution.motionText && (
                   <details className="mt-2">
                     <summary className="text-zinc-700 text-[10px] cursor-pointer hover:text-zinc-500">
                       Original motion text
                     </summary>
-                    <p className="text-zinc-600 text-[10px] leading-relaxed whitespace-pre-wrap mt-1">{resolution.text}</p>
+                    <p className="text-zinc-600 text-[10px] leading-relaxed whitespace-pre-wrap mt-1">{resolution.motionText}</p>
                   </details>
                 )}
               </div>
@@ -1799,7 +1799,7 @@ function ResolutionCard({ resolution, index, companyId, jwt, currentUserId, meet
           {isNoting && (
             <div className="bg-[#13161B] border-l-2 border-zinc-700 pl-4 py-3 pr-3 rounded-r-xl">
               <p className="text-zinc-600 text-[10px] uppercase tracking-widest font-semibold mb-1.5">Noting</p>
-              <p className="text-zinc-400 text-xs leading-relaxed whitespace-pre-wrap">{resolution.text}</p>
+              <p className="text-zinc-400 text-xs leading-relaxed whitespace-pre-wrap">{resolution.motionText}</p>
             </div>
           )}
 
