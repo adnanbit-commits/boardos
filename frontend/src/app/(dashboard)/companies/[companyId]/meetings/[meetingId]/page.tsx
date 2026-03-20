@@ -1634,8 +1634,10 @@ function ResolutionCard({ resolution, index, companyId, jwt, currentUserId, meet
   // Path A: track if chairperson opened the vault doc this session
   const [openedVault, setOpenedVault] = useState(false);
 
-  const isNoting = resolution.type === 'NOTING';
-  const ed       = resolution.exhibitDoc;
+  const isNoting          = resolution.type === 'NOTING';
+  const ed                = resolution.exhibitDoc;
+  const isMinutesRecorder = meeting.minutesRecorderId === currentUserId;
+  const canFill           = isChairperson || isMinutesRecorder;
 
   // Determine confirmed evidence state from what's persisted on the resolution
   const hasVaultDoc       = !!(ed?.downloadUrl);
@@ -1667,6 +1669,23 @@ function ResolutionCard({ resolution, index, companyId, jwt, currentUserId, meet
     : isNoting ? 'bg-zinc-700' : 'bg-blue-600';
 
   async function propose() {
+    // Gate: all variables in the motion text must be filled before voting opens
+    if (activeAgendaItem) {
+      const motionText  = (activeAgendaItem as any).motionText  ?? resolution.motionText  ?? '';
+      const values      = (activeAgendaItem as any).variableValues ?? {};
+      const TOKEN_RE    = /\{\{([^}]+)\}\}/g;
+      let m: RegExpExecArray | null;
+      const unfilled: string[] = [];
+      TOKEN_RE.lastIndex = 0;
+      while ((m = TOKEN_RE.exec(motionText)) !== null) {
+        const key = m[1].split('|')[0].trim();
+        if (!values[key]) unfilled.push(key);
+      }
+      if (unfilled.length > 0) {
+        setCastError(`Fill all variable fields in this motion before putting it to a vote. Missing: ${unfilled.join(', ')}`);
+        return;
+      }
+    }
     setProposing(true);
     try {
       // Propose (DRAFT → PROPOSED) then immediately open voting (PROPOSED → VOTING)
@@ -1782,8 +1801,14 @@ function ResolutionCard({ resolution, index, companyId, jwt, currentUserId, meet
                       await onRefresh();
                     } catch {}
                   }}
-                  editable={true}
+                  editable={canFill}
                 />
+                {/* Hint for directors who cannot fill — amber tokens are visible but non-clickable */}
+                {!canFill && (activeAgendaItem as any)?.variables?.length > 0 && (
+                  <p className="text-zinc-600 text-[10px] mt-2 italic">
+                    Amber fields to be filled by the Chairperson or Minutes Recorder before voting.
+                  </p>
+                )}
                 {/* If approved and resolutionText exists, also show the motion text collapsed */}
                 {isApproved && resolution.resolutionText && resolution.motionText && (
                   <details className="mt-2">
