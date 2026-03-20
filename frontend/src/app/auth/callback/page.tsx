@@ -31,6 +31,13 @@ function CallbackInner() {
       .then(r => r.json())
       .then(user => {
         saveSession(token, user);
+        // Check if this Google login was initiated from an invite link
+        const pendingInvite = sessionStorage.getItem('pendingInviteToken');
+        if (pendingInvite) {
+          sessionStorage.removeItem('pendingInviteToken');
+          router.replace(`/invite/${pendingInvite}`);
+          return;
+        }
         if (onboarding) setStep('onboarding');
         else router.replace('/');  // landing page shows workspace panel for logged-in users
       })
