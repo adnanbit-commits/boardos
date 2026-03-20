@@ -209,7 +209,7 @@ export const SYSTEM_TEMPLATES: SystemTemplate[] = [
         title: 'To consider and approve authorisation of electronic records and appointment of Custodian',
         itemType: 'STANDARD',
         legalBasis: 'Rule 3(7) Companies (Meetings of Board and its Powers) Rules, 2014. Rule 28 Companies (Management and Administration) Rules, 2014.',
-        guidanceNote: 'This resolution authorises BoardOS as the electronic records platform and designates the custodian under Rule 28. Without this resolution, electronic records have no board authorisation.',
+        guidanceNote: 'This resolution authorises SafeMinutes as the electronic records platform and designates the custodian under Rule 28. Without this resolution, electronic records have no board authorisation.',
         isOptional: false,
         requiredFor: 'FIRST_MEETING',
         workItems: [{
@@ -225,7 +225,7 @@ export const SYSTEM_TEMPLATES: SystemTemplate[] = [
         title: 'To consider and approve directions for maintenance of Statutory Registers',
         itemType: 'STANDARD',
         legalBasis: 'Companies Act 2013 — various sections requiring maintenance of statutory registers.',
-        guidanceNote: 'Directs the custodian to maintain all required registers in electronic form on BoardOS.',
+        guidanceNote: 'Directs the custodian to maintain all required registers in electronic form on SafeMinutes.',
         isOptional: false,
         requiredFor: 'FIRST_MEETING',
         workItems: [{

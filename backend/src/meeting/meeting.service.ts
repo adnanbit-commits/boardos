@@ -453,11 +453,11 @@ export class MeetingService {
             `Date & Time: ${meetingDate}`,
             `Deemed Venue: ${deemedVenue}`,
             '',
-            `Please acknowledge receipt of this notice by opening the meeting on BoardOS.`,
+            `Please acknowledge receipt of this notice by opening the meeting on SafeMinutes.`,
             '',
             `View meeting: ${meetingUrl}`,
             '',
-            'BoardOS',
+            'SafeMinutes',
           ].join('\n'),
         }),
       ));
@@ -499,7 +499,7 @@ export class MeetingService {
               '',
               'If you have no objections, no action is needed.',
               '',
-              'BoardOS',
+              'SafeMinutes',
             ].join('\n'),
           }),
         ));

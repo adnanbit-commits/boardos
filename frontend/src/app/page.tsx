@@ -186,8 +186,8 @@ export default function LandingPage() {
       <div style={s.left}>
         <header style={s.header}>
           <div style={s.logoWrap}>
-            <div style={s.logoMark}>B</div>
-            <span style={s.logoText}>BoardOS</span>
+            <div style={s.logoMark}>S</div>
+            <span style={s.logoText}>SafeMinutes</span>
           </div>
           <span style={s.headerBadge}>MCA · ICSI · Companies Act 2013</span>
         </header>
@@ -198,7 +198,7 @@ export default function LandingPage() {
             The <span style={s.h1span}>complete digital record</span> your board is legally required to maintain.
           </h1>
           <p style={s.heroSub}>
-            BoardOS handles the full governance cycle for Indian private companies — meetings, resolutions, minutes, and audit trails — in a single compliant platform. Built for directors, Company Secretaries, CAs, and promoters.
+            SafeMinutes handles the full governance cycle for Indian private companies — meetings, resolutions, minutes, and audit trails — in a single compliant platform. Built for directors, Company Secretaries, CAs, and promoters.
           </p>
           <div style={s.pills}>
             {['Companies Act 2013', 'ICSI SS-1', 'MCA21 V3', 'MGT-14', 'Sec. 118 Minutes', 'Sec. 173-175', 'DSC Compliant'].map(p => (
@@ -209,7 +209,7 @@ export default function LandingPage() {
 
         <div style={s.alert}>
           <p style={s.alertText}>
-            <strong style={{ color: '#C8B898' }}>Non-compliance is not a technicality.</strong> Directors of defaulting companies face penalties of Rs. 25,000 per officer, automatic disqualification under Sec. 164, and ROC strike-off proceedings. BoardOS makes compliance the default outcome — not an afterthought.
+            <strong style={{ color: '#C8B898' }}>Non-compliance is not a technicality.</strong> Directors of defaulting companies face penalties of Rs. 25,000 per officer, automatic disqualification under Sec. 164, and ROC strike-off proceedings. SafeMinutes makes compliance the default outcome — not an afterthought.
           </p>
         </div>
 
@@ -247,7 +247,7 @@ export default function LandingPage() {
         </div>
 
         <footer style={s.footer}>
-          <span style={s.footerL}>© 2026 BoardOS — Companies Act 2013 · MCA21 · ICSI Secretarial Standards</span>
+          <span style={s.footerL}>© 2026 SafeMinutes — Companies Act 2013 · MCA21 · ICSI Secretarial Standards</span>
           <span style={s.footerR}>
             <span>Privacy</span><span>Terms</span>
           </span>
@@ -376,7 +376,7 @@ export default function LandingPage() {
             </button>
 
             <div style={s.loginNote}>
-              BoardOS uses encrypted storage and identity-linked access. Your board data is private and protected.
+              SafeMinutes uses encrypted storage and identity-linked access. Your board data is private and protected.
             </div>
           </>
         )}

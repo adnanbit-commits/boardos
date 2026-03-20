@@ -59,7 +59,7 @@ export class NotificationService {
         companyId,
         type: 'VOTE_REQUEST',
         subject: `Action Required: Vote on "${resolutionTitle}"`,
-        body: 'You are requested to cast your vote on the board resolution: "' + resolutionTitle + '". Please log in to BoardOS to vote.',
+        body: 'You are requested to cast your vote on the board resolution: "' + resolutionTitle + '". Please log in to SafeMinutes to vote.',
       }),
     ));
   }

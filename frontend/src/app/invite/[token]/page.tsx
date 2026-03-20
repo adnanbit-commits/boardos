@@ -126,8 +126,8 @@ export default function InvitePage() {
 
       {/* Logo */}
       <div className="flex items-center gap-2 mb-10 fade-up">
-        <div className="w-7 h-7 bg-blue-600 rounded-lg flex items-center justify-center text-white font-black text-sm">B</div>
-        <span className="text-white font-bold text-base tracking-tight">BoardOS</span>
+        <div className="w-7 h-7 bg-blue-600 rounded-lg flex items-center justify-center text-white font-black text-sm">S</div>
+        <span className="text-white font-bold text-base tracking-tight">SafeMinutes</span>
       </div>
 
       <div className="w-full max-w-md">

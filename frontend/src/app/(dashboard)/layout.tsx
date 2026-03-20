@@ -112,8 +112,8 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           {/* Logo */}
           <Link href="/" className="flex items-center gap-2 mr-1 hover:opacity-80 transition-opacity">
             <div className="w-[26px] h-[26px] bg-[#4F7FFF] rounded-[6px] flex items-center justify-center
-              text-white font-black text-sm">B</div>
-            <span className="font-bold text-[15px] text-[#F0F2F5] tracking-tight">BoardOS</span>
+              text-white font-black text-sm">S</div>
+            <span className="font-bold text-[15px] text-[#F0F2F5] tracking-tight">SafeMinutes</span>
           </Link>
 
           <div className="w-px h-5 bg-[#232830]" />

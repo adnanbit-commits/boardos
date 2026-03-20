@@ -84,7 +84,7 @@ export class InviteService {
       toEmail: existingUser ? undefined : dto.email, // Direct email for users with no account yet
       companyId,
       type: 'MEETING_INVITE',
-      subject: `You've been invited to join ${company.name} on BoardOS`,
+      subject: `You've been invited to join ${company.name} on SafeMinutes`,
       body: this.buildInviteEmailBody({
         companyName: company.name,
         role: dto.role,
@@ -238,10 +238,10 @@ export class InviteService {
     email: string;
   }): string {
     return `
-      You have been invited to join ${params.companyName} on BoardOS
+      You have been invited to join ${params.companyName} on SafeMinutes
       as a ${params.role}.
 
-      BoardOS is a governance platform for managing board meetings,
+      SafeMinutes is a governance platform for managing board meetings,
       resolutions, and compliance documents.
 
       Accept your invitation here:

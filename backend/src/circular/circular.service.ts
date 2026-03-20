@@ -131,7 +131,7 @@ export class CircularService {
         companyId,
         type:      'SIGNATURE_REQUEST',
         subject:   `Circular Resolution ${serialNumber}: ${resolution.title}`,
-        body:      `A resolution by circulation requires your consent.\n\n${resolution.circulationNote}\n\nDeadline: ${deadline.toDateString()}.\n\nPlease log in to BoardOS to sign or object.`,
+        body:      `A resolution by circulation requires your consent.\n\n${resolution.circulationNote}\n\nDeadline: ${deadline.toDateString()}.\n\nPlease log in to SafeMinutes to sign or object.`,
       }).catch(() => {});
     }
 

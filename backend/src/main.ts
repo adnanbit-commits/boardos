@@ -33,13 +33,13 @@ async function bootstrap() {
 
   // ── Swagger ──────────────────────────────────────────────────────────────
   const config = new DocumentBuilder()
-    .setTitle('BoardOS API').setDescription('Governance platform for Indian private companies')
+    .setTitle('SafeMinutes API').setDescription('Governance platform for Indian private companies')
     .setVersion('0.1.0').addBearerAuth().build();
   SwaggerModule.setup('api/docs', app, SwaggerModule.createDocument(app, config));
 
   const port = process.env.PORT ?? 3001;
   await app.listen(port);
-  console.log(`BoardOS API running on http://localhost:${port}`);
+  console.log(`SafeMinutes API running on http://localhost:${port}`);
   console.log(`Swagger docs at http://localhost:${port}/api/docs`);
 }
 

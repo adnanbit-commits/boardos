@@ -374,7 +374,7 @@ export class MinutesService {
           '',
           'If you have no objections, no action is required.',
           '',
-          'BoardOS',
+          'SafeMinutes',
         ].join('\n'),
       }),
     ));

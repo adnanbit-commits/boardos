@@ -497,7 +497,7 @@ export class ResolutionService {
     if (!hasVaultDoc && !hasExternalDoc && !hasPhysical) {
       throw new BadRequestException(
         'Document evidence must be confirmed before placing on record. ' +
-        'Link the document from BoardOS vault, provide an external URL, ' +
+        'Link the document from SafeMinutes vault, provide an external URL, ' +
         'or confirm physical presence at the deemed venue.',
       );
     }
@@ -567,7 +567,7 @@ export class ResolutionService {
           body:
             `A board resolution has been opened for your vote.\n\n` +
             `Resolution: "${resolutionTitle}"\n\n` +
-            `Log in to BoardOS to cast your vote. Your vote is required to proceed.`,
+            `Log in to SafeMinutes to cast your vote. Your vote is required to proceed.`,
         }),
       ),
     );
@@ -592,7 +592,7 @@ export class ResolutionService {
           body:
             `${count} board resolution${count > 1 ? 's have' : ' has'} been opened for voting ` +
             `in the meeting "${meetingTitle}".\n\n` +
-            `Log in to BoardOS to review and cast your votes.`,
+            `Log in to SafeMinutes to review and cast your votes.`,
         }),
       ),
     );
@@ -606,7 +606,7 @@ export class ResolutionService {
   // ── Exhibit resolver ─────────────────────────────────────────────────────────
   //
   // Returns the full evidence payload for a NOTING resolution:
-  //   - vaultDoc: signed download URL for Path A (BoardOS vault)
+  //   - vaultDoc: signed download URL for Path A (SafeMinutes vault)
   //   - externalDoc: URL + platform label for Path B
   //   - physical: boolean + evidence text for Path C
   //

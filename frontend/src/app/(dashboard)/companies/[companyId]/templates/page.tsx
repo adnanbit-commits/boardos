@@ -431,7 +431,7 @@ export default function TemplatesPage() {
                       {/* Source tabs */}
                       <div style={{ display: 'flex', gap: 6 }}>
                         {[
-                          { k: 'vault',    l: '📁 BoardOS Vault' },
+                          { k: 'vault',    l: '📁 SafeMinutes Vault' },
                           { k: 'external', l: '🔗 External URL' },
                           { k: 'physical', l: '📄 Physical Copy' },
                         ].map(tab => {
@@ -499,7 +499,7 @@ export default function TemplatesPage() {
                             placeholder={EXTERNAL_PLATFORM_OPTIONS.find(p => p.value === item.externalDocPlatform)?.hint ?? 'https://...'}
                             style={{ ...inputStyle, fontSize: 12, padding: '7px 10px' }} />
                           <p style={{ fontSize: 10, color: '#92400E', background: 'rgba(146,64,14,0.08)', border: '1px solid rgba(146,64,14,0.2)', borderRadius: 4, padding: '4px 8px', margin: 0 }}>
-                            ⚠ Directors must have access to this URL. BoardOS cannot verify access for external platforms.
+                            ⚠ Directors must have access to this URL. SafeMinutes cannot verify access for external platforms.
                           </p>
                         </div>
                       )}

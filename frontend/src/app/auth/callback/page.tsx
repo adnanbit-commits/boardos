@@ -65,15 +65,15 @@ function CallbackInner() {
 
       <div className="w-full max-w-md fade-up">
         <div className="flex items-center gap-2.5 justify-center mb-10">
-          <div className="w-8 h-8 bg-[#4F7FFF] rounded-lg flex items-center justify-center text-white font-black text-base">B</div>
-          <span className="text-[#F0F2F5] font-bold text-lg tracking-tight">BoardOS</span>
+          <div className="w-8 h-8 bg-[#4F7FFF] rounded-lg flex items-center justify-center text-white font-black text-base">S</div>
+          <span className="text-[#F0F2F5] font-bold text-lg tracking-tight">SafeMinutes</span>
         </div>
         <div className="bg-[#191D24] border border-[#232830] rounded-2xl overflow-hidden">
           <div className="h-px bg-gradient-to-r from-[#4F7FFF] via-[#60A5FA] to-transparent" />
           <div className="px-8 py-8">
             <h1 className="text-[#F0F2F5] font-bold text-2xl mb-2"
               style={{ fontFamily:"'Playfair Display',Georgia,serif", letterSpacing:'-0.02em' }}>
-              How will you use BoardOS?
+              How will you use SafeMinutes?
             </h1>
             <p className="text-[#6B7280] text-sm mb-8">Helps us personalise your experience. You can change this any time.</p>
             <div className="space-y-3 mb-8">

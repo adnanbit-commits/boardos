@@ -10,7 +10,7 @@ async function sendViaResend(to: string, subject: string, html: string): Promise
     return;
   }
   const payload = JSON.stringify({
-    from: process.env.RESEND_FROM_EMAIL ?? 'BoardOS <noreply@bitpers.com>',
+    from: process.env.RESEND_FROM_EMAIL ?? 'SafeMinutes <noreply@bitpers.com>',
     to, subject, html,
   });
   return new Promise((resolve, reject) => {
@@ -58,7 +58,7 @@ export class NotificationProcessor extends WorkerHost {
         if (!user) throw new Error(`User ${userId} not found`);
         recipientEmail = user.email;
       }
-      const html = `<div style="font-family:Arial,sans-serif;max-width:560px;margin:0 auto;padding:40px 20px;"><div style="margin-bottom:32px;"><span style="background:#2563EB;color:white;font-weight:800;font-size:14px;padding:6px 12px;border-radius:6px;">BoardOS</span></div><h2 style="color:#111827;font-size:22px;margin-bottom:16px;">${subject}</h2><div style="color:#374151;font-size:15px;line-height:1.7;white-space:pre-line;">${body}</div><hr style="border:none;border-top:1px solid #E5E7EB;margin:32px 0;"/><p style="color:#9CA3AF;font-size:12px;">BoardOS</p></div>`;
+      const html = `<div style="font-family:Arial,sans-serif;max-width:560px;margin:0 auto;padding:40px 20px;"><div style="margin-bottom:32px;"><span style="background:#2563EB;color:white;font-weight:800;font-size:14px;padding:6px 12px;border-radius:6px;">SafeMinutes</span></div><h2 style="color:#111827;font-size:22px;margin-bottom:16px;">${subject}</h2><div style="color:#374151;font-size:15px;line-height:1.7;white-space:pre-line;">${body}</div><hr style="border:none;border-top:1px solid #E5E7EB;margin:32px 0;"/><p style="color:#9CA3AF;font-size:12px;">SafeMinutes</p></div>`;
       await sendViaResend(recipientEmail, subject, html);
       await this.prisma.notification.update({
         where: { id: notificationId },

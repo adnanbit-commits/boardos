@@ -2,7 +2,7 @@ import type { Metadata } from 'next';
 import './globals.css';
 
 export const metadata: Metadata = {
-  title:       'BoardOS — Board Governance Platform',
+  title:       'SafeMinutes — Board minutes done right for Indian companies',
   description: 'Manage board meetings, resolutions, and minutes for private companies.',
 };
 

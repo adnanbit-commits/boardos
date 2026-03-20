@@ -1808,7 +1808,7 @@ function ResolutionCard({ resolution, index, companyId, jwt, currentUserId, meet
             <div className="space-y-3">
               <p className="text-zinc-500 text-[10px] uppercase tracking-widest font-semibold">Document Evidence</p>
 
-              {/* Path A — BoardOS Vault */}
+              {/* Path A — SafeMinutes Vault */}
               {hasVaultDoc && (
                 <div className={`rounded-xl border p-3.5 flex items-center gap-3 transition-colors ${
                   openedVault ? 'bg-green-950/20 border-green-800/30' : 'bg-[#13161B] border-amber-800/30'
@@ -1819,7 +1819,7 @@ function ResolutionCard({ resolution, index, companyId, jwt, currentUserId, meet
                       {ed?.vaultDocLabel ?? ed?.fileName ?? 'Vault document'}
                     </p>
                     <p className="text-[10px] text-zinc-500 mt-0.5">
-                      {openedVault ? 'Reviewed from BoardOS vault' : 'Open to review before placing on record'}
+                      {openedVault ? 'Reviewed from SafeMinutes vault' : 'Open to review before placing on record'}
                     </p>
                   </div>
                   <a href={resolveDownloadUrl(ed!.downloadUrl!, jwt)} target="_blank" rel="noopener noreferrer"
@@ -1898,7 +1898,7 @@ function ResolutionCard({ resolution, index, companyId, jwt, currentUserId, meet
                 <a href={`/companies/${companyId}/vault`} target="_blank" rel="noopener noreferrer"
                   className="flex items-center gap-2 text-[11px] text-zinc-500 hover:text-blue-400 transition-colors">
                   <span>📁</span>
-                  <span>Upload to BoardOS vault instead →</span>
+                  <span>Upload to SafeMinutes vault instead →</span>
                 </a>
               )}
 
