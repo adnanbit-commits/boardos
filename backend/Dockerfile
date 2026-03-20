@@ -2,6 +2,9 @@
 FROM node:20-alpine AS builder
 WORKDIR /app
 
+# Skip Puppeteer's Chromium download — not needed at build time, only runtime
+ENV PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true
+
 COPY package.json ./
 RUN npm install --legacy-peer-deps
 
@@ -12,45 +15,27 @@ RUN npx prisma generate
 RUN npm run build
 
 # ── Stage 2: runner ────────────────────────────────────────────────────────────
+# Puppeteer requires Chromium — use the full Debian base for production.
 FROM node:20-slim AS runner
 WORKDIR /app
 
-# Install system libs required by Puppeteer's bundled Chromium
+# Install Chromium and its deps for Puppeteer
 RUN apt-get update && apt-get install -y \
-    ca-certificates \
+    chromium \
     fonts-liberation \
-    libasound2 \
-    libatk-bridge2.0-0 \
-    libatk1.0-0 \
-    libcairo2 \
-    libcups2 \
-    libdbus-1-3 \
-    libdrm2 \
-    libexpat1 \
-    libfontconfig1 \
-    libgbm1 \
-    libglib2.0-0 \
-    libgtk-3-0 \
-    libnspr4 \
     libnss3 \
-    libpango-1.0-0 \
-    libpangocairo-1.0-0 \
-    libx11-6 \
-    libx11-xcb1 \
-    libxcb1 \
+    libatk-bridge2.0-0 \
+    libdrm2 \
     libxcomposite1 \
-    libxcursor1 \
     libxdamage1 \
-    libxext6 \
-    libxfixes3 \
-    libxi6 \
     libxrandr2 \
-    libxrender1 \
-    libxss1 \
-    libxtst6 \
-    xdg-utils \
+    libgbm1 \
+    libasound2 \
     --no-install-recommends \
   && rm -rf /var/lib/apt/lists/*
+
+ENV PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium
+ENV PUPPETEER_NO_SANDBOX=true
 
 # Non-root user
 RUN groupadd --system --gid 1001 nodejs && \
@@ -61,17 +46,10 @@ COPY --from=builder /app/node_modules ./node_modules
 COPY --from=builder /app/package.json ./
 COPY --from=builder /app/prisma       ./prisma
 
-# Set Puppeteer cache dir to a path owned by boardos
-ENV PUPPETEER_CACHE_DIR=/app/.puppeteer-cache
-ENV PUPPETEER_NO_SANDBOX=true
-
-# Install Puppeteer's Chrome into the app directory (not /root/.cache)
-RUN npx puppeteer browsers install chrome
-
-# Pre-generate Prisma client
+# Pre-generate Prisma client as root so engine binaries are in place
 RUN npx prisma generate
 
-# Fix ownership — includes the Puppeteer cache
+# Fix ownership so non-root user can read everything
 RUN chown -R boardos:nodejs /app
 
 USER boardos
