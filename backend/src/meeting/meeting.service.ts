@@ -53,8 +53,12 @@ export class MeetingService {
   }
 
   async create(companyId: string, dto: CreateMeetingDto, userId: string) {
+    // Auto-assign serial number — count existing meetings for this company + 1
+    const existingCount = await this.prisma.meeting.count({ where: { companyId } });
+    const meetingSerialNumber = existingCount + 1;
+
     const meeting = await this.prisma.meeting.create({
-      data: { companyId, calledBy: userId, ...dto } as any,
+      data: { companyId, calledBy: userId, meetingSerialNumber, ...dto } as any,
     });
     await this.audit.log({ companyId, userId, action: 'MEETING_CREATED', entity: 'Meeting', entityId: meeting.id });
     return meeting;
@@ -417,6 +421,9 @@ export class MeetingService {
 
     const extraData: any = {};
     if (targetStatus === 'MINUTES_CIRCULATED') extraData.minutesCirculatedAt = new Date();
+    // SS-1 Para 7.2.1.1 — minutes must record time of commencement
+    // Capture the moment the meeting is called to order
+    if (targetStatus === 'IN_PROGRESS') extraData.commencementTime = new Date();
 
     const updated = await this.prisma.meeting.update({
       where: { id },

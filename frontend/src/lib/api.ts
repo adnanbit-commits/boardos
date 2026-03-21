@@ -44,6 +44,8 @@ export interface User {
 export interface CompanyWithMeta {
   id: string; name: string; cin?: string; mcaDirectors?: { din: string; name: string; designation: string; appointedOn: string | null }[];
   registeredAt?: string | null;  // registered office address
+  email?:        string | null;  // shown on letterhead
+  website?:      string | null;  // shown on letterhead
   myRole: 'DIRECTOR' | 'COMPANY_SECRETARY' | 'AUDITOR' | 'OBSERVER';
   isWorkspaceAdmin: boolean; createdAt: string;
   pendingVotes?: number; unsignedDocs?: number; live?: boolean;
@@ -99,7 +101,10 @@ export interface Meeting {
   chairpersonId?: string | null;
   minutesRecorderId?: string | null;
   minutesCirculatedAt?: string | null;
-  calledBy?: string | null;  // userId of director who created this meeting
+  calledBy?: string | null;       // userId of director who created this meeting
+  meetingSerialNumber?: number | null;  // auto-assigned per company (1, 2, 3...)
+  commencementTime?: string | null;     // when meeting was called to order
+  conclusionTime?: string | null;       // when meeting was formally closed
 }
 
 

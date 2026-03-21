@@ -1,0 +1,86 @@
+#!/bin/bash
+# boardos-start.sh — start the VM and bring SafeMinutes/BoardOS up
+
+set -e
+
+PROJECT="boardos-333"
+ZONE="asia-south1-c"
+VM="boardos-vm-b"
+
+BOLD='\033[1m'
+CYAN='\033[0;36m'
+GREEN='\033[0;32m'
+RESET='\033[0m'
+
+echo ""
+echo -e "${CYAN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${RESET}"
+echo -e "${BOLD}  SafeMinutes — Startup${RESET}"
+echo -e "${CYAN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${RESET}"
+
+# Step 1: Start the VM
+echo ""
+echo "▶ Starting VM ($VM)..."
+gcloud compute instances start "$VM" \
+  --zone="$ZONE" \
+  --project="$PROJECT" \
+  --quiet
+echo -e "${GREEN}✓ VM started${RESET}"
+
+# Step 2: Wait until SSH is ready
+echo ""
+echo "▶ Waiting for VM to be ready..."
+ATTEMPTS=0
+MAX=24  # 24 × 5s = 2 minutes
+until gcloud compute ssh "$VM" \
+  --zone="$ZONE" --project="$PROJECT" \
+  --command="echo ok" --quiet 2>/dev/null; do
+  ATTEMPTS=$((ATTEMPTS + 1))
+  if [ "$ATTEMPTS" -ge "$MAX" ]; then
+    echo "✗ VM did not become reachable after 2 minutes. Try again."
+    exit 1
+  fi
+  echo "  ...not ready yet, retrying in 5s"
+  sleep 5
+done
+echo -e "${GREEN}✓ VM is ready${RESET}"
+
+# Step 3: Ensure nginx is running (auto-starts on boot but verify)
+echo ""
+echo "▶ Checking nginx..."
+gcloud compute ssh "$VM" \
+  --zone="$ZONE" --project="$PROJECT" --quiet \
+  --command="sudo systemctl is-active nginx || sudo systemctl start nginx"
+echo -e "${GREEN}✓ nginx is running${RESET}"
+
+# Step 4: Start Docker containers
+echo ""
+echo "▶ Starting Docker containers..."
+gcloud compute ssh "$VM" \
+  --zone="$ZONE" --project="$PROJECT" --quiet \
+  --command="cd /home/adnankhan/boardos && docker compose up -d"
+echo -e "${GREEN}✓ Containers started${RESET}"
+
+# Step 5: Wait for the site to respond via the domain
+echo ""
+echo "▶ Waiting for safeminutes.com to be healthy..."
+HEALTH_ATTEMPTS=0
+HEALTH_MAX=24
+until curl -sf "https://safeminutes.com" > /dev/null 2>&1; do
+  HEALTH_ATTEMPTS=$((HEALTH_ATTEMPTS + 1))
+  if [ "$HEALTH_ATTEMPTS" -ge "$HEALTH_MAX" ]; then
+    echo "  (health check timed out — containers may still be starting, check manually)"
+    break
+  fi
+  echo "  ...waiting, retrying in 5s"
+  sleep 5
+done
+if [ "$HEALTH_ATTEMPTS" -lt "$HEALTH_MAX" ]; then
+  echo -e "${GREEN}✓ Site is responding${RESET}"
+fi
+
+echo ""
+echo -e "${CYAN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${RESET}"
+echo -e "${BOLD}  SafeMinutes is live!${RESET}"
+echo -e "  App : ${GREEN}https://safeminutes.com${RESET}"
+echo -e "${CYAN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${RESET}"
+echo ""

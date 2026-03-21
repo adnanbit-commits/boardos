@@ -1,0 +1,198 @@
+#!/bin/bash
+# boardos-reset — interactive DB purge for SafeMinutes/BoardOS
+# Levels:
+#   1 — meetings only     : wipe meetings + all child data, keep workspaces & vault
+#   2 — workspaces        : level 1 + wipe companies, members, invitations, templates & vault
+#   3 — everything        : level 2 + wipe users (full factory reset)
+
+set -e
+
+PROJECT="boardos-333"
+ZONE="asia-south1-c"
+VM="boardos-vm-b"
+
+BOLD='\033[1m'
+CYAN='\033[0;36m'
+YELLOW='\033[1;33m'
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+RESET='\033[0m'
+
+echo ""
+echo -e "${CYAN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${RESET}"
+echo -e "${BOLD}  SafeMinutes — Data Purge${RESET}"
+echo -e "${CYAN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${RESET}"
+echo ""
+echo "  Choose what to purge:"
+echo ""
+echo -e "  ${GREEN}1)${RESET} Meetings only"
+echo    "     Wipes: meetings, agenda items, resolutions, votes, minutes,"
+echo    "     attendance, declarations, compliance doc notes, meeting documents,"
+echo    "     share links, notifications, audit logs"
+echo    "     Keeps: user accounts, workspaces, vault documents, templates"
+echo ""
+echo -e "  ${YELLOW}2)${RESET} Workspaces + meetings"
+echo    "     Everything in level 1, plus:"
+echo    "     Wipes: companies, members, invitations, meeting templates,"
+echo    "     vault documents, director compliance docs, certified copies,"
+echo    "     archived documents"
+echo    "     Keeps: user accounts only"
+echo ""
+echo -e "  ${RED}3)${RESET} Full factory reset"
+echo    "     Everything — including user accounts"
+echo    "     SafeMinutes returns to a completely empty state"
+echo ""
+echo -e "  ${BOLD}q)${RESET} Quit"
+echo ""
+
+read -rp "  Enter choice [1/2/3/q]: " CHOICE
+
+case "$CHOICE" in
+  1|2|3) ;;
+  q|Q) echo ""; echo "  Aborted."; echo ""; exit 0 ;;
+  *) echo "  Invalid choice. Exiting."; exit 1 ;;
+esac
+
+# Confirm
+echo ""
+case "$CHOICE" in
+  1) echo -e "  ${YELLOW}This will permanently delete all meeting data.${RESET}" ;;
+  2) echo -e "  ${YELLOW}This will permanently delete all meeting and workspace data.${RESET}" ;;
+  3) echo -e "  ${RED}${BOLD}This will permanently delete EVERYTHING including user accounts.${RESET}" ;;
+esac
+echo ""
+read -rp "  Type YES to confirm: " CONFIRM
+
+if [ "$CONFIRM" != "YES" ]; then
+  echo ""
+  echo "  Aborted."
+  echo ""
+  exit 0
+fi
+
+# ── Build SQL based on level ─────────────────────────────────────────────────
+# All IDs are UUIDs — no integer sequences to reset.
+# Delete children before parents to respect FK constraints.
+
+SQL_LEVEL1="
+-- ── Level 1: Meeting data ────────────────────────────────────────────────────
+
+-- Resolution children (must go before resolutions)
+DELETE FROM votes;
+DELETE FROM certified_copies;
+DELETE FROM circular_signatures;
+
+-- Resolutions that belong to meetings (circular resolutions — meetingId IS NULL — kept at level 1)
+DELETE FROM resolutions WHERE \"meetingId\" IS NOT NULL;
+
+-- Meeting children
+DELETE FROM minutes;
+DELETE FROM agenda_items;
+DELETE FROM meeting_attendance;
+DELETE FROM director_declarations;
+DELETE FROM meeting_doc_notes;
+DELETE FROM meeting_documents;
+DELETE FROM meeting_share_links;
+
+-- Meetings
+DELETE FROM meetings;
+
+-- Reset first_board_meeting_locked_id so first-meeting template works again
+-- (Prisma maps firstBoardMeetingLockedId → first_board_meeting_locked_id in DB)
+UPDATE companies SET first_board_meeting_locked_id = NULL
+WHERE first_board_meeting_locked_id IS NOT NULL;
+
+-- Notifications and audit logs
+DELETE FROM notifications;
+DELETE FROM audit_logs;
+"
+
+SQL_LEVEL2="
+$SQL_LEVEL1
+
+-- ── Level 2: Workspace data ──────────────────────────────────────────────────
+
+-- Circular resolutions (meetingId IS NULL — not covered in level 1)
+DELETE FROM resolutions;
+
+-- Vault and compliance docs
+DELETE FROM vault_documents;
+DELETE FROM director_compliance_docs;
+DELETE FROM archived_documents;
+
+-- Templates
+DELETE FROM meeting_templates;
+
+-- Workspace membership and companies
+DELETE FROM invitations;
+DELETE FROM company_users;
+DELETE FROM companies;
+"
+
+SQL_LEVEL3="
+$SQL_LEVEL2
+
+-- ── Level 3: Full reset ───────────────────────────────────────────────────────
+DELETE FROM users;
+"
+
+case "$CHOICE" in
+  1) FINAL_SQL="$SQL_LEVEL1" ; LABEL="meeting data" ;;
+  2) FINAL_SQL="$SQL_LEVEL2" ; LABEL="workspace + meeting data" ;;
+  3) FINAL_SQL="$SQL_LEVEL3" ; LABEL="all data (factory reset)" ;;
+esac
+
+echo ""
+echo -e "▶ Purging ${BOLD}${LABEL}${RESET}..."
+
+gcloud compute ssh "$VM" \
+  --zone="$ZONE" --project="$PROJECT" --quiet \
+  --command="cd /home/adnankhan/boardos && docker compose exec -T postgres psql -U boardos -d boardos" \
+  <<< "$FINAL_SQL"
+
+echo -e "${GREEN}✓ Purge complete${RESET}"
+
+# ── Row counts after purge ────────────────────────────────────────────────────
+echo ""
+echo "▶ Row counts after purge:"
+gcloud compute ssh "$VM" \
+  --zone="$ZONE" --project="$PROJECT" --quiet \
+  --command="cd /home/adnankhan/boardos && docker compose exec -T postgres psql -U boardos -d boardos -t -c \"
+SELECT 'users'                    , COUNT(*) FROM users                    UNION ALL
+SELECT 'companies'                , COUNT(*) FROM companies                UNION ALL
+SELECT 'company_users'            , COUNT(*) FROM company_users            UNION ALL
+SELECT 'meetings'                 , COUNT(*) FROM meetings                 UNION ALL
+SELECT 'resolutions'              , COUNT(*) FROM resolutions              UNION ALL
+SELECT 'votes'                    , COUNT(*) FROM votes                    UNION ALL
+SELECT 'vault_documents'          , COUNT(*) FROM vault_documents          UNION ALL
+SELECT 'director_compliance_docs' , COUNT(*) FROM director_compliance_docs UNION ALL
+SELECT 'meeting_doc_notes'        , COUNT(*) FROM meeting_doc_notes        UNION ALL
+SELECT 'meeting_templates'        , COUNT(*) FROM meeting_templates        UNION ALL
+SELECT 'notifications'            , COUNT(*) FROM notifications            UNION ALL
+SELECT 'audit_logs'               , COUNT(*) FROM audit_logs
+ORDER BY 1;
+\""
+
+# ── Optional Docker prune ─────────────────────────────────────────────────────
+echo ""
+read -rp "  Also prune Docker build cache and stopped containers? [y/N]: " DOCKER_PRUNE
+if [[ "$DOCKER_PRUNE" =~ ^[Yy]$ ]]; then
+  echo ""
+  echo "▶ Pruning Docker build cache and dangling images (active images preserved)..."
+  gcloud compute ssh "$VM" \
+    --zone="$ZONE" --project="$PROJECT" --quiet \
+    --command="docker image prune -f && docker builder prune -af && docker container prune -f"
+  echo -e "${GREEN}✓ Docker pruned${RESET}"
+
+  echo ""
+  echo "▶ Disk usage after cleanup:"
+  gcloud compute ssh "$VM" \
+    --zone="$ZONE" --project="$PROJECT" --quiet \
+    --command="df -h / | tail -1"
+fi
+
+echo ""
+echo -e "${CYAN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${RESET}"
+echo -e "  ${GREEN}Done.${RESET}"
+echo -e "${CYAN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${RESET}"
+echo ""

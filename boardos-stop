@@ -1,0 +1,55 @@
+#!/bin/bash
+# boardos-stop.sh — safely stop SafeMinutes/BoardOS containers and shut down the VM
+
+set -e
+
+PROJECT="boardos-333"
+ZONE="asia-south1-c"
+VM="boardos-vm-b"
+
+BOLD='\033[1m'
+CYAN='\033[0;36m'
+GREEN='\033[0;32m'
+RESET='\033[0m'
+
+echo ""
+echo -e "${CYAN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${RESET}"
+echo -e "${BOLD}  SafeMinutes — Shutdown${RESET}"
+echo -e "${CYAN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${RESET}"
+
+# Step 1: Check if VM is actually running
+echo ""
+echo "▶ Checking VM state..."
+VM_STATUS=$(gcloud compute instances describe "$VM" \
+  --zone="$ZONE" --project="$PROJECT" \
+  --format="get(status)" 2>/dev/null || echo "UNKNOWN")
+
+if [ "$VM_STATUS" != "RUNNING" ]; then
+  echo "  VM is already $VM_STATUS — nothing to stop."
+  echo ""
+  exit 0
+fi
+echo -e "  VM is ${GREEN}RUNNING${RESET}"
+
+# Step 2: Stop Docker containers gracefully
+# nginx does not need an explicit stop — it shuts down cleanly with the VM
+echo ""
+echo "▶ Stopping Docker containers..."
+gcloud compute ssh "$VM" \
+  --zone="$ZONE" --project="$PROJECT" --quiet \
+  --command="cd /home/adnankhan/boardos && docker compose stop"
+echo -e "${GREEN}✓ Containers stopped${RESET}"
+
+# Step 3: Stop the VM
+echo ""
+echo "▶ Stopping VM ($VM)..."
+gcloud compute instances stop "$VM" \
+  --zone="$ZONE" --project="$PROJECT" \
+  --quiet
+echo -e "${GREEN}✓ VM stopped${RESET}"
+
+echo ""
+echo -e "${CYAN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${RESET}"
+echo -e "  ${GREEN}All done. GCP billing paused.${RESET}"
+echo -e "${CYAN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${RESET}"
+echo ""

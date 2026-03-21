@@ -202,6 +202,8 @@ model Company {
   isActive            Boolean  @default(true)
   minutesCustodianId          String?  // Director authorised to keep statutory registers (Rule 25(1)(f))
   firstBoardMeetingLockedId   String?  // meetingId of locked first meeting — suppresses first-meeting-only template items
+  email         String?           // Shown on letterhead of minutes and attendance register
+  website       String?           // Shown on letterhead (optional)
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 
@@ -289,6 +291,10 @@ model Meeting {
   videoProvider String?       // "zoom" | "meet" | "teams"
   videoUrl      String?
   videoMeetingId String?
+
+  meetingSerialNumber   Int?     // auto-assigned per company at creation (1, 2, 3...)
+  commencementTime      DateTime? // set when SCHEDULED → IN_PROGRESS (meeting called to order)
+  conclusionTime        DateTime? // set when closure is confirmed by chairperson
 
   calledBy              String?  // userId of director who created/called this meeting
   chairpersonId         String?  // Director elected as chairperson for this specific meeting
