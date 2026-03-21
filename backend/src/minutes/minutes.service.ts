@@ -37,18 +37,39 @@ export class MinutesService {
       include: {
         agendaItems:  { orderBy: { order: 'asc' } },
         resolutions:  { include: { votes: { include: { user: { select: { name: true } } } } } },
-        attendance:   { include: { user: { select: { id: true, name: true } } } },
+        // Pull location (virtual attendance) alongside name for SS-1 attendance record
+        attendance: {
+          include: {
+            user: {
+              select: {
+                id: true, name: true,
+                // Pull DIN and designation via CompanyUser join
+                companyUsers: {
+                  where: { companyId },
+                  select: { din: true, designationLabel: true, additionalDesignation: true, role: true },
+                },
+              },
+            },
+          },
+        },
         declarations: { include: { user: { select: { id: true, name: true } } } },
         company: true,
       },
     });
     if (!meeting) throw new NotFoundException('Meeting not found');
 
+    // Pull CS members in attendance separately — they appear in minutes
+    // as "In Attendance" distinct from the director attendance table
+    const csMembers = await this.prisma.companyUser.findMany({
+      where: { companyId, role: 'COMPANY_SECRETARY', acceptedAt: { not: null } },
+      include: { user: { select: { id: true, name: true } } },
+    });
+
     // Resolve chairperson and recorder names for minutes header
     const chairpersonName  = await this.resolveUserName(meeting.chairpersonId);
     const recorderName     = await this.resolveUserName(meeting.minutesRecorderId);
 
-    const content = this.buildMinutesContent(meeting, chairpersonName, recorderName);
+    const content = this.buildMinutesContent(meeting, chairpersonName, recorderName, csMembers);
 
     const existing = await this.prisma.minutes.findUnique({ where: { meetingId } });
     if (existing && existing.status !== MinutesStatus.DRAFT) {
@@ -128,132 +149,243 @@ export class MinutesService {
     return user?.name ?? null;
   }
 
-  private buildMinutesContent(meeting: any, chairpersonName: string | null, recorderName: string | null): string {
+  private buildMinutesContent(meeting: any, chairpersonName: string | null, recorderName: string | null, csMembers: any[] = []): string {
+    const co = meeting.company;
+
+    // ── Helpers ──────────────────────────────────────────────────────────────
     const modeLabel: Record<string, string> = {
       IN_PERSON: 'In Person', VIDEO: 'Video Conference', PHONE: 'Phone',
+      REQUESTED_VIDEO: 'Video Conference', REQUESTED_PHONE: 'Phone',
     };
 
-    const present = (meeting.attendance ?? []).filter((a: any) => a.mode !== 'ABSENT');
-    const absent  = (meeting.attendance ?? []).filter((a: any) => a.mode === 'ABSENT');
-    const presentRows = present.map((a: any) =>
-      `<tr><td>${a.user.name}</td><td>${modeLabel[a.mode] ?? a.mode}</td></tr>`
-    ).join('');
+    const fmt = (d: Date | string) => new Date(d).toLocaleDateString('en-IN', {
+      weekday: 'long', day: '2-digit', month: 'long', year: 'numeric',
+    });
+
+    const fmtTime = (d: Date | string | null | undefined) => d
+      ? new Date(d).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true })
+      : '—';
+
+    const year = new Date(meeting.scheduledAt).getFullYear();
+
+    // ── Venue ─────────────────────────────────────────────────────────────────
+    // Virtual meetings: use deemedVenue (registered office as per SS-1)
+    // Physical meetings: use location field
+    const isVirtual = !!(meeting.videoUrl);
+    const venueText = isVirtual
+      ? `${meeting.deemedVenue || co.registeredAt || 'Registered Office'} (via ${meeting.videoProvider ?? 'video conference'})`
+      : (meeting.location || co.registeredAt || '—');
+
+    // ── Attendance — sort chairperson first, then alphabetically ─────────────
+    const allAttendance = meeting.attendance ?? [];
+    const present = allAttendance
+      .filter((a: any) => a.mode !== 'ABSENT')
+      .sort((a: any, b: any) => {
+        // Chairperson always first
+        if (a.user.id === meeting.chairpersonId) return -1;
+        if (b.user.id === meeting.chairpersonId) return 1;
+        return a.user.name.localeCompare(b.user.name);
+      });
+    const absent = allAttendance.filter((a: any) => a.mode === 'ABSENT');
+
+    // Helper to get designation label for a director
+    const getDesignation = (a: any): string => {
+      const cu = a.user.companyUsers?.[0];
+      if (cu?.designationLabel) return cu.designationLabel;
+      if (cu?.additionalDesignation) return cu.additionalDesignation.replace(/_/g, ' ').toLowerCase().replace(/\b\w/g, (c: string) => c.toUpperCase());
+      if (cu?.role === 'COMPANY_SECRETARY') return 'Company Secretary';
+      return 'Director';
+    };
+
+    const getDin = (a: any): string => a.user.companyUsers?.[0]?.din ?? '—';
+
+    // Build attendance table rows — SS-1 requires name, DIN, designation, mode, location for virtual
+    const presentRows = present.map((a: any) => {
+      const isChair = a.user.id === meeting.chairpersonId;
+      const nameCell = isChair ? `<strong>${a.user.name}</strong> (Chairperson)` : a.user.name;
+      const locationCell = a.mode !== 'IN_PERSON' ? (a.location ?? '—') : '—';
+      return `<tr>
+        <td>${nameCell}</td>
+        <td>${getDin(a)}</td>
+        <td>${getDesignation(a)}</td>
+        <td>${modeLabel[a.mode] ?? a.mode}</td>
+        <td>${locationCell}</td>
+      </tr>`;
+    }).join('');
+
     const absentNames = absent.map((a: any) => a.user.name).join(', ') || 'None';
 
-    // Sec. 174 quorum
-    const totalDirectors  = meeting.attendance?.length ?? 0;
-    const quorumRequired  = Math.max(2, Math.ceil(totalDirectors / 3));
-    const presentCount    = present.length;
-    const quorumMet       = presentCount >= quorumRequired;
+    // CS in attendance line
+    const csLine = csMembers.length > 0
+      ? `<p><strong>In Attendance:</strong> ${csMembers.map((m: any) => m.user.name).join(', ')} (Company Secretary)</p>`
+      : '';
+
+    // ── Quorum (Sec. 174) ─────────────────────────────────────────────────────
+    const totalDirectors = allAttendance.length;
+    const quorumRequired = Math.max(2, Math.ceil(totalDirectors / 3));
+    const presentCount   = present.length;
+    const quorumMet      = presentCount >= quorumRequired;
     const quorumStatement = quorumMet
       ? `Quorum was present. ${presentCount} of ${totalDirectors} directors attended (minimum required: ${quorumRequired}).`
-      : `<strong style="color:red">WARNING: Quorum was NOT met. ${presentCount} of ${totalDirectors} directors attended (minimum required: ${quorumRequired}).</strong>`;
+      : `<strong style="color:red">WARNING: Quorum NOT met. ${presentCount} of ${totalDirectors} directors present (minimum required: ${quorumRequired}).</strong>`;
 
-    // Director declarations section (DIR-2, DIR-8, MBP-1)
+    // ── Director Declarations ─────────────────────────────────────────────────
     const declarationsByUser = new Map<string, any[]>();
     for (const d of (meeting.declarations ?? [])) {
       if (!declarationsByUser.has(d.userId)) declarationsByUser.set(d.userId, []);
       declarationsByUser.get(d.userId)!.push(d);
     }
-
-    const formLabels: Record<string, string> = {
-      DIR_2: 'DIR-2 (Consent to act as Director)',
-      DIR_8: 'DIR-8 (Non-disqualification declaration)',
-      MBP_1: 'MBP-1 (Disclosure of interest)',
-    };
-
     const declarationRows = Array.from(declarationsByUser.entries()).map(([uid, forms]) => {
       const director = meeting.declarations.find((d: any) => d.userId === uid)?.user?.name ?? uid;
       const formCells = ['DIR_2', 'DIR_8', 'MBP_1'].map(f => {
-        const rec = forms.find((d: any) => d.formType === f);
-        const status = rec?.received ? '✓ Received' : '— Not received';
+        const rec    = forms.find((d: any) => d.formType === f);
+        const status = rec?.received ? '&#10003; Received' : '&mdash; Not received';
         const notes  = rec?.notes ? ` <em>(${rec.notes})</em>` : '';
         return `<td>${status}${notes}</td>`;
       }).join('');
       return `<tr><td>${director}</td>${formCells}</tr>`;
     }).join('');
 
-    // Agenda with AOB flag
+    // ── Agenda ────────────────────────────────────────────────────────────────
     const agendaItems = (meeting.agendaItems ?? []).map((a: any, i: number) =>
-      `<li><strong>${a.title}</strong>${a.description ? ` — ${a.description}` : ''}${a.isAob ? ' <span style="color:#b45309;font-size:10pt">[AOB — admitted with Chairman\'s permission]</span>' : ''}</li>`
+      `<li><strong>${a.title}</strong>${a.description ? ` &mdash; ${a.description}` : ''}${a.isAob ? ' <span style="color:#b45309;font-size:10pt">[Any Other Business &mdash; admitted with Chairperson's permission]</span>' : ''}</li>`
     ).join('');
 
-    // Resolutions: NOTING type shown differently from VOTING type
-    const resolutionBlocks = (meeting.resolutions ?? []).map((res: any, idx: number) => {
+    // ── Resolutions ───────────────────────────────────────────────────────────
+    // Serial number format: BM/YYYY/NNN
+    const serialPrefix = `BM/${year}`;
+    let resolutionSerial = 0;
+
+    const resolutionBlocks = (meeting.resolutions ?? []).map((res: any) => {
       if (res.type === 'NOTING') {
         return `
           <div class="resolution noting">
-            <h3>Item ${idx + 1}: ${res.title} <span style="font-size:10pt;color:#6b7280">[Taken on Record]</span></h3>
+            <p class="res-title">Noting: ${res.title} <span class="res-badge">[Taken on Record]</span></p>
             <div class="resolution-text">${res.motionText}</div>
             <p><strong>Status:</strong> ${res.status === 'NOTED' ? 'Placed on record' : res.status}</p>
           </div>`;
       }
 
+      resolutionSerial++;
+      const serialNo = `${serialPrefix}/${String(resolutionSerial).padStart(3, '0')}`;
       const approvals   = res.votes.filter((v: any) => v.value === 'APPROVE').map((v: any) => v.user.name);
       const rejections  = res.votes.filter((v: any) => v.value === 'REJECT').map((v: any) => v.user.name);
       const abstentions = res.votes.filter((v: any) => v.value === 'ABSTAIN').map((v: any) => v.user.name);
+      const passed      = res.status === 'APPROVED';
+      const minutesText = passed ? (res.resolutionText || res.motionText) : res.motionText;
 
       const dissentLine  = rejections.length > 0
         ? `<p style="color:#c0392b"><strong>Directors who dissented (Sec. 118(5)):</strong> ${rejections.join(', ')}</p>` : '';
       const abstainLine  = abstentions.length > 0
         ? `<p><strong>Directors who abstained:</strong> ${abstentions.join(', ')}</p>` : '';
 
-      // Use resolutionText (enacted wording) if available, fall back to motionText
-      const minutesText = res.status === 'APPROVED'
-        ? (res.resolutionText || res.motionText)
-        : res.motionText;
-
       return `
-        <div class="resolution">
-          <h3>${res.status === 'APPROVED' ? 'Resolution' : 'Motion'} ${idx + 1}: ${res.title}</h3>
+        <div class="resolution${passed ? ' passed' : ''}">
+          <p class="res-title">${passed ? 'Resolution' : 'Motion'} No. ${serialNo}: ${res.title}</p>
           <div class="resolution-text">${minutesText}</div>
           <div class="vote-summary">
-            <strong>Result: ${res.status === 'APPROVED' ? 'Passed — Resolution carried' : res.status}</strong><br/>
+            <strong>Result: ${passed ? 'PASSED &mdash; Resolution carried unanimously/by majority' : res.status}</strong>
             <p><strong>In favour (${approvals.length}):</strong> ${approvals.join(', ') || 'None'}</p>
             ${dissentLine}${abstainLine}
           </div>
         </div>`;
     }).join('');
 
+    // ── Letterhead and header ─────────────────────────────────────────────────
+    const letterhead = `
+      <div class="letterhead">
+        <div class="company-name">${co.name}</div>
+        ${co.cin ? `<div class="company-meta">CIN: ${co.cin}</div>` : ''}
+        ${co.registeredAt ? `<div class="company-meta">Registered Office: ${co.registeredAt}</div>` : ''}
+        ${co.email ? `<div class="company-meta">Email: ${co.email}</div>` : ''}
+        ${co.website ? `<div class="company-meta">Website: ${co.website}</div>` : ''}
+      </div>
+      <hr class="letterhead-rule"/>`;
+
+    const meetingHeader = `
+      <div class="meeting-header">
+        <h1>Minutes of Board Meeting</h1>
+        <p class="meeting-ref">Meeting No. ${meeting.meetingSerialNumber ?? '—'} of ${year}</p>
+      </div>
+      <table class="details-table">
+        <tr><th>Type of Meeting</th><td>Board Meeting</td></tr>
+        <tr><th>Day &amp; Date</th><td>${fmt(meeting.scheduledAt)}</td></tr>
+        <tr><th>Time of Commencement</th><td>${fmtTime(meeting.commencementTime)}</td></tr>
+        <tr><th>Time of Conclusion</th><td>${fmtTime(meeting.conclusionTime)}</td></tr>
+        <tr><th>Venue</th><td>${venueText}</td></tr>
+        <tr><th>Chairperson</th><td>${chairpersonName ?? '—'}</td></tr>
+        <tr><th>Minutes Recorded by</th><td>${recorderName ? `${recorderName} (Authorised by Board)` : (chairpersonName ?? '—')}</td></tr>
+      </table>`;
+
     return `
       <html>
         <head>
+          <meta charset="utf-8"/>
           <style>
-            body { font-family: 'Times New Roman', serif; font-size: 12pt; line-height: 1.8; padding: 60px; color: #1a1a1a; }
-            h1 { font-size: 16pt; text-align: center; text-transform: uppercase; letter-spacing: 0.1em; }
-            h2 { font-size: 13pt; margin-top: 32px; border-bottom: 1px solid #ccc; padding-bottom: 4px; }
-            h3 { font-size: 12pt; margin-top: 20px; }
-            table { width: 100%; border-collapse: collapse; margin: 12px 0; }
-            th, td { border: 1px solid #ccc; padding: 8px 12px; text-align: left; font-size: 11pt; }
-            th { background: #f5f5f5; font-weight: bold; }
-            .resolution { margin: 20px 0; padding: 16px; border-left: 3px solid #333; }
+            * { box-sizing: border-box; }
+            body { font-family: 'Times New Roman', serif; font-size: 12pt; line-height: 1.8; padding: 50px 60px; color: #1a1a1a; }
+
+            /* Letterhead */
+            .letterhead { text-align: center; margin-bottom: 8px; }
+            .company-name { font-size: 16pt; font-weight: bold; text-transform: uppercase; letter-spacing: 0.05em; }
+            .company-meta { font-size: 10pt; color: #444; margin-top: 2px; }
+            .letterhead-rule { border: none; border-top: 2px solid #1a1a1a; margin: 10px 0 20px; }
+
+            /* Meeting header */
+            .meeting-header { text-align: center; margin-bottom: 16px; }
+            h1 { font-size: 15pt; text-transform: uppercase; letter-spacing: 0.08em; margin: 0 0 4px; }
+            .meeting-ref { font-size: 11pt; color: #555; margin: 0; }
+
+            /* Section headings */
+            h2 { font-size: 12pt; font-weight: bold; margin-top: 28px; margin-bottom: 8px;
+                 border-bottom: 1px solid #aaa; padding-bottom: 3px; text-transform: uppercase;
+                 letter-spacing: 0.05em; }
+
+            /* Tables */
+            table { width: 100%; border-collapse: collapse; margin: 10px 0; font-size: 11pt; }
+            .details-table th { width: 35%; background: #f5f5f5; }
+            th, td { border: 1px solid #bbb; padding: 7px 10px; text-align: left; vertical-align: top; }
+            th { font-weight: bold; }
+
+            /* Quorum */
+            .quorum-box { padding: 10px 14px; border: 1px solid #bbb; background: #fafafa; margin: 10px 0; font-size: 11pt; }
+
+            /* Resolutions */
+            .resolution { margin: 18px 0; padding: 14px 16px; border-left: 3px solid #555; page-break-inside: avoid; }
+            .resolution.passed { border-left-color: #1a5c1a; }
             .resolution.noting { border-left-color: #6b7280; background: #f9fafb; }
-            .resolution-text { margin: 10px 0; font-style: italic; }
-            .vote-summary { margin-top: 12px; font-size: 10pt; color: #444; }
-            .quorum-box { padding: 12px 16px; border: 1px solid #ccc; background: #fafafa; margin: 12px 0; font-size: 11pt; }
-            .signature-block { margin-top: 60px; display: flex; justify-content: space-between; }
+            .res-title { font-weight: bold; margin: 0 0 8px; font-size: 12pt; }
+            .res-badge { font-size: 10pt; color: #6b7280; font-weight: normal; }
+            .resolution-text { margin: 8px 0; font-style: italic; line-height: 1.7; }
+            .vote-summary { margin-top: 10px; font-size: 10pt; color: #444; }
+
+            /* Signature */
+            .signature-block { margin-top: 60px; display: flex; justify-content: space-between; page-break-inside: avoid; }
+            .sig-line { border-top: 1px solid #333; width: 220px; margin-bottom: 6px; }
+
+            /* Footer */
+            .doc-footer { margin-top: 40px; padding-top: 10px; border-top: 1px solid #ccc;
+                          font-size: 9pt; color: #888; text-align: center; }
           </style>
         </head>
         <body>
-          <h1>Minutes of Board Meeting</h1>
-          <p style="text-align:center">${meeting.company.name}</p>
-
-          <h2>Meeting Details</h2>
-          <table>
-            <tr><th>Title</th><td>${meeting.title}</td></tr>
-            <tr><th>Date &amp; Time</th><td>${new Date(meeting.scheduledAt).toLocaleString('en-IN')}</td></tr>
-            <tr><th>Mode</th><td>${meeting.videoUrl ? `Video Conference (${meeting.videoProvider})` : meeting.location || 'In Person'}</td></tr>
-            <tr><th>Chairman</th><td>${chairpersonName ?? '—'}</td></tr>
-            <tr><th>Minutes Recorded by</th><td>${recorderName ?? '—'} ${recorderName ? '(Authorised by Board)' : ''}</td></tr>
-          </table>
+          ${letterhead}
+          ${meetingHeader}
 
           <h2>Attendance</h2>
           ${present.length > 0 ? `
           <table>
-            <tr><th>Name</th><th>Mode of Attendance</th></tr>
+            <tr>
+              <th>Name</th>
+              <th>DIN</th>
+              <th>Designation</th>
+              <th>Mode of Attendance</th>
+              <th>Location (if virtual)</th>
+            </tr>
             ${presentRows}
           </table>` : '<p>No attendance recorded.</p>'}
-          <p><strong>Directors absent:</strong> ${absentNames}</p>
+          ${csLine}
+          <p><strong>Directors who were absent:</strong> ${absentNames}</p>
 
           <h2>Quorum (Section 174)</h2>
           <div class="quorum-box">${quorumStatement}</div>
@@ -261,7 +393,12 @@ export class MinutesService {
           ${declarationsByUser.size > 0 ? `
           <h2>Director Declarations</h2>
           <table>
-            <tr><th>Director</th><th>DIR-2 (Consent)</th><th>DIR-8 (Non-disqualification)</th><th>MBP-1 (Disclosure of Interest)</th></tr>
+            <tr>
+              <th>Director</th>
+              <th>DIR-2 (Consent to act)</th>
+              <th>DIR-8 (Non-disqualification)</th>
+              <th>MBP-1 (Disclosure of interest)</th>
+            </tr>
             ${declarationRows}
           </table>` : ''}
 
@@ -273,16 +410,29 @@ export class MinutesService {
 
           <div class="signature-block">
             <div>
-              <p>________________________</p>
-              <p>${recorderName ?? chairpersonName ?? 'Authorised Signatory'}</p>
-              <p style="font-size:10pt;color:#666">${recorderName ? 'Minutes Recorder (Authorised by Board)' : 'Chairman'}</p>
+              <div class="sig-line"></div>
+              <p style="margin:0;font-weight:bold">${recorderName ?? chairpersonName ?? 'Authorised Signatory'}</p>
+              <p style="margin:2px 0 0;font-size:10pt;color:#555">${recorderName ? 'Minutes Recorder (Authorised by Board)' : 'Chairperson'}</p>
+              <p style="margin:2px 0 0;font-size:10pt;color:#555">Date: _______________</p>
             </div>
-            <div><p>Date: _______________</p></div>
+            <div>
+              <div class="sig-line"></div>
+              <p style="margin:0;font-weight:bold">${chairpersonName ?? '—'}</p>
+              <p style="margin:2px 0 0;font-size:10pt;color:#555">Chairperson</p>
+              <p style="margin:2px 0 0;font-size:10pt;color:#555">Date: _______________</p>
+            </div>
+          </div>
+
+          <div class="doc-footer">
+            These minutes were generated by SafeMinutes &mdash; a product of Passhai Technologies Private Limited.
+            Minutes are subject to confirmation at the next Board Meeting per SS-1 Para 7.2.
+            Serial No: ${meeting.meetingSerialNumber ?? '—'} | Generated: ${new Date().toLocaleDateString('en-IN')}
           </div>
         </body>
       </html>`;
   }
-  // ── PDF export ───────────────────────────────────────────────────────────────
+
+    // ── PDF export ───────────────────────────────────────────────────────────────
   // Renders the HTML minutes content to PDF via Puppeteer, uploads to GCS,
   // and returns the download URL.  Called from POST /minutes/export.
 
