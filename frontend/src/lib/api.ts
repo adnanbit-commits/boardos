@@ -445,6 +445,8 @@ export const minutesApi = {
     post<Minutes>(`/companies/${companyId}/meetings/${meetingId}/minutes/sign`, undefined, token),
   exportPdf: (companyId: string, meetingId: string, token: string) =>
     post<{ downloadUrl: string; objectPath: string }>(`/companies/${companyId}/meetings/${meetingId}/minutes/export`, undefined, token),
+  exportAttendanceRegister: (companyId: string, meetingId: string, token: string) =>
+    post<{ downloadUrl: string; objectPath: string }>(`/companies/${companyId}/meetings/${meetingId}/minutes/attendance-register`, undefined, token),
 };
 
 // ── Archive ───────────────────────────────────────────────────────────────────

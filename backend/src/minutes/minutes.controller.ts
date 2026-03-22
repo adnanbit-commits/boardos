@@ -54,4 +54,15 @@ export class MinutesController {
   ) {
     return this.minutes.exportPdf(companyId, meetingId, req.user.userId);
   }
+
+  // POST /attendance-register — generate SS-1 attendance register PDF
+  // Separate statutory document from the minutes, preserved for 8 financial years.
+  @Post('attendance-register')
+  exportAttendanceRegister(
+    @Param('companyId') companyId: string,
+    @Param('meetingId') meetingId: string,
+    @Request() req: any,
+  ) {
+    return this.minutes.exportAttendanceRegister(companyId, meetingId, req.user.userId);
+  }
 }

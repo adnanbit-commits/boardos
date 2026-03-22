@@ -2060,6 +2060,9 @@ function MinutesPanel({ minutes, companyId, meetingId, jwt }: any) {
   const [exporting,  setExporting]  = useState(false);
   const [exportUrl,  setExportUrl]  = useState<string | null>(null);
   const [exportErr,  setExportErr]  = useState('');
+  const [regExporting, setRegExporting] = useState(false);
+  const [regUrl,       setRegUrl]       = useState<string | null>(null);
+  const [regErr,       setRegErr]       = useState('');
 
   // Minutes are available to download from MINUTES_CIRCULATED onwards so
   // directors can review the draft PDF during the 7-day comment window.
@@ -2083,6 +2086,23 @@ function MinutesPanel({ minutes, companyId, meetingId, jwt }: any) {
     }
   }
 
+  async function handleAttendanceRegister() {
+    setRegExporting(true);
+    setRegErr('');
+    try {
+      const result = await minutesApi.exportAttendanceRegister(companyId, meetingId, jwt);
+      const url = (result as any).downloadUrl;
+      if (url) {
+        setRegUrl(url);
+        window.open(url, '_blank');
+      }
+    } catch (err: any) {
+      setRegErr(err?.body?.message ?? 'Attendance register export failed. Please try again.');
+    } finally {
+      setRegExporting(false);
+    }
+  }
+
   return (
     <div className="max-w-2xl fade-up">
       <div className="flex items-center justify-between mb-6">
@@ -2102,12 +2122,27 @@ function MinutesPanel({ minutes, companyId, meetingId, jwt }: any) {
               {exporting ? 'Generating…' : exportUrl ? '↗ Open PDF' : '⬇ Download PDF'}
             </Button>
           )}
+          {canExport && (
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={handleAttendanceRegister}
+              loading={regExporting}
+            >
+              {regExporting ? 'Generating…' : regUrl ? '↗ Attendance Register' : '⬇ Attendance Register'}
+            </Button>
+          )}
         </div>
       </div>
 
       {exportErr && (
         <div className="mb-4 bg-red-950/30 border border-red-800/30 rounded-lg px-4 py-2.5 text-red-400 text-xs">
           {exportErr}
+        </div>
+      )}
+      {regErr && (
+        <div className="mb-4 bg-red-950/30 border border-red-800/30 rounded-lg px-4 py-2.5 text-red-400 text-xs">
+          {regErr}
         </div>
       )}
 

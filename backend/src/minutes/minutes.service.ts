@@ -425,6 +425,224 @@ export class MinutesService {
 </html>`;
   }
 
+  // ── Attendance Register export ──────────────────────────────────────────────
+  // Generates a separate SS-1 attendance register PDF for the meeting.
+  // SS-1 Para 4 requires a separate attendance register maintained at the
+  // registered office, preserved for 8 financial years from last entry.
+  // All data comes from existing attendance records — no schema changes needed.
+
+  async exportAttendanceRegister(companyId: string, meetingId: string, userId: string) {
+    const meeting = await this.prisma.meeting.findFirst({
+      where: { id: meetingId, companyId },
+      include: {
+        attendance: {
+          include: {
+            user: {
+              select: {
+                id: true, name: true,
+                companyUsers: {
+                  where: { companyId },
+                  select: { din: true, designationLabel: true, additionalDesignation: true, role: true },
+                },
+              },
+            },
+          },
+        },
+        company: true,
+      },
+    });
+    if (!meeting) throw new NotFoundException('Meeting not found');
+
+    const csMembers = await this.prisma.companyUser.findMany({
+      where: { companyId, role: 'COMPANY_SECRETARY', acceptedAt: { not: null } },
+      include: { user: { select: { id: true, name: true } } },
+    });
+
+    const chairpersonName = await this.resolveUserName(meeting.chairpersonId);
+    const html            = this.buildAttendanceRegisterHtml(meeting, chairpersonName, csMembers);
+
+    const browser = await puppeteer.launch({
+      args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage', '--disable-gpu'],
+      headless: true,
+    });
+
+    let pdfBuffer: Buffer;
+    try {
+      const page = await browser.newPage();
+      await page.setContent(html, { waitUntil: 'networkidle0' });
+      pdfBuffer = Buffer.from(await page.pdf({
+        format: 'A4',
+        margin: { top: '20mm', bottom: '20mm', left: '20mm', right: '20mm' },
+        printBackground: true,
+      }));
+    } finally {
+      await browser.close();
+    }
+
+    const objectPath  = this.storage.buildArchivePath(companyId, 'attendance-registers', meetingId + '.pdf');
+    await this.storage.uploadArchiveFile(objectPath, pdfBuffer, 'application/pdf', {
+      'x-safeminutes-meeting-id': meetingId,
+      'x-safeminutes-document':   'attendance-register',
+    });
+    const downloadUrl = await this.storage.getDownloadUrl(objectPath, 120);
+
+    await this.audit.log({
+      companyId, userId,
+      action:   'ATTENDANCE_REGISTER_EXPORTED',
+      entity:   'Meeting',
+      entityId: meetingId,
+    });
+
+    return { downloadUrl, objectPath };
+  }
+
+  private buildAttendanceRegisterHtml(
+    meeting: any,
+    chairpersonName: string | null,
+    csMembers: any[],
+  ): string {
+    const co   = meeting.company;
+    const year = new Date(meeting.scheduledAt).getFullYear();
+
+    const fmt = (d: Date | string) => new Date(d).toLocaleDateString('en-IN', {
+      weekday: 'long', day: '2-digit', month: 'long', year: 'numeric',
+    });
+
+    const fmtTime = (d: Date | string | null | undefined): string => d
+      ? new Date(d).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true })
+      : '&mdash;';
+
+    const modeLabel: Record<string, string> = {
+      IN_PERSON: 'In Person', VIDEO: 'Video Conference', PHONE: 'Phone',
+      REQUESTED_VIDEO: 'Video Conference', REQUESTED_PHONE: 'Phone',
+    };
+
+    const isVirtual = !!(meeting.videoUrl);
+    const venueText = isVirtual
+      ? ((meeting.deemedVenue || co.registeredAt || 'Registered Office') + ' (via ' + (meeting.videoProvider || 'video conference') + ')')
+      : (meeting.location || co.registeredAt || '&mdash;');
+
+    const getDesignation = (a: any): string => {
+      const cu = a.user.companyUsers?.[0];
+      if (cu?.designationLabel) return cu.designationLabel;
+      if (cu?.additionalDesignation) {
+        return cu.additionalDesignation
+          .replace(/_/g, ' ')
+          .toLowerCase()
+          .replace(/\b\w/g, (c: string) => c.toUpperCase());
+      }
+      return 'Director';
+    };
+
+    const getDin = (a: any): string => a.user.companyUsers?.[0]?.din ?? '&mdash;';
+
+    // Sort: chairperson first, then present directors alphabetically, then absent
+    const allAttendance = meeting.attendance ?? [];
+    const present = (allAttendance as any[])
+      .filter((a: any) => a.mode !== 'ABSENT')
+      .sort((a: any, b: any) => {
+        if (a.user.id === meeting.chairpersonId) return -1;
+        if (b.user.id === meeting.chairpersonId) return 1;
+        return a.user.name.localeCompare(b.user.name);
+      });
+    const absent = (allAttendance as any[]).filter((a: any) => a.mode === 'ABSENT');
+
+    let srNo = 0;
+    const presentRows = present.map((a: any) => {
+      srNo++;
+      const isChair  = a.user.id === meeting.chairpersonId;
+      const nameCell = isChair ? '<strong>' + a.user.name + '</strong>' : a.user.name;
+      const locCell  = a.mode !== 'IN_PERSON' ? (a.location ?? '&mdash;') : '&mdash;';
+      return '<tr>'
+        + '<td style="text-align:center">' + srNo + '</td>'
+        + '<td>' + nameCell + '</td>'
+        + '<td style="text-align:center">' + getDin(a) + '</td>'
+        + '<td>' + getDesignation(a) + (isChair ? ' (Chairperson)' : '') + '</td>'
+        + '<td style="text-align:center">' + (modeLabel[a.mode] ?? a.mode) + '</td>'
+        + '<td>' + locCell + '</td>'
+        + '<td style="width:100px">&nbsp;</td>'
+        + '</tr>';
+    }).join('');
+
+    const absentRows = absent.map((a: any) => {
+      srNo++;
+      return '<tr style="color:#888">'
+        + '<td style="text-align:center">' + srNo + '</td>'
+        + '<td>' + a.user.name + '</td>'
+        + '<td style="text-align:center">' + getDin(a) + '</td>'
+        + '<td>' + getDesignation(a) + '</td>'
+        + '<td style="text-align:center">Absent</td>'
+        + '<td>&mdash;</td>'
+        + '<td>&mdash;</td>'
+        + '</tr>';
+    }).join('');
+
+    const csLine = csMembers.length > 0
+      ? '<p style="margin:10px 0 0"><strong>Company Secretary in Attendance:</strong> '
+        + csMembers.map((m: any) => m.user.name).join(', ') + '</p>'
+      : '';
+
+    const letterhead = '<div style="text-align:center;margin-bottom:8px">'
+      + '<div style="font-size:15pt;font-weight:bold;text-transform:uppercase;letter-spacing:0.05em">' + co.name + '</div>'
+      + (co.cin ? '<div style="font-size:10pt;color:#444;margin-top:2px">CIN: ' + co.cin + '</div>' : '')
+      + (co.registeredAt ? '<div style="font-size:10pt;color:#444;margin-top:2px">Registered Office: ' + co.registeredAt + '</div>' : '')
+      + (co.email ? '<div style="font-size:10pt;color:#444;margin-top:2px">Email: ' + co.email + '</div>' : '')
+      + '</div>'
+      + '<hr style="border:none;border-top:2px solid #1a1a1a;margin:10px 0 16px"/>';
+
+    return '<!DOCTYPE html><html><head><meta charset="utf-8"/><style>'
+      + 'body{font-family:Times New Roman,serif;font-size:11pt;line-height:1.7;padding:40px 50px;color:#1a1a1a}'
+      + 'h1{font-size:13pt;text-align:center;text-transform:uppercase;letter-spacing:0.08em;margin:0 0 4px}'
+      + '.reg-ref{text-align:center;font-size:10pt;color:#555;margin:0 0 16px}'
+      + 'table{width:100%;border-collapse:collapse;margin:12px 0;font-size:10pt}'
+      + 'th,td{border:1px solid #bbb;padding:6px 8px;vertical-align:top}'
+      + 'th{background:#f5f5f5;font-weight:bold;text-align:left}'
+      + '.meta-table th{width:30%}'
+      + '.cert-block{margin-top:48px;display:flex;justify-content:space-between}'
+      + '.sig-line{border-top:1px solid #333;width:200px;margin-bottom:4px}'
+      + '.footer{margin-top:32px;padding-top:8px;border-top:1px solid #ccc;font-size:8pt;color:#888;text-align:center}'
+      + '</style></head><body>'
+      + letterhead
+      + '<h1>Attendance Register &mdash; Board Meeting</h1>'
+      + '<p class="reg-ref">Meeting No. ' + (meeting.meetingSerialNumber ?? '&mdash;') + ' of ' + year + '</p>'
+      + '<table class="meta-table">'
+      + '<tr><th>Date</th><td>' + fmt(meeting.scheduledAt) + '</td></tr>'
+      + '<tr><th>Time of Commencement</th><td>' + fmtTime(meeting.commencementTime) + '</td></tr>'
+      + '<tr><th>Time of Conclusion</th><td>' + fmtTime(meeting.conclusionTime) + '</td></tr>'
+      + '<tr><th>Venue</th><td>' + venueText + '</td></tr>'
+      + '<tr><th>Chairperson</th><td>' + (chairpersonName ?? '&mdash;') + '</td></tr>'
+      + '</table>'
+      + '<table>'
+      + '<tr>'
+      + '<th style="width:40px">Sr.</th>'
+      + '<th>Name of Director</th>'
+      + '<th style="width:90px">DIN</th>'
+      + '<th>Designation</th>'
+      + '<th style="width:100px">Mode</th>'
+      + '<th>Location (if virtual)</th>'
+      + '<th style="width:100px">Signature</th>'
+      + '</tr>'
+      + presentRows
+      + absentRows
+      + '</table>'
+      + csLine
+      + '<div class="cert-block">'
+      + '<div>'
+      + '<div class="sig-line"></div>'
+      + '<p style="margin:0;font-weight:bold">' + (chairpersonName ?? '&mdash;') + '</p>'
+      + '<p style="margin:2px 0 0;font-size:9pt;color:#555">Chairperson</p>'
+      + '<p style="margin:2px 0 0;font-size:9pt;color:#555">Certified that the above is a true record of attendance</p>'
+      + '<p style="margin:2px 0 0;font-size:9pt;color:#555">Date: _______________</p>'
+      + '</div>'
+      + '</div>'
+      + '<div class="footer">'
+      + 'Attendance Register &mdash; ' + co.name + ' | Meeting No. ' + (meeting.meetingSerialNumber ?? '&mdash;') + ' of ' + year
+      + ' | To be preserved for 8 financial years per SS-1 Para 4'
+      + ' | Generated by SafeMinutes &mdash; Passhai Technologies Private Limited'
+      + '</div>'
+      + '</body></html>';
+  }
+
   // ── PDF export ───────────────────────────────────────────────────────────────
   // Renders the HTML minutes content to PDF via Puppeteer, uploads to GCS,
   // and returns the download URL.  Called from POST /minutes/export.
