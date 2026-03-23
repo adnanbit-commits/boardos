@@ -1305,6 +1305,22 @@ function ResolutionsPanel({ companyId, meetingId: meetingIdProp, jwt, meeting, r
     );
   }
 
+  // ── Closure item — detect by title ─────────────────────────────────────────
+  const isMinutesRecorder = meeting.minutesRecorderId === currentUserId;
+  const canClose          = isChairperson || isMinutesRecorder;
+  const isClosureItem     = (activeAgendaItem as any)?.title?.toLowerCase().includes('declaration of meeting closure');
+  const alreadyClosed     = !!(meeting as any).conclusionTime;
+
+  if (isClosureItem && ['IN_PROGRESS','VOTING'].includes(meeting.status)) {
+    return (
+      <ClosurePanel
+        companyId={companyId} meetingId={meetingId} jwt={jwt}
+        meeting={meeting} canClose={canClose} alreadyClosed={alreadyClosed}
+        onRefresh={reload}
+      />
+    );
+  }
+
   // ── Default: standard resolution list ──────────────────────────────────────
   return (
     <div className="max-w-2xl fade-up">
@@ -2054,6 +2070,96 @@ function ResolutionCard({ resolution, index, companyId, jwt, currentUserId, meet
     </div>
   );
 }
+// ── ClosurePanel ──────────────────────────────────────────────────────────────
+// Shown when the active agenda item is "Declaration of Meeting Closure".
+// Chairperson or minutes recorder clicks to formally close the meeting and
+// stamp conclusionTime — required by SS-1 Para 7.2.1.1 for the minutes header.
+
+function ClosurePanel({ companyId, meetingId, jwt, meeting, canClose, alreadyClosed, onRefresh }: any) {
+  const [closing, setClosing] = useState(false);
+  const [err,     setErr]     = useState('');
+
+  const conclusionTime = (meeting as any).conclusionTime;
+  const fmtTime = (d: string) => new Date(d).toLocaleTimeString('en-IN', {
+    hour: '2-digit', minute: '2-digit', hour12: true,
+  });
+
+  async function handleClose() {
+    setClosing(true); setErr('');
+    try {
+      await meetings.conclude(companyId, meetingId, jwt);
+      await onRefresh();
+    } catch (e: any) {
+      setErr(e?.body?.message ?? 'Could not declare closure. Please try again.');
+    } finally {
+      setClosing(false);
+    }
+  }
+
+  return (
+    <div className="max-w-2xl fade-up">
+      <div className="mb-6">
+        <p className="text-zinc-600 text-xs uppercase tracking-widest font-semibold mb-1">Meeting Closure</p>
+        <h2 className="text-white text-xl font-bold" style={{fontFamily:"'Playfair Display',serif"}}>Declaration of Meeting Closure</h2>
+      </div>
+
+      <div className="bg-[#191D24] border border-[#232830] rounded-2xl p-6 space-y-4">
+        <p className="text-zinc-400 text-sm leading-relaxed">
+          After all agenda business has been transacted, the Chairperson formally declares the meeting closed.
+          The time of conclusion is recorded in the minutes as required by SS-1 Para 7.2.1.1.
+        </p>
+
+        {alreadyClosed ? (
+          <div className="bg-green-950/30 border border-green-800/40 rounded-xl px-5 py-4 flex items-start gap-3">
+            <span className="text-green-400 text-lg mt-0.5">✓</span>
+            <div>
+              <p className="text-green-400 text-sm font-semibold">Meeting formally closed</p>
+              <p className="text-zinc-500 text-xs mt-1">
+                Conclusion time recorded: <strong className="text-zinc-300">{fmtTime(conclusionTime)}</strong>.
+                This will appear in the minutes header.
+              </p>
+            </div>
+          </div>
+        ) : (
+          <div className="bg-[#13161B] border border-[#232830] rounded-xl px-5 py-4">
+            <p className="text-zinc-500 text-xs leading-relaxed mb-4">
+              <strong className="text-zinc-300">SS-1 Para 7.2.1.1</strong> — Minutes shall state the time of commencement and conclusion of the meeting.
+              Clicking below records the exact time of closure in the statutory record.
+            </p>
+            {canClose ? (
+              <button
+                onClick={handleClose}
+                disabled={closing}
+                className="w-full bg-zinc-700 hover:bg-zinc-600 disabled:opacity-50 disabled:cursor-not-allowed text-white text-sm font-semibold py-3 rounded-xl transition-colors flex items-center justify-center gap-2"
+              >
+                {closing ? 'Recording…' : '⬡ Declare Meeting Closed'}
+              </button>
+            ) : (
+              <p className="text-zinc-600 text-xs text-center italic">
+                Only the Chairperson or Minutes Recorder can declare meeting closure.
+              </p>
+            )}
+          </div>
+        )}
+
+        {err && (
+          <div className="bg-red-950/30 border border-red-800/30 rounded-lg px-4 py-2.5 text-red-400 text-xs">
+            {err}
+          </div>
+        )}
+
+        <div className="pt-2 border-t border-[#232830]">
+          <p className="text-zinc-700 text-[10px] leading-relaxed">
+            A vote of thanks to the Chairperson is customary before closure and should be noted verbally.
+            If the meeting is being adjourned instead of closed, do not use this button — advance the meeting
+            status and note the reason in AOB. The 120-day interval counts from the original meeting date.
+          </p>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ── Minutes Panel ─────────────────────────────────────────────────────────────
 
 function MinutesPanel({ minutes, companyId, meetingId, jwt }: any) {

@@ -331,6 +331,8 @@ export const meetings = {
     post<Meeting>(`/companies/${companyId}/meetings/${meetingId}/mark-first-meeting`, undefined, token),
   acknowledgeNotice: (companyId: string, meetingId: string, token: string) =>
     post<{ acknowledged: boolean; noticeAcknowledgedBy: string[] }>(`/companies/${companyId}/meetings/${meetingId}/acknowledge-notice`, undefined, token),
+  conclude: (companyId: string, meetingId: string, token: string) =>
+    post<{ conclusionTime: string; alreadyRecorded?: boolean }>(`/companies/${companyId}/meetings/${meetingId}/conclude`, undefined, token),
 };
 
 // ── Meeting Templates ─────────────────────────────────────────────────────────

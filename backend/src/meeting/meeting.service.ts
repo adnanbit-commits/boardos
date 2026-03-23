@@ -629,6 +629,51 @@ export class MeetingService {
     return { acknowledged: true, noticeAcknowledgedBy: (updated as any).noticeAcknowledgedBy };
   }
 
+  // ── Meeting conclusion ────────────────────────────────────────────────────────
+  // Chairperson declares the meeting formally closed.
+  // SS-1 Para 7.2.1.1: minutes must record time of conclusion.
+  // Only valid for IN_PROGRESS or VOTING meetings.
+  // Does not change meeting status — that still follows the normal
+  // MINUTES_DRAFT → MINUTES_CIRCULATED → SIGNED → LOCKED path.
+
+  async conclude(companyId: string, meetingId: string, userId: string) {
+    const meeting = await this.prisma.meeting.findFirst({ where: { id: meetingId, companyId } });
+    if (!meeting) throw new NotFoundException('Meeting not found');
+
+    if (!['IN_PROGRESS', 'VOTING'].includes(meeting.status)) {
+      throw new BadRequestException('Meeting must be in progress to declare closure');
+    }
+
+    // Only chairperson or minutes recorder can declare closure
+    const isChairperson    = (meeting as any).chairpersonId    === userId;
+    const isMinutesRecorder = (meeting as any).minutesRecorderId === userId;
+    if (!isChairperson && !isMinutesRecorder) {
+      throw new ForbiddenException('Only the Chairperson or Minutes Recorder can declare meeting closure');
+    }
+
+    // Idempotent — if already stamped, return existing value
+    if ((meeting as any).conclusionTime) {
+      return { conclusionTime: (meeting as any).conclusionTime, alreadyRecorded: true };
+    }
+
+    const conclusionTime = new Date();
+    await this.prisma.meeting.update({
+      where: { id: meetingId },
+      data: { conclusionTime } as any,
+    });
+
+    await this.audit.log({
+      companyId, userId,
+      action:   'MEETING_CONCLUDED',
+      entity:   'Meeting',
+      entityId: meetingId,
+      metadata: { conclusionTime: conclusionTime.toISOString() },
+    });
+
+    this.gateway.broadcastMeetingUpdated(meetingId);
+    return { conclusionTime };
+  }
+
   // ── Roll call ─────────────────────────────────────────────────────────────────
   // Each director responding to the roll call states their location and confirms:
   //   (a) their location, (b) no third party present, (c) materials received.

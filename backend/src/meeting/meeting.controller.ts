@@ -155,6 +155,19 @@ export class MeetingController {
     return this.meetingService.acknowledgeNotice(companyId, meetingId, req.user.userId);
   }
 
+  // ── Meeting conclusion ───────────────────────────────────────────────────────
+  // Chairperson declares the meeting closed — stamps conclusionTime.
+  // SS-1 Para 7.2.1.1: minutes must record time of conclusion.
+
+  @Post(':id/conclude')
+  @HttpCode(200)
+  @RequireRole('DIRECTOR')
+  conclude(
+    @Param('companyId') companyId: string, @Param('id') meetingId: string, @Req() req: any,
+  ) {
+    return this.meetingService.conclude(companyId, meetingId, req.user.userId);
+  }
+
   // ── Declarations (DIR-2, DIR-8, MBP-1) — legacy, kept for data ────────────
 
   @Get(':id/declarations')
