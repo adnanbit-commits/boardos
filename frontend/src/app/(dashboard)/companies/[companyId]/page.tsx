@@ -161,7 +161,7 @@ function StatusPill({ status }: { status: string }) {
   );
 }
 
-type TabId = 'overview' | 'members' | 'audit';
+type TabId = 'overview' | 'members' | 'audit' | 'settings';
 
 // ── Page ──────────────────────────────────────────────────────────────────────
 
@@ -187,6 +187,16 @@ export default function CompanyWorkspacePage() {
 
   // Designation edit modal
   const [editMember,      setEditMember]      = useState<CompanyMember | null>(null);
+  // Company settings form state
+  const [settingsSaving, setSettingsSaving] = useState(false);
+  const [settingsErr,    setSettingsErr]    = useState('');
+  const [settingsOk,     setSettingsOk]     = useState(false);
+  const [sfName,         setSfName]         = useState('');
+  const [sfCin,          setSfCin]          = useState('');
+  const [sfPan,          setSfPan]          = useState('');
+  const [sfAddress,      setSfAddress]      = useState('');
+  const [sfEmail,        setSfEmail]        = useState('');
+  const [sfWebsite,      setSfWebsite]      = useState('');
   const [editDesig,       setEditDesig]       = useState('');
   const [editDesigLabel,  setEditDesigLabel]  = useState('');
   const [editRole,        setEditRole]        = useState('');
@@ -210,6 +220,13 @@ export default function CompanyWorkspacePage() {
       meetingsApi.list(companyId, jwt),
     ]);
     setCompany(co); setMembers(mems); setMeetings(mtgs);
+    // Populate settings form fields from loaded company data
+    setSfName(co.name ?? '');
+    setSfCin(co.cin ?? '');
+    setSfPan((co as any).pan ?? '');
+    setSfAddress(co.registeredAt ?? '');
+    setSfEmail(co.email ?? '');
+    setSfWebsite(co.website ?? '');
     if (isAdmin) {
       const [inv, al] = await Promise.all([
         invitationsApi.listPending(companyId, jwt),
@@ -282,6 +299,7 @@ export default function CompanyWorkspacePage() {
     { id: 'overview', label: '⬡ Overview' },
     { id: 'members',  label: `◈ People & Access` },
     { id: 'audit',    label: '▣ Audit Log' },
+    ...(isAdmin ? [{ id: 'settings' as TabId, label: '⚙ Settings' }] : []),
   ];
 
   // Directors eligible for admin transfer (not self, not already admin, must be DIRECTOR role)
@@ -589,6 +607,80 @@ export default function CompanyWorkspacePage() {
                 ))}
               </div>
           }
+        </div>
+      )}
+
+
+      {/* ── SETTINGS ─────────────────────────────────────────────────────────── */}
+      {tab === 'settings' && isAdmin && (
+        <div className="max-w-xl space-y-6">
+          <div className="bg-[#191D24] border border-[#232830] rounded-2xl overflow-hidden">
+            <div className="px-6 py-5 border-b border-[#232830]">
+              <p className="text-zinc-500 text-[10px] font-semibold uppercase tracking-widest mb-1">Company Profile</p>
+              <h2 className="text-[#F0F2F5] font-semibold text-sm">Company Details</h2>
+              <p className="text-zinc-600 text-xs mt-1">These details appear on the letterhead of all generated documents — minutes, attendance register, and notices.</p>
+            </div>
+            <div className="px-6 py-5 space-y-4">
+              {[
+                { label: 'Company Name',          value: sfName,    set: setSfName,    type: 'text',  placeholder: 'Full registered company name' },
+                { label: 'CIN',                   value: sfCin,     set: setSfCin,     type: 'text',  placeholder: 'U12345MH2020PTC123456' },
+                { label: 'PAN',                   value: sfPan,     set: setSfPan,     type: 'text',  placeholder: 'AAAAA0000A' },
+                { label: 'Registered Office',     value: sfAddress, set: setSfAddress, type: 'text',  placeholder: '123, Street Name, City, State - PIN' },
+                { label: 'Company Email',         value: sfEmail,   set: setSfEmail,   type: 'email', placeholder: 'info@company.com' },
+                { label: 'Website (optional)',    value: sfWebsite, set: setSfWebsite, type: 'url',   placeholder: 'https://company.com' },
+              ].map(f => (
+                <div key={f.label}>
+                  <label className="block text-zinc-500 text-[10px] font-semibold uppercase tracking-widest mb-1.5">{f.label}</label>
+                  <input
+                    type={f.type}
+                    value={f.value}
+                    onChange={e => { f.set((e.target as any).value); setSettingsOk(false); setSettingsErr(''); }}
+                    placeholder={f.placeholder}
+                    className="w-full bg-[#13161B] border border-[#232830] rounded-xl px-4 py-2.5 text-sm text-zinc-300 placeholder-zinc-700 focus:outline-none focus:border-blue-600 transition-colors"
+                  />
+                </div>
+              ))}
+
+              {settingsErr && (
+                <div className="bg-red-950/30 border border-red-800/30 rounded-lg px-4 py-2.5 text-red-400 text-xs">
+                  {settingsErr}
+                </div>
+              )}
+              {settingsOk && (
+                <div className="bg-green-950/30 border border-green-800/30 rounded-lg px-4 py-2.5 text-green-400 text-xs">
+                  Company details saved successfully.
+                </div>
+              )}
+
+              <button
+                disabled={settingsSaving}
+                onClick={async () => {
+                  const jwt = getToken();
+                  if (!jwt || !company) return;
+                  setSettingsSaving(true); setSettingsErr(''); setSettingsOk(false);
+                  try {
+                    await companiesApi.update(companyId, {
+                      name:         sfName.trim(),
+                      cin:          sfCin.trim() || undefined,
+                      pan:          sfPan.trim() || undefined,
+                      registeredAt: sfAddress.trim() || undefined,
+                      email:        sfEmail.trim() || undefined,
+                      website:      sfWebsite.trim() || undefined,
+                    }, jwt);
+                    await load();
+                    setSettingsOk(true);
+                  } catch (err: any) {
+                    setSettingsErr(err?.body?.message ?? 'Could not save. Please try again.');
+                  } finally {
+                    setSettingsSaving(false);
+                  }
+                }}
+                className="w-full bg-blue-600 hover:bg-blue-500 disabled:opacity-50 disabled:cursor-not-allowed text-white text-sm font-semibold py-2.5 rounded-xl transition-colors"
+              >
+                {settingsSaving ? 'Saving…' : 'Save Changes'}
+              </button>
+            </div>
+          </div>
         </div>
       )}
 

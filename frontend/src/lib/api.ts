@@ -254,7 +254,7 @@ export const companies = {
     post<CompanyWithMeta>('/companies', body, token),
   claimSeat: (companyId: string, din: string, token: string) =>
     post<any>(`/companies/${companyId}/claim-seat`, { din }, token),
-  update: (id: string, body: Partial<{ name: string; cin: string }>, token: string) =>
+  update: (id: string, body: Partial<{ name: string; cin: string; pan: string; registeredAt: string; email: string; website: string }>, token: string) =>
     patch<CompanyWithMeta>(`/companies/${id}`, body, token),
   listMembers: (companyId: string, token: string) =>
     get<CompanyMember[]>(`/companies/${companyId}/members`, token),

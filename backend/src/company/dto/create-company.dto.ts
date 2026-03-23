@@ -1,4 +1,4 @@
-import { IsString, IsOptional, IsArray, Length, Matches } from 'class-validator';
+import { IsString, IsOptional, IsArray, IsEmail, IsUrl, Length, Matches } from 'class-validator';
 
 export class CreateCompanyDto {
   @IsString()
@@ -23,6 +23,14 @@ export class CreateCompanyDto {
   @IsOptional()
   @IsString()
   logoUrl?: string;
+
+  @IsOptional()
+  @IsEmail({}, { message: 'Must be a valid email address' })
+  email?: string;
+
+  @IsOptional()
+  @IsString()
+  website?: string;
 
   @IsOptional()
   @IsArray()
