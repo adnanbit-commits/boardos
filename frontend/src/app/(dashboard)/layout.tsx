@@ -86,14 +86,14 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-[#0D0F12] flex items-center justify-center">
-        <div className="w-6 h-6 border-2 border-[#232830] border-t-[#4F7FFF] rounded-full animate-spin" />
+      <div className="min-h-screen bg-[#1C1A18] flex items-center justify-center">
+        <div className="w-6 h-6 border-2 border-[#2A2724] border-t-[#C4973A] rounded-full animate-spin" />
       </div>
     );
   }
 
   return (
-    <div className="flex flex-col h-screen bg-[#0D0F12] overflow-hidden"
+    <div className="flex flex-col h-screen bg-[#1C1A18] overflow-hidden"
       style={{ fontFamily: "'DM Sans', system-ui, sans-serif", color: '#F0F2F5' }}>
 
       <style>{`
@@ -101,22 +101,32 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         * { box-sizing: border-box; }
         ::-webkit-scrollbar { width: 5px; }
         ::-webkit-scrollbar-track { background: transparent; }
-        ::-webkit-scrollbar-thumb { background: #2A303A; border-radius: 10px; }
+        ::-webkit-scrollbar-thumb { background: #2A2724; border-radius: 10px; }
       `}</style>
 
       {/* ── Top Navbar ────────────────────────────────────────────────────────── */}
-      <header className="flex-shrink-0 h-[52px] bg-[#13161B] border-b border-[#232830]
+      <header className="flex-shrink-0 h-[52px] bg-[#1E1C1A] border-b border-[#2A2724]
         flex items-center justify-between px-5 relative z-30">
 
         <div className="flex items-center gap-3">
           {/* Logo */}
           <Link href="/" className="flex items-center gap-2 mr-1 hover:opacity-80 transition-opacity">
-            <div className="w-[26px] h-[26px] bg-[#4F7FFF] rounded-[6px] flex items-center justify-center
-              text-white font-black text-sm">S</div>
-            <span className="font-bold text-[15px] text-[#F0F2F5] tracking-tight">SafeMinutes</span>
+            <svg width="22" height="22" viewBox="0 0 28 28" fill="none">
+                <rect x="2"  y="2" width="4" height="4" rx="0.5" fill="#C4973A"/>
+                <rect x="8"  y="2" width="4" height="4" rx="0.5" fill="#C4973A"/>
+                <rect x="14" y="2" width="4" height="4" rx="0.5" fill="#C4973A"/>
+                <rect x="20" y="2" width="4" height="4" rx="0.5" fill="#C4973A"/>
+                <rect x="2" y="6" width="22" height="2" fill="#C4973A"/>
+                <rect x="2" y="8" width="22" height="16" fill="none" stroke="#C4973A" strokeWidth="2"/>
+                <path d="M10 24 L10 18 Q14 13.5 18 18 L18 24" stroke="#C4973A" strokeWidth="1.5" fill="none"/>
+                <rect x="5"  y="12" width="4" height="4" stroke="#C4973A" strokeWidth="1.2" fill="none"/>
+                <rect x="17" y="12" width="4" height="4" stroke="#C4973A" strokeWidth="1.2" fill="none"/>
+              </svg>
+              <div style={{ width: 1, height: 18, background: 'rgba(255,255,255,0.15)', margin: '0 2px' }} />
+              <span className="font-semibold text-[13px] text-white tracking-[0.08em] uppercase">SafeMinutes</span>
           </Link>
 
-          <div className="w-px h-5 bg-[#232830]" />
+          <div className="w-px h-5 bg-[#2A2724]" />
 
           {/* Breadcrumb — show active company when inside a company route */}
           {company && (
@@ -141,7 +151,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                   setNotifs(prev => prev.map(n => ({ ...n, sentAt: n.sentAt ?? new Date().toISOString() })));
                 }
               }}
-              className="relative w-8 h-8 rounded-full bg-[#191D24] border border-[#232830]
+              className="relative w-8 h-8 rounded-full bg-[#252220] border border-[#2A2724]
                 flex items-center justify-center text-[#6B7280] hover:text-[#F0F2F5]
                 hover:border-[#3A4050] transition-colors"
               title="Notifications"
@@ -151,7 +161,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                 <path d="M13.73 21a2 2 0 0 1-3.46 0"/>
               </svg>
               {unreadCount > 0 && (
-                <span className="absolute -top-1 -right-1 w-4 h-4 bg-blue-500 rounded-full
+                <span className="absolute -top-1 -right-1 w-4 h-4 bg-[#8B1A1A] rounded-full
                   text-[9px] font-bold text-white flex items-center justify-center">
                   {unreadCount > 9 ? '9+' : unreadCount}
                 </span>
@@ -159,9 +169,9 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             </button>
 
             {bellOpen && (
-              <div className="absolute top-full right-0 mt-1.5 w-80 bg-[#191D24] border border-[#232830]
+              <div className="absolute top-full right-0 mt-1.5 w-80 bg-[#252220] border border-[#2A2724]
                 rounded-xl shadow-2xl z-50 overflow-hidden">
-                <div className="px-4 py-3 border-b border-[#232830] flex items-center justify-between">
+                <div className="px-4 py-3 border-b border-[#2A2724] flex items-center justify-between">
                   <p className="text-[#F0F2F5] text-sm font-semibold">Notifications</p>
                   {notifs.length > 0 && (
                     <span className="text-[#6B7280] text-[10px]">{notifs.length} total</span>
@@ -174,13 +184,13 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                     </div>
                   ) : notifs.map(n => (
                     <div key={n.id}
-                      className={`px-4 py-3 border-b border-[#232830]/50 last:border-0
-                        ${!n.sentAt ? 'bg-blue-950/20' : ''}`}>
+                      className={`px-4 py-3 border-b border-[#2A2724]/50 last:border-0
+                        ${!n.sentAt ? 'bg-[#8B1A1A]/10' : ''}`}>
                       <p className="text-[#F0F2F5] text-xs font-medium leading-snug">{n.subject}</p>
                       <p className="text-[#6B7280] text-[11px] mt-0.5 leading-snug line-clamp-2">{n.body}</p>
                       <p className="text-[#4B5563] text-[10px] mt-1">
                         {new Date(n.createdAt).toLocaleDateString('en-IN', { day:'numeric', month:'short', hour:'2-digit', minute:'2-digit' })}
-                        {!n.sentAt && <span className="ml-2 text-blue-400 font-semibold">● new</span>}
+                        {!n.sentAt && <span className="ml-2 text-[#C4973A] font-semibold">● new</span>}
                       </p>
                     </div>
                   ))}
@@ -194,22 +204,22 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             <button
               onClick={() => setUserMenuOpen(o => !o)}
               title={user?.name ?? 'Account'}
-              className="w-8 h-8 rounded-full bg-[#1A2540] border border-[#2A3A6A]
-                flex items-center justify-center text-[#4F7FFF] text-[11px] font-bold
-                hover:bg-[#232830] transition-colors"
+              className="w-8 h-8 rounded-full bg-[#2A2318] border border-[#C4973A]/30
+                flex items-center justify-center text-[#C4973A] text-[11px] font-bold
+                hover:bg-[#2A2724] transition-colors"
             >
               {user?.name?.split(' ').slice(0, 2).map(w => w[0]).join('').toUpperCase() ?? '?'}
             </button>
 
             {userMenuOpen && (
-              <div className="absolute top-full right-0 mt-1.5 w-56 bg-[#191D24] border border-[#232830]
+              <div className="absolute top-full right-0 mt-1.5 w-56 bg-[#252220] border border-[#2A2724]
                 rounded-xl shadow-2xl z-50 overflow-hidden">
                 {/* User info header */}
-                <div className="px-4 py-3 border-b border-[#232830]">
+                <div className="px-4 py-3 border-b border-[#2A2724]">
                   <p className="text-[#F0F2F5] text-sm font-semibold truncate">{user?.name}</p>
                   <p className="text-[#6B7280] text-xs truncate mt-0.5">{user?.email}</p>
                   {company && (
-                    <p className="text-[#4F7FFF] text-[10px] font-semibold uppercase tracking-wide mt-1.5">
+                    <p className="text-[#C4973A] text-[10px] font-semibold uppercase tracking-wide mt-1.5">
                       {company.myRole}{company.isWorkspaceAdmin ? ' · Admin' : ''}
                     </p>
                   )}
@@ -220,7 +230,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                     href={`/companies/${company.id}`}
                     onClick={() => setUserMenuOpen(false)}
                     className="flex items-center gap-2.5 px-4 py-2.5 text-[#D4D8E0] text-xs
-                      hover:bg-[#232830] transition-colors"
+                      hover:bg-[#2A2724] transition-colors"
                   >
                     <span className="text-base">⬢</span> Company Settings
                   </Link>
@@ -229,11 +239,11 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                   href="/companies/new"
                   onClick={() => setUserMenuOpen(false)}
                   className="flex items-center gap-2.5 px-4 py-2.5 text-[#D4D8E0] text-xs
-                    hover:bg-[#232830] transition-colors"
+                    hover:bg-[#2A2724] transition-colors"
                 >
                   <span className="text-base">+</span> New Workspace
                 </Link>
-                <div className="border-t border-[#232830]" />
+                <div className="border-t border-[#2A2724]" />
                 <button
                   onClick={() => { setUserMenuOpen(false); logout(); }}
                   className="w-full flex items-center gap-2.5 px-4 py-2.5 text-red-400 text-xs
@@ -250,7 +260,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       <div className="flex flex-1 overflow-hidden">
 
         {/* ── Sidebar ──────────────────────────────────────────────────────────── */}
-        <aside className="w-[210px] flex-shrink-0 bg-[#13161B] border-r border-[#232830]
+        <aside className="w-[210px] flex-shrink-0 bg-[#1E1C1A] border-r border-[#2A2724]
           flex flex-col py-4 px-3 overflow-y-auto">
 
           <nav className="flex flex-col gap-0.5">
@@ -262,8 +272,8 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                   className={`flex items-center gap-2.5 px-3 py-2.5 rounded-[9px] text-[13px]
                     transition-all duration-150
                     ${active
-                      ? 'bg-[#1A2540] text-[#4F7FFF] font-semibold'
-                      : 'text-[#6B7280] hover:bg-[#191D24] hover:text-[#D4D8E0] font-normal'
+                      ? 'bg-[#3A1010] text-[#E8A0A0] font-semibold'
+                      : 'text-[#6B6560] hover:bg-[#252220] hover:text-[#D4CEC5] font-normal'
                     }`}
                 >
                   <span className="text-sm">{item.icon}</span>
@@ -275,7 +285,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             {/* Company-scoped links — only show when a company is selected */}
             {company && (
               <>
-                <div style={{ height: 1, background: '#232830', margin: '6px 4px' }} />
+                <div style={{ height: 1, background: '#2A2724', margin: '6px 4px' }} />
                 {/* Company switcher in sidebar */}
                 <div style={{ padding: '2px 4px 4px' }}>
                   <p style={{ fontSize:9, fontWeight:700, color:'#4B5563', textTransform:'uppercase', letterSpacing:'0.08em', marginBottom:4, paddingLeft:2 }}>
@@ -287,7 +297,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                       const c = companies.find(x => x.id === e.target.value);
                       if (c) { setCompany(c); router.push(`/companies/${c.id}`); }
                     }}
-                    style={{ width: '100%', background: '#13161B', border: '1px solid #232830',
+                    style={{ width: '100%', background: '#1E1C1A', border: '1px solid #2A2724',
                       borderRadius: 8, padding: '6px 10px', color: '#F0F2F5', fontSize: 12,
                       fontWeight: 600, outline: 'none', cursor: 'pointer' }}
                   >
@@ -308,8 +318,8 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                       className={`flex items-center gap-2.5 px-3 py-2.5 rounded-[9px] text-[13px]
                         transition-all duration-150
                         ${active
-                          ? 'bg-[#1A2540] text-[#4F7FFF] font-semibold'
-                          : 'text-[#6B7280] hover:bg-[#191D24] hover:text-[#D4D8E0] font-normal'
+                          ? 'bg-[#3A1010] text-[#E8A0A0] font-semibold'
+                          : 'text-[#6B6560] hover:bg-[#252220] hover:text-[#D4CEC5] font-normal'
                         }`}
                     >
                       <span className="text-sm">{item.icon}</span>
@@ -324,7 +334,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             {!company && (
               <Link href="/companies/new"
                 className="flex items-center gap-2.5 px-3 py-2.5 rounded-[9px] text-[13px]
-                  text-[#4F7FFF] hover:bg-[#191D24] font-medium transition-all duration-150"
+                  text-[#C4973A] hover:bg-[#252220] font-medium transition-all duration-150"
               >
                 <span className="text-sm">+</span>
                 Create workspace
@@ -333,12 +343,12 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           </nav>
 
           {/* User card at bottom */}
-          <div className="mt-auto pt-3 border-t border-[#232830] px-1">
-            <div className="text-[10px] text-[#6B7280] font-semibold uppercase tracking-widest mb-1.5">
+          <div className="mt-auto pt-3 border-t border-[#2A2724] px-1">
+            <div className="text-[10px] text-[#5C5550] font-semibold uppercase tracking-widest mb-1.5">
               Signed in as
             </div>
             <div className="text-[13px] text-[#F0F2F5] font-semibold truncate">{user?.name}</div>
-            <div className="text-[11px] text-[#4F7FFF] mt-0.5">
+            <div className="text-[11px] text-[#C4973A] mt-0.5">
               {company
                 ? (company.isWorkspaceAdmin ? company.myRole + ' · Admin' : company.myRole)
                 : '—'}

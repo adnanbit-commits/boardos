@@ -174,23 +174,76 @@ export default function LandingPage() {
           <span style={s.headerRight}>Board Governance for Indian Companies</span>
         </header>
 
-        {/* Hero */}
-        <section style={s.hero}>
-          <div style={s.eyebrow}>
-            <span style={{ width: '18px', height: '1px', background: '#C4973A', display: 'inline-block', flexShrink: 0 }} />
-            Board Governance · Indian Private Companies
+        {/* Hero — two column with demo card */}
+        <section style={{ padding: '52px 56px 48px', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '48px', alignItems: 'center' }}>
+          <div>
+            <div style={s.eyebrow}>
+              <span style={{ width: '18px', height: '1px', background: '#C4973A', display: 'inline-block', flexShrink: 0 }} />
+              Board Governance &middot; Indian Private Companies
+            </div>
+            <h1 style={s.h1}>
+              Your board meetings,{' '}
+              <span style={s.h1em}>finally in order.</span>
+            </h1>
+            <p style={s.heroSub}>
+              SafeMinutes guides your board through every meeting &mdash; agenda, attendance, voting, and minutes &mdash; and produces the right documents at the end. No more Word files. No more chasing signatures.
+            </p>
           </div>
-          <h1 style={s.h1}>
-            Your board meetings,{' '}
-            <span style={s.h1em}>finally in order.</span>
-          </h1>
-          <p style={s.heroSub}>
-            SafeMinutes guides your board through every meeting — agenda, attendance, voting, and minutes — and produces the right documents at the end. No more Word files. No more chasing signatures.
-          </p>
+
+          {/* Product demo card */}
+          <div style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.09)', borderRadius: '14px', padding: '24px 26px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '18px', paddingBottom: '14px', borderBottom: '1px solid rgba(255,255,255,0.07)' }}>
+              <div style={{ width: 8, height: 8, borderRadius: '50%', background: '#4ade80', flexShrink: 0 }} />
+              <div>
+                <div style={{ fontSize: '12px', fontWeight: 600, color: 'rgba(255,255,255,0.75)' }}>Q1 2026 Board Meeting</div>
+                <div style={{ fontSize: '11px', color: 'rgba(255,255,255,0.28)', marginTop: '1px' }}>Acme Ventures Pvt Ltd &middot; In progress</div>
+              </div>
+            </div>
+            {[
+              { done: true,   active: false, num: '1', text: 'Quorum confirmed — 3 of 3 directors', badge: null },
+              { done: true,   active: false, num: '2', text: 'Director declarations noted',              badge: null },
+              { done: false,  active: true,  num: '3', text: 'Auditor appointment — voting open',  badge: 'Live vote' },
+              { done: false,  active: false, num: '4', text: 'Bank account authorisation',              badge: null },
+              { done: false,  active: false, num: '5', text: 'Any other business',                      badge: null },
+            ].map((row, i) => (
+              <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '8px 0', borderBottom: i < 4 ? '1px solid rgba(255,255,255,0.05)' : 'none' }}>
+                <div style={{ width: 20, height: 20, borderRadius: '50%', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '10px', fontWeight: 700,
+                  background: row.done ? 'rgba(74,222,128,0.15)' : row.active ? 'rgba(196,151,58,0.2)' : 'rgba(255,255,255,0.06)',
+                  color:      row.done ? '#4ade80'              : row.active ? '#C4973A'               : 'rgba(255,255,255,0.3)' }}>
+                  {row.done
+                    ? <svg width="9" height="7" viewBox="0 0 10 8" fill="none"><path d="M1 4L3.5 6.5L9 1" stroke="#4ade80" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                    : row.num}
+                </div>
+                <span style={{ fontSize: '11px', color: row.active ? 'rgba(255,255,255,0.9)' : 'rgba(255,255,255,0.45)', fontWeight: row.active ? 500 : 400, flex: 1 }}>{row.text}</span>
+                {row.badge && (
+                  <span style={{ fontSize: '9px', fontWeight: 600, letterSpacing: '0.05em', padding: '2px 7px', borderRadius: '3px', background: 'rgba(196,151,58,0.15)', color: '#C4973A', border: '1px solid rgba(196,151,58,0.25)', whiteSpace: 'nowrap' }}>
+                    {row.badge}
+                  </span>
+                )}
+              </div>
+            ))}
+            <p style={{ marginTop: '14px', textAlign: 'center', fontFamily: "'Crimson Pro', Georgia, serif", fontSize: '11px', color: 'rgba(255,255,255,0.2)', fontStyle: 'italic' }}>
+              Minutes generated automatically when the meeting closes.
+            </p>
+          </div>
         </section>
 
-        {/* Features */}
-        <div style={{ padding: '0 56px', marginBottom: '12px' }}>
+        {/* Feature strip */}
+        <div style={{ borderTop: '1px solid rgba(255,255,255,0.06)', borderBottom: '1px solid rgba(255,255,255,0.06)', background: 'rgba(255,255,255,0.02)', margin: '0 0 0 0', display: 'grid', gridTemplateColumns: 'repeat(3,1fr)' }}>
+          {[
+            { label: 'SS-1 minutes, auto-generated' },
+            { label: 'Live voting on every resolution' },
+            { label: 'Attendance register exported separately' },
+          ].map((s, i) => (
+            <div key={i} style={{ padding: '14px 28px', borderRight: i < 2 ? '1px solid rgba(255,255,255,0.06)' : 'none', display: 'flex', alignItems: 'center', gap: '10px' }}>
+              <span style={{ width: 5, height: 5, borderRadius: '50%', background: '#C4973A', flexShrink: 0, opacity: 0.7 }} />
+              <span style={{ fontSize: '11px', color: 'rgba(255,255,255,0.32)', fontWeight: 500 }}>{s.label}</span>
+            </div>
+          ))}
+        </div>
+
+        {/* Features grid */}
+        <div style={{ padding: '32px 56px 0', marginBottom: '6px' }}>
           <div style={{ fontSize: '10px', letterSpacing: '0.14em', textTransform: 'uppercase', color: '#C4973A', marginBottom: '14px', display: 'flex', alignItems: 'center', gap: '8px' }}>
             <span style={{ width: '16px', height: '2px', background: '#C4973A', display: 'inline-block' }} />
             What it does
