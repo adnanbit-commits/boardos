@@ -47,6 +47,7 @@ export default function LandingPage() {
   const [error,         setError]         = useState('');
   const [isLoggedIn,    setIsLoggedIn]    = useState(false);
   const [userName,      setUserName]      = useState('');
+  const [betaAccepted,  setBetaAccepted]  = useState(false);
 
   useEffect(() => {
     const token = getToken();
@@ -277,6 +278,13 @@ export default function LandingPage() {
               {isLogin ? 'Sign in to your board workspace.' : 'Set up your first board workspace.'}
             </p>
 
+            {!isLogin && (
+              <div style={{ marginBottom: '20px', padding: '10px 14px', background: 'rgba(196,151,58,0.08)', border: '1px solid rgba(196,151,58,0.18)', borderRadius: '7px' }}>
+                <p style={{ fontSize: '11px', color: 'rgba(196,151,58,0.75)', lineHeight: 1.65, margin: 0 }}>
+                  SafeMinutes is currently in early access beta &mdash; free to use while we build with real users.
+                </p>
+              </div>
+            )}
             <div style={s.tabRow}>
               <button style={isLogin ? s.tabBtnActive : s.tabBtn} onClick={() => { setIsLogin(true); setError(''); }}>Sign In</button>
               <button style={!isLogin ? s.tabBtnActive : s.tabBtn} onClick={() => { setIsLogin(false); setError(''); }}>Register</button>
@@ -320,7 +328,24 @@ export default function LandingPage() {
                 <input style={s.input} type="password" placeholder="&bull;&bull;&bull;&bull;&bull;&bull;&bull;&bull;" value={password} onChange={e => setPassword(e.target.value)} required />
               </div>
               {error && <div style={s.errorBox}>{error}</div>}
-              <button type="submit" style={loading ? s.btnDisabled : s.btnPrimary} disabled={loading}>
+              {!isLogin && (
+                <div style={{ marginBottom: '14px' }}>
+                  <label style={{ display: 'flex', alignItems: 'flex-start', gap: '10px', cursor: 'pointer' }}>
+                    <div
+                      onClick={() => setBetaAccepted(v => !v)}
+                      style={{ width: 16, height: 16, borderRadius: 3, flexShrink: 0, marginTop: 1, background: betaAccepted ? '#8B1A1A' : 'transparent', border: `2px solid ${betaAccepted ? '#8B1A1A' : 'rgba(255,255,255,0.2)'}`, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', transition: 'all 0.15s' }}>
+                      {betaAccepted && <svg width="9" height="7" viewBox="0 0 10 8" fill="none"><path d="M1 4L4 7L9 1" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>}
+                    </div>
+                    <span style={{ fontSize: 12, color: 'rgba(255,255,255,0.38)', lineHeight: 1.6 }}>
+                      I have read and agree to the{' '}
+                      <a href="/beta-terms" target="_blank" rel="noopener noreferrer" style={{ color: 'rgba(196,151,58,0.8)', textDecoration: 'underline' }}>
+                        Early Access Beta Terms
+                      </a>
+                    </span>
+                  </label>
+                </div>
+              )}
+              <button type="submit" style={loading || (!isLogin && !betaAccepted) ? s.btnDisabled : s.btnPrimary} disabled={loading || (!isLogin && !betaAccepted)}>
                 {loading ? 'Please wait...' : isLogin ? 'Sign In' : 'Create Account'}
               </button>
             </form>
@@ -342,7 +367,8 @@ export default function LandingPage() {
             </button>
 
             <div style={s.loginNote}>
-              Your board data is stored securely in India. We do not share or sell your data.
+              Your board data is stored securely in India. We do not share or sell your data.{' '}
+              <a href="/beta-terms" target="_blank" rel="noopener noreferrer" style={{ color: 'rgba(196,151,58,0.6)', textDecoration: 'underline' }}>Beta terms</a>
             </div>
           </>
         )}
