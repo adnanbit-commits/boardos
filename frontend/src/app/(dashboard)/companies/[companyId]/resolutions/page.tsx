@@ -13,7 +13,7 @@ const STATUS_STYLE: Record<string, { label: string; color: string; bg: string }>
   PROPOSED:      { label: 'Proposed',  color: '#8B1A1A', bg: '#EBE6DF' },
   VOTING:        { label: 'Voting',    color: '#F59E0B', bg: '#261A05' },
   APPROVED:      { label: 'Approved',  color: '#22C55E', bg: '#0D2318' },
-  REJECTED:      { label: 'Rejected',  color: '#EF4444', bg: '#2D1515' },
+  REJECTED:      { label: 'Rejected',  color: '#EF4444', bg: 'rgba(139,26,26,0.07)' },
   WITHDRAWN:     { label: 'Withdrawn', color: '#96908A', bg: '#1A1D23' },
 };
 
@@ -39,7 +39,7 @@ export default function ResolutionsPage() {
 
   if (loading) return (
     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%' }}>
-      <div style={{ width: 24, height: 24, border: '2px solid #232830', borderTopColor: '#8B1A1A', borderRadius: '50%', animation: 'spin 0.8s linear infinite' }} />
+      <div style={{ width: 24, height: 24, border: '2px solid #E0DAD2', borderTopColor: '#8B1A1A', borderRadius: '50%', animation: 'spin 0.8s linear infinite' }} />
       <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
     </div>
   );
@@ -72,7 +72,7 @@ export default function ResolutionsPage() {
       </div>
 
       {filtered.length === 0 ? (
-        <div style={{ textAlign: 'center', padding: '60px 0', color: '#E0DAD2' }}>
+        <div style={{ textAlign: 'center', padding: '60px 0', color: '#96908A' }}>
           <p style={{ fontSize: 32, marginBottom: 12 }}>◇</p>
           <p style={{ fontSize: 14 }}>No resolutions{filter !== 'ALL' ? ` with status "${STATUS_STYLE[filter]?.label}"` : ''} yet.</p>
           <p style={{ fontSize: 12, marginTop: 8 }}>Resolutions are created within meetings.</p>
@@ -90,7 +90,7 @@ export default function ResolutionsPage() {
               <Link key={r.id} href={`/companies/${companyId}/meetings/${r.meetingId}`}
                 style={{ textDecoration: 'none' }}>
                 <div style={{
-                  background: '#FDFCFB', border: '1px solid #232830', borderRadius: 14,
+                  background: '#FDFCFB', border: '1px solid #E0DAD2', borderRadius: 14,
                   padding: '18px 20px', cursor: 'pointer',
                 }}
                   onMouseEnter={e => (e.currentTarget as HTMLElement).style.borderColor = '#E0DAD2'}

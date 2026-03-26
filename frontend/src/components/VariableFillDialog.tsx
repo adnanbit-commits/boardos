@@ -49,23 +49,23 @@ export function VariableFillDialog({ variable, currentValue, onSave, onLater, on
     <div style={{
       position: 'fixed', inset: 0, zIndex: 1000,
       display: 'flex', alignItems: 'center', justifyContent: 'center',
-      background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(2px)',
+      background: 'rgba(35,31,27,0.45)', 
     }} onClick={e => { if (e.target === e.currentTarget) onClose(); }}>
       <div style={{
-        background: '#191D24', border: '1px solid #2A3A6A', borderRadius: 16,
-        padding: '24px 28px', width: 420, fontFamily: "'DM Sans',system-ui,sans-serif",
-        boxShadow: '0 20px 60px rgba(0,0,0,0.5)',
+        background: '#FDFCFB', border: '1px solid #2A3A6A', borderRadius: 16,
+        padding: '24px 28px', width: 420, fontFamily: "'Instrument Sans',system-ui,sans-serif",
+        boxShadow: '0 8px 32px rgba(35,31,27,0.15)',
       }}>
         {/* Header */}
         <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 20 }}>
           <div>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
-              <span style={{ background: '#F59E0B22', color: '#F59E0B', border: '1px solid #F59E0B44', borderRadius: 6, padding: '1px 8px', fontWeight: 700, fontSize: 10, textTransform: 'uppercase' as const, letterSpacing: '0.06em' }}>{variable.type}</span>
-              <span style={{ fontSize: 10, color: '#4B5563', fontFamily: 'monospace' }}>{variable.key}</span>
+              <span style={{ background: 'rgba(196,151,58,0.1)', color: '#7A5C18', border: '1px solid rgba(196,151,58,0.3)', borderRadius: 6, padding: '1px 8px', fontWeight: 700, fontSize: 10, textTransform: 'uppercase' as const, letterSpacing: '0.06em' }}>{variable.type}</span>
+              <span style={{ fontSize: 10, color: '#96908A', fontFamily: 'monospace' }}>{variable.key}</span>
             </div>
-            <h3 style={{ fontSize: 15, fontWeight: 700, color: '#F0F2F5', margin: 0 }}>{variable.label}</h3>
+            <h3 style={{ fontSize: 15, fontWeight: 700, color: '#231F1B', margin: 0 }}>{variable.label}</h3>
           </div>
-          <button onClick={onClose} style={{ background: 'transparent', border: 'none', color: '#4B5563', fontSize: 18, cursor: 'pointer', lineHeight: 1, padding: '0 4px' }}>×</button>
+          <button onClick={onClose} style={{ background: 'transparent', border: 'none', color: '#5C5750', fontSize: 18, cursor: 'pointer', lineHeight: 1, padding: '0 4px' }}>×</button>
         </div>
 
         {/* Input */}
@@ -77,7 +77,7 @@ export function VariableFillDialog({ variable, currentValue, onSave, onLater, on
             onKeyDown={handleKeyDown}
             placeholder={typeOpt.placeholder}
             rows={3}
-            style={{ width: '100%', background: '#13161B', border: '1px solid #374151', borderRadius: 10, padding: '10px 14px', color: '#F0F2F5', fontSize: 14, outline: 'none', resize: 'vertical', boxSizing: 'border-box', fontFamily: 'inherit' }}
+            style={{ width: '100%', background: '#FDFCFB', border: '1px solid #374151', borderRadius: 10, padding: '10px 14px', color: '#231F1B', fontSize: 14, outline: 'none', resize: 'vertical', boxSizing: 'border-box', fontFamily: 'inherit' }}
           />
         ) : (
           <input
@@ -87,19 +87,19 @@ export function VariableFillDialog({ variable, currentValue, onSave, onLater, on
             onChange={e => setValue(e.target.value)}
             onKeyDown={handleKeyDown}
             placeholder={typeOpt.placeholder}
-            style={{ width: '100%', background: '#13161B', border: '1px solid #374151', borderRadius: 10, padding: '10px 14px', color: '#F0F2F5', fontSize: 14, outline: 'none', boxSizing: 'border-box', fontFamily: 'inherit' }}
+            style={{ width: '100%', background: '#FDFCFB', border: '1px solid #374151', borderRadius: 10, padding: '10px 14px', color: '#231F1B', fontSize: 14, outline: 'none', boxSizing: 'border-box', fontFamily: 'inherit' }}
           />
         )}
 
         {/* Actions */}
         <div style={{ display: 'flex', gap: 10, marginTop: 16 }}>
           <button onClick={onLater}
-            style={{ flex: 1, padding: '9px', background: 'transparent', border: '1px solid #374151', borderRadius: 10, color: '#6B7280', fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>
+            style={{ flex: 1, padding: '9px', background: 'transparent', border: '1px solid #374151', borderRadius: 10, color: '#96908A', fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>
             Fill Later
           </button>
           <button onClick={() => value.trim() && onSave(value.trim())}
             disabled={!value.trim()}
-            style={{ flex: 2, padding: '9px', background: value.trim() ? '#4F7FFF' : '#1A2540', border: 'none', borderRadius: 10, color: value.trim() ? '#fff' : '#374151', fontSize: 13, fontWeight: 600, cursor: value.trim() ? 'pointer' : 'not-allowed', transition: 'all 0.15s' }}>
+            style={{ flex: 2, padding: '9px', background: value.trim() ? '#8B1A1A' : '#EBE6DF', border: 'none', borderRadius: 8, color: value.trim() ? '#fff' : '#96908A', fontSize: 13, fontWeight: 600, cursor: value.trim() ? 'pointer' : 'not-allowed', transition: 'all 0.15s' }}>
             Save
           </button>
         </div>
@@ -142,25 +142,25 @@ export function VariableDefineDialog({ initialKey = '', initialLabel = '', initi
     <div style={{
       position: 'fixed', inset: 0, zIndex: 1000,
       display: 'flex', alignItems: 'center', justifyContent: 'center',
-      background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(2px)',
+      background: 'rgba(35,31,27,0.45)', 
     }} onClick={e => { if (e.target === e.currentTarget) onClose(); }}>
       <div style={{
-        background: '#191D24', border: '1px solid #2A3A6A', borderRadius: 16,
-        padding: '24px 28px', width: 440, fontFamily: "'DM Sans',system-ui,sans-serif",
-        boxShadow: '0 20px 60px rgba(0,0,0,0.5)',
+        background: '#FDFCFB', border: '1px solid #2A3A6A', borderRadius: 16,
+        padding: '24px 28px', width: 440, fontFamily: "'Instrument Sans',system-ui,sans-serif",
+        boxShadow: '0 8px 32px rgba(35,31,27,0.15)',
       }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
           <div>
-            <h3 style={{ fontSize: 15, fontWeight: 700, color: '#F0F2F5', margin: 0 }}>Define Variable</h3>
-            <p style={{ fontSize: 12, color: '#6B7280', margin: '3px 0 0' }}>Set the question that will be asked when this variable needs to be filled</p>
+            <h3 style={{ fontSize: 15, fontWeight: 700, color: '#231F1B', margin: 0 }}>Define Variable</h3>
+            <p style={{ fontSize: 12, color: '#96908A', margin: '3px 0 0' }}>Set the question that will be asked when this variable needs to be filled</p>
           </div>
-          <button onClick={onClose} style={{ background: 'transparent', border: 'none', color: '#4B5563', fontSize: 18, cursor: 'pointer', lineHeight: 1, padding: '0 4px' }}>×</button>
+          <button onClick={onClose} style={{ background: 'transparent', border: 'none', color: '#5C5750', fontSize: 18, cursor: 'pointer', lineHeight: 1, padding: '0 4px' }}>×</button>
         </div>
 
         <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
           {/* Question label */}
           <div>
-            <label style={{ display: 'block', fontSize: 11, fontWeight: 600, color: '#6B7280', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 6 }}>
+            <label style={{ display: 'block', fontSize: 11, fontWeight: 600, color: '#96908A', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 6 }}>
               Question to ask *
             </label>
             <input
@@ -168,23 +168,23 @@ export function VariableDefineDialog({ initialKey = '', initialLabel = '', initi
               value={label}
               onChange={e => handleLabelChange(e.target.value)}
               placeholder='e.g. "Name of the appointed auditor"'
-              style={{ width: '100%', background: '#13161B', border: '1px solid #374151', borderRadius: 10, padding: '10px 14px', color: '#F0F2F5', fontSize: 14, outline: 'none', boxSizing: 'border-box', fontFamily: 'inherit' }}
+              style={{ width: '100%', background: '#FDFCFB', border: '1px solid #374151', borderRadius: 10, padding: '10px 14px', color: '#231F1B', fontSize: 14, outline: 'none', boxSizing: 'border-box', fontFamily: 'inherit' }}
             />
-            <p style={{ fontSize: 11, color: '#4B5563', marginTop: 4 }}>This is what the user sees when they click the variable in the meeting</p>
+            <p style={{ fontSize: 11, color: '#5C5750', marginTop: 4 }}>This is what the user sees when they click the variable in the meeting</p>
           </div>
 
           {/* Type */}
           <div>
-            <label style={{ display: 'block', fontSize: 11, fontWeight: 600, color: '#6B7280', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 6 }}>
+            <label style={{ display: 'block', fontSize: 11, fontWeight: 600, color: '#96908A', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 6 }}>
               Answer type
             </label>
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
               {TYPE_OPTIONS.map(t => (
                 <button key={t.value} onClick={() => setType(t.value)}
                   style={{ padding: '5px 12px', borderRadius: 8, fontSize: 12, fontWeight: 600, cursor: 'pointer', transition: 'all 0.15s',
-                    background: type === t.value ? '#4F7FFF22' : 'transparent',
-                    border: `1px solid ${type === t.value ? '#4F7FFF' : '#374151'}`,
-                    color: type === t.value ? '#4F7FFF' : '#6B7280',
+                    background: type === t.value ? 'rgba(139,26,26,0.07)' : 'transparent',
+                    border: `1px solid ${type === t.value ? '#8B1A1A' : '#E0DAD2'}`,
+                    color: type === t.value ? '#8B1A1A' : '#96908A',
                   }}>
                   {t.label}
                 </button>
@@ -194,10 +194,10 @@ export function VariableDefineDialog({ initialKey = '', initialLabel = '', initi
 
           {/* Key (readonly) */}
           <div>
-            <label style={{ display: 'block', fontSize: 11, fontWeight: 600, color: '#6B7280', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 6 }}>
+            <label style={{ display: 'block', fontSize: 11, fontWeight: 600, color: '#96908A', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 6 }}>
               Variable key <span style={{ fontWeight: 400, textTransform: 'none' }}>(auto-generated)</span>
             </label>
-            <div style={{ background: '#13161B', border: '1px solid #232830', borderRadius: 10, padding: '9px 14px', color: '#4B5563', fontSize: 13, fontFamily: 'monospace' }}>
+            <div style={{ background: '#FDFCFB', border: '1px solid #E0DAD2', borderRadius: 10, padding: '9px 14px', color: '#5C5750', fontSize: 13, fontFamily: 'monospace' }}>
               {'{{'}{key || 'variable_key'}{'}}'}
             </div>
           </div>
@@ -205,12 +205,12 @@ export function VariableDefineDialog({ initialKey = '', initialLabel = '', initi
 
         <div style={{ display: 'flex', gap: 10, marginTop: 20 }}>
           <button onClick={onClose}
-            style={{ flex: 1, padding: '9px', background: 'transparent', border: '1px solid #374151', borderRadius: 10, color: '#6B7280', fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>
+            style={{ flex: 1, padding: '9px', background: 'transparent', border: '1px solid #374151', borderRadius: 10, color: '#96908A', fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>
             Cancel
           </button>
           <button onClick={() => canSave && onSave(key.trim(), label.trim(), type)}
             disabled={!canSave}
-            style={{ flex: 2, padding: '9px', background: canSave ? '#4F7FFF' : '#1A2540', border: 'none', borderRadius: 10, color: canSave ? '#fff' : '#374151', fontSize: 13, fontWeight: 600, cursor: canSave ? 'pointer' : 'not-allowed', transition: 'all 0.15s' }}>
+            style={{ flex: 2, padding: '9px', background: canSave ? '#8B1A1A' : '#EBE6DF', border: 'none', borderRadius: 8, color: canSave ? '#fff' : '#96908A', fontSize: 13, fontWeight: 600, cursor: canSave ? 'pointer' : 'not-allowed', transition: 'all 0.15s' }}>
             Insert Variable
           </button>
         </div>

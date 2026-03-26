@@ -10,10 +10,10 @@ import { getToken, getUser } from '@/lib/auth';
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
 const STATUS_STYLE: Record<string, { bg: string; text: string; label: string }> = {
-  DRAFT:    { bg: '#1C2333', text: '#6B7280', label: 'Draft' },
-  PROPOSED: { bg: '#1A2540', text: '#60A5FA', label: 'Open for Signatures' },
-  APPROVED: { bg: '#052e16', text: '#22C55E', label: 'Approved' },
-  REJECTED: { bg: '#2D1515', text: '#EF4444', label: 'Rejected' },
+  DRAFT:    { bg: '#EBE6DF', text: '#96908A', label: 'Draft' },
+  PROPOSED: { bg: '#EFF6FF', text: '#1D4ED8', label: 'Open for Signatures' },
+  APPROVED: { bg: '#F0FDF4', text: '#166534', label: 'Approved' },
+  REJECTED: { bg: 'rgba(139,26,26,0.07)', text: '#EF4444', label: 'Rejected' },
 };
 
 function StatusBadge({ status }: { status: string }) {
@@ -69,69 +69,69 @@ function CreateModal({ companyId, onClose, onCreated }: {
   }
 
   return (
-    <div style={{ position:'fixed', inset:0, background:'rgba(0,0,0,0.7)', display:'flex',
+    <div style={{ position:'fixed', inset:0, background:'rgba(35,31,27,0.45)', display:'flex',
       alignItems:'center', justifyContent:'center', zIndex:50, padding:24 }}>
-      <div style={{ width:'100%', maxWidth:600, background:'#191D24', border:'1px solid #232830',
+      <div style={{ width:'100%', maxWidth:600, background:'#FDFCFB', border:'1px solid #E0DAD2',
         borderRadius:20, padding:'36px', maxHeight:'90vh', overflowY:'auto' }}>
         <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:24 }}>
-          <h2 style={{ fontSize:18, fontWeight:700, color:'#F0F2F5', margin:0 }}>
+          <h2 style={{ fontSize:18, fontWeight:700, color:'#231F1B', margin:0 }}>
             New Circular Resolution
           </h2>
-          <button onClick={onClose} style={{ background:'none', border:'none', color:'#6B7280', fontSize:20, cursor:'pointer' }}>✕</button>
+          <button onClick={onClose} style={{ background:'none', border:'none', color:'#96908A', fontSize:20, cursor:'pointer' }}>✕</button>
         </div>
 
         <div style={{ display:'flex', flexDirection:'column', gap:16 }}>
           <div>
-            <label style={{ display:'block', fontSize:11, fontWeight:700, color:'#6B7280', textTransform:'uppercase', letterSpacing:'0.06em', marginBottom:6 }}>
+            <label style={{ display:'block', fontSize:11, fontWeight:700, color:'#96908A', textTransform:'uppercase', letterSpacing:'0.06em', marginBottom:6 }}>
               Resolution Title *
             </label>
             <input type="text" value={title} onChange={e => setTitle(e.target.value)}
               placeholder="Appointment of Additional Director"
-              style={{ width:'100%', background:'#13161B', border:'1px solid #232830', borderRadius:10,
-                padding:'10px 14px', color:'#F0F2F5', fontSize:14, outline:'none', boxSizing:'border-box' }} />
+              style={{ width:'100%', background:'#FDFCFB', border:'1px solid #E0DAD2', borderRadius:10,
+                padding:'10px 14px', color:'#231F1B', fontSize:14, outline:'none', boxSizing:'border-box' }} />
           </div>
 
           <div>
-            <label style={{ display:'block', fontSize:11, fontWeight:700, color:'#6B7280', textTransform:'uppercase', letterSpacing:'0.06em', marginBottom:6 }}>
-              Resolution Text * <span style={{ color:'#374151', textTransform:'none', fontWeight:400 }}>(legal text)</span>
+            <label style={{ display:'block', fontSize:11, fontWeight:700, color:'#96908A', textTransform:'uppercase', letterSpacing:'0.06em', marginBottom:6 }}>
+              Resolution Text * <span style={{ color:'#96908A', textTransform:'none', fontWeight:400 }}>(legal text)</span>
             </label>
             <textarea value={text} onChange={e => setText(e.target.value)} rows={6}
               placeholder="RESOLVED THAT pursuant to the provisions of Section 161 of the Companies Act, 2013..."
-              style={{ width:'100%', background:'#13161B', border:'1px solid #232830', borderRadius:10,
-                padding:'10px 14px', color:'#F0F2F5', fontSize:13, outline:'none', boxSizing:'border-box',
+              style={{ width:'100%', background:'#FDFCFB', border:'1px solid #E0DAD2', borderRadius:10,
+                padding:'10px 14px', color:'#231F1B', fontSize:13, outline:'none', boxSizing:'border-box',
                 resize:'vertical', fontFamily:'monospace', lineHeight:1.6 }} />
           </div>
 
           <div>
-            <label style={{ display:'block', fontSize:11, fontWeight:700, color:'#6B7280', textTransform:'uppercase', letterSpacing:'0.06em', marginBottom:6 }}>
+            <label style={{ display:'block', fontSize:11, fontWeight:700, color:'#96908A', textTransform:'uppercase', letterSpacing:'0.06em', marginBottom:6 }}>
               Covering Note * <span style={{ color:'#EF4444', textTransform:'none', fontWeight:400 }}>(required — SS-1 compliance)</span>
             </label>
             <textarea value={note} onChange={e => setNote(e.target.value)} rows={3}
               placeholder="Please find attached a resolution by circulation for your consideration..."
-              style={{ width:'100%', background:'#13161B', border:'1px solid #232830', borderRadius:10,
-                padding:'10px 14px', color:'#F0F2F5', fontSize:13, outline:'none', boxSizing:'border-box', resize:'vertical' }} />
+              style={{ width:'100%', background:'#FDFCFB', border:'1px solid #E0DAD2', borderRadius:10,
+                padding:'10px 14px', color:'#231F1B', fontSize:13, outline:'none', boxSizing:'border-box', resize:'vertical' }} />
           </div>
 
           <div>
-            <label style={{ display:'block', fontSize:11, fontWeight:700, color:'#6B7280', textTransform:'uppercase', letterSpacing:'0.06em', marginBottom:6 }}>
+            <label style={{ display:'block', fontSize:11, fontWeight:700, color:'#96908A', textTransform:'uppercase', letterSpacing:'0.06em', marginBottom:6 }}>
               Deadline <span style={{ color:'#F59E0B', textTransform:'none', fontWeight:400 }}>(max 7 days — SS-1)</span>
             </label>
             <input type="date" value={deadline || defaultDeadline}
               onChange={e => setDeadline(e.target.value)}
               min={new Date().toISOString().split('T')[0]}
               max={new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]}
-              style={{ background:'#13161B', border:'1px solid #232830', borderRadius:10,
-                padding:'10px 14px', color:'#F0F2F5', fontSize:14, outline:'none' }} />
+              style={{ background:'#FDFCFB', border:'1px solid #E0DAD2', borderRadius:10,
+                padding:'10px 14px', color:'#231F1B', fontSize:14, outline:'none' }} />
           </div>
 
-          {error && <p style={{ color:'#EF4444', fontSize:13, background:'#2D1515', padding:'10px 14px', borderRadius:8 }}>{error}</p>}
+          {error && <p style={{ color:'#EF4444', fontSize:13, background:'rgba(139,26,26,0.07)', padding:'10px 14px', borderRadius:8 }}>{error}</p>}
 
           <div style={{ display:'flex', gap:10, marginTop:8 }}>
             <button onClick={onClose}
-              style={{ flex:1, padding:'11px', background:'transparent', border:'1px solid #232830',
-                borderRadius:10, color:'#6B7280', fontSize:14, cursor:'pointer' }}>Cancel</button>
+              style={{ flex:1, padding:'11px', background:'transparent', border:'1px solid #E0DAD2',
+                borderRadius:10, color:'#96908A', fontSize:14, cursor:'pointer' }}>Cancel</button>
             <button onClick={handleSubmit} disabled={submitting}
-              style={{ flex:2, padding:'11px', background:'#4F7FFF', border:'none', borderRadius:10,
+              style={{ flex:2, padding:'11px', background:'#8B1A1A', border:'none', borderRadius:10,
                 color:'#fff', fontSize:14, fontWeight:600, cursor:submitting?'not-allowed':'pointer',
                 opacity:submitting?0.6:1 }}>
               {submitting ? 'Creating…' : 'Save as Draft'}
@@ -230,7 +230,7 @@ function ResolutionCard({ res, companyId, currentUserId, onRefresh }: {
   }
 
   return (
-    <div style={{ background:'#191D24', border:'1px solid #232830', borderRadius:16, overflow:'hidden' }}>
+    <div style={{ background:'#FDFCFB', border:'1px solid #E0DAD2', borderRadius:16, overflow:'hidden' }}>
       {/* Header */}
       <div style={{ padding:'20px 24px', cursor:'pointer' }} onClick={() => setExpanded(e => !e)}>
         <div style={{ display:'flex', alignItems:'flex-start', justifyContent:'space-between', gap:12 }}>
@@ -238,7 +238,7 @@ function ResolutionCard({ res, companyId, currentUserId, onRefresh }: {
             <div style={{ display:'flex', alignItems:'center', gap:10, marginBottom:6, flexWrap:'wrap' }}>
               <StatusBadge status={res.status} />
               {res.serialNumber && (
-                <span style={{ fontSize:11, color:'#6B7280', fontWeight:600, fontFamily:'monospace' }}>
+                <span style={{ fontSize:11, color:'#96908A', fontWeight:600, fontFamily:'monospace' }}>
                   {res.serialNumber}
                 </span>
               )}
@@ -255,28 +255,28 @@ function ResolutionCard({ res, companyId, currentUserId, onRefresh }: {
                 </span>
               )}
               {res.status === 'APPROVED' && res.notedAtMeetingId && (
-                <span style={{ fontSize:11, color:'#22C55E', fontWeight:600 }}>
+                <span style={{ fontSize:11, color:'#166534', fontWeight:600 }}>
                   Noted at meeting
                 </span>
               )}
             </div>
-            <h3 style={{ fontSize:15, fontWeight:700, color:'#F0F2F5', margin:'0 0 4px' }}>{res.title}</h3>
+            <h3 style={{ fontSize:15, fontWeight:700, color:'#231F1B', margin:'0 0 4px' }}>{res.title}</h3>
             {res.circulationNote && (
-              <p style={{ fontSize:12, color:'#6B7280', margin:0, lineHeight:1.5 }}
+              <p style={{ fontSize:12, color:'#96908A', margin:0, lineHeight:1.5 }}
                 className="line-clamp-2">{res.circulationNote}</p>
             )}
           </div>
-          <span style={{ color:'#374151', fontSize:18, marginTop:2 }}>{expanded ? '▲' : '▼'}</span>
+          <span style={{ color:'#96908A', fontSize:18, marginTop:2 }}>{expanded ? '▲' : '▼'}</span>
         </div>
 
         {/* Signature progress */}
         {totalSigned > 0 && (
           <div style={{ display:'flex', alignItems:'center', gap:12, marginTop:12 }}>
-            <div style={{ flex:1, height:4, background:'#232830', borderRadius:4, overflow:'hidden' }}>
+            <div style={{ flex:1, height:4, background:'#E0DAD2', borderRadius:4, overflow:'hidden' }}>
               <div style={{ height:'100%', width:`${(forCount / Math.max(totalSigned, 1)) * 100}%`,
                 background:'#22C55E', borderRadius:4, transition:'width 0.3s' }} />
             </div>
-            <span style={{ fontSize:12, color:'#6B7280', whiteSpace:'nowrap' }}>
+            <span style={{ fontSize:12, color:'#96908A', whiteSpace:'nowrap' }}>
               {forCount} For · {objectCount} Object · {totalSigned} signed
             </span>
           </div>
@@ -285,41 +285,41 @@ function ResolutionCard({ res, companyId, currentUserId, onRefresh }: {
 
       {/* Expanded detail */}
       {expanded && (
-        <div style={{ borderTop:'1px solid #232830', padding:'20px 24px' }}>
+        <div style={{ borderTop:'1px solid #E0DAD2', padding:'20px 24px' }}>
           {/* Resolution text */}
-          <div style={{ background:'#13161B', borderRadius:10, padding:'16px', marginBottom:20 }}>
-            <p style={{ fontSize:11, fontWeight:700, color:'#6B7280', textTransform:'uppercase',
+          <div style={{ background:'#FDFCFB', borderRadius:10, padding:'16px', marginBottom:20 }}>
+            <p style={{ fontSize:11, fontWeight:700, color:'#96908A', textTransform:'uppercase',
               letterSpacing:'0.06em', marginBottom:8 }}>Resolution Text</p>
-            <p style={{ fontSize:13, color:'#D1D5DB', lineHeight:1.8, margin:0, fontFamily:'monospace',
+            <p style={{ fontSize:13, color:'#231F1B', lineHeight:1.8, margin:0, fontFamily:'monospace',
               whiteSpace:'pre-wrap' }}>{res.resolutionText || res.motionText}</p>
           </div>
 
           {/* Signatures */}
           {res.signatures.length > 0 && (
             <div style={{ marginBottom:20 }}>
-              <p style={{ fontSize:11, fontWeight:700, color:'#6B7280', textTransform:'uppercase',
+              <p style={{ fontSize:11, fontWeight:700, color:'#96908A', textTransform:'uppercase',
                 letterSpacing:'0.06em', marginBottom:12 }}>Signatures ({res.signatures.length})</p>
               <div style={{ display:'flex', flexDirection:'column', gap:8 }}>
                 {res.signatures.map(sig => (
                   <div key={sig.id} style={{ display:'flex', alignItems:'center', gap:12,
-                    padding:'10px 14px', background:'#13161B', borderRadius:10,
+                    padding:'10px 14px', background:'#FDFCFB', borderRadius:10,
                     border:`1px solid ${sig.value === 'FOR' ? '#166534' : '#7F1D1D'}` }}>
-                    <div style={{ width:32, height:32, borderRadius:'50%', background:'#1A2540',
+                    <div style={{ width:32, height:32, borderRadius:'50%', background:'#EBE6DF',
                       display:'flex', alignItems:'center', justifyContent:'center',
-                      fontSize:13, fontWeight:700, color:'#4F7FFF', flexShrink:0 }}>
+                      fontSize:13, fontWeight:700, color:'#8B1A1A', flexShrink:0 }}>
                       {sig.user.name[0]}
                     </div>
                     <div style={{ flex:1 }}>
-                      <p style={{ fontSize:13, fontWeight:600, color:'#F0F2F5', margin:0 }}>{sig.user.name}</p>
-                      {sig.remarks && <p style={{ fontSize:11, color:'#6B7280', margin:'2px 0 0' }}>{sig.remarks}</p>}
+                      <p style={{ fontSize:13, fontWeight:600, color:'#231F1B', margin:0 }}>{sig.user.name}</p>
+                      {sig.remarks && <p style={{ fontSize:11, color:'#96908A', margin:'2px 0 0' }}>{sig.remarks}</p>}
                     </div>
                     <span style={{ fontSize:11, fontWeight:700, padding:'3px 10px', borderRadius:20,
-                      background: sig.value === 'FOR' ? '#052e16' : '#2D1515',
+                      background: sig.value === 'FOR' ? '#052e16' : 'rgba(139,26,26,0.07)',
                       color: sig.value === 'FOR' ? '#22C55E' : '#EF4444',
                       textTransform:'uppercase' }}>
                       {sig.value}
                     </span>
-                    <span style={{ fontSize:11, color:'#374151' }}>
+                    <span style={{ fontSize:11, color:'#96908A' }}>
                       {new Date(sig.signedAt).toLocaleDateString('en-IN')}
                     </span>
                   </div>
@@ -332,7 +332,7 @@ function ResolutionCard({ res, companyId, currentUserId, onRefresh }: {
           <div style={{ display:'flex', gap:10, flexWrap:'wrap' }}>
             {res.status === 'DRAFT' && (
               <button onClick={handleCirculate} disabled={loading}
-                style={{ padding:'9px 18px', background:'#4F7FFF', border:'none', borderRadius:10,
+                style={{ padding:'9px 18px', background:'#8B1A1A', border:'none', borderRadius:10,
                   color:'#fff', fontSize:13, fontWeight:600, cursor:'pointer' }}>
                 {loading ? '…' : '📨 Circulate to Directors'}
               </button>
@@ -340,7 +340,7 @@ function ResolutionCard({ res, companyId, currentUserId, onRefresh }: {
             {res.status === 'DRAFT' && (
               <button onClick={() => { setEditing(e => !e); setExpanded(true); }}
                 style={{ padding:'9px 18px', background:'transparent', border:'1px solid #374151',
-                  borderRadius:10, color:'#9CA3AF', fontSize:13, cursor:'pointer' }}>
+                  borderRadius:10, color:'#96908A', fontSize:13, cursor:'pointer' }}>
                 ✏️ Edit
               </button>
             )}
@@ -354,8 +354,8 @@ function ResolutionCard({ res, companyId, currentUserId, onRefresh }: {
 
             {canSign && !signing && (
               <button onClick={() => setSigning(true)}
-                style={{ padding:'9px 18px', background:'#1A2540', border:'1px solid #2A3A6A',
-                  borderRadius:10, color:'#60A5FA', fontSize:13, fontWeight:600, cursor:'pointer' }}>
+                style={{ padding:'9px 18px', background:'#EBE6DF', border:'1px solid #2A3A6A',
+                  borderRadius:10, color:'#1D4ED8', fontSize:13, fontWeight:600, cursor:'pointer' }}>
                 ✍️ {mySignature ? 'Change Signature' : 'Sign / Object'}
               </button>
             )}
@@ -363,7 +363,7 @@ function ResolutionCard({ res, companyId, currentUserId, onRefresh }: {
             {canSign && (
               <button onClick={handleRequestMeeting} disabled={loading}
                 style={{ padding:'9px 18px', background:'transparent', border:'1px solid #374151',
-                  borderRadius:10, color:'#6B7280', fontSize:13, cursor:'pointer' }}>
+                  borderRadius:10, color:'#96908A', fontSize:13, cursor:'pointer' }}>
                 Request Meeting
               </button>
             )}
@@ -371,30 +371,30 @@ function ResolutionCard({ res, companyId, currentUserId, onRefresh }: {
 
           {/* Sign panel */}
           {signing && canSign && (
-            <div style={{ marginTop:16, background:'#13161B', border:'1px solid #232830',
+            <div style={{ marginTop:16, background:'#FDFCFB', border:'1px solid #E0DAD2',
               borderRadius:12, padding:'20px' }}>
-              <p style={{ fontSize:13, fontWeight:600, color:'#F0F2F5', marginBottom:12 }}>
+              <p style={{ fontSize:13, fontWeight:600, color:'#231F1B', marginBottom:12 }}>
                 Your signature {mySignature ? `(currently: ${mySignature.value})` : ''}
               </p>
               <textarea value={remarks} onChange={e => setRemarks(e.target.value)}
                 placeholder="Remarks (optional)" rows={2}
-                style={{ width:'100%', background:'#191D24', border:'1px solid #232830', borderRadius:8,
-                  padding:'8px 12px', color:'#F0F2F5', fontSize:13, outline:'none',
+                style={{ width:'100%', background:'#FDFCFB', border:'1px solid #E0DAD2', borderRadius:8,
+                  padding:'8px 12px', color:'#231F1B', fontSize:13, outline:'none',
                   boxSizing:'border-box', resize:'none', marginBottom:12 }} />
               <div style={{ display:'flex', gap:10 }}>
                 <button onClick={() => handleSign('FOR')} disabled={loading}
-                  style={{ flex:1, padding:'10px', background:'#052e16', border:'1px solid #166534',
-                    borderRadius:10, color:'#22C55E', fontSize:14, fontWeight:700, cursor:'pointer' }}>
+                  style={{ flex:1, padding:'10px', background:'#F0FDF4', border:'1px solid #166534',
+                    borderRadius:10, color:'#166534', fontSize:14, fontWeight:700, cursor:'pointer' }}>
                   ✓ Sign For
                 </button>
                 <button onClick={() => handleSign('OBJECT')} disabled={loading}
-                  style={{ flex:1, padding:'10px', background:'#2D1515', border:'1px solid #7F1D1D',
+                  style={{ flex:1, padding:'10px', background:'rgba(139,26,26,0.07)', border:'1px solid #7F1D1D',
                     borderRadius:10, color:'#EF4444', fontSize:14, fontWeight:700, cursor:'pointer' }}>
                   ✗ Object
                 </button>
                 <button onClick={() => setSigning(false)}
-                  style={{ padding:'10px 16px', background:'transparent', border:'1px solid #232830',
-                    borderRadius:10, color:'#6B7280', fontSize:13, cursor:'pointer' }}>
+                  style={{ padding:'10px 16px', background:'transparent', border:'1px solid #E0DAD2',
+                    borderRadius:10, color:'#96908A', fontSize:13, cursor:'pointer' }}>
                   Cancel
                 </button>
               </div>
@@ -402,42 +402,42 @@ function ResolutionCard({ res, companyId, currentUserId, onRefresh }: {
           )}
           {/* Edit form — DRAFT only */}
           {editing && res.status === 'DRAFT' && (
-            <div style={{ marginTop:16, background:'#13161B', border:'1px solid #374151',
+            <div style={{ marginTop:16, background:'#FDFCFB', border:'1px solid #374151',
               borderRadius:12, padding:'20px' }}>
-              <p style={{ fontSize:13, fontWeight:600, color:'#F0F2F5', marginBottom:16 }}>Edit Draft</p>
+              <p style={{ fontSize:13, fontWeight:600, color:'#231F1B', marginBottom:16 }}>Edit Draft</p>
               <div style={{ display:'flex', flexDirection:'column', gap:12 }}>
                 <div>
-                  <label style={{ display:'block', fontSize:11, fontWeight:700, color:'#6B7280',
+                  <label style={{ display:'block', fontSize:11, fontWeight:700, color:'#96908A',
                     textTransform:'uppercase', letterSpacing:'0.06em', marginBottom:6 }}>Title *</label>
                   <input value={editTitle} onChange={e => setEditTitle(e.target.value)}
-                    style={{ width:'100%', background:'#191D24', border:'1px solid #232830', borderRadius:8,
-                      padding:'8px 12px', color:'#F0F2F5', fontSize:13, outline:'none', boxSizing:'border-box' }} />
+                    style={{ width:'100%', background:'#FDFCFB', border:'1px solid #E0DAD2', borderRadius:8,
+                      padding:'8px 12px', color:'#231F1B', fontSize:13, outline:'none', boxSizing:'border-box' }} />
                 </div>
                 <div>
-                  <label style={{ display:'block', fontSize:11, fontWeight:700, color:'#6B7280',
+                  <label style={{ display:'block', fontSize:11, fontWeight:700, color:'#96908A',
                     textTransform:'uppercase', letterSpacing:'0.06em', marginBottom:6 }}>Resolution Text *</label>
                   <textarea value={editText} onChange={e => setEditText(e.target.value)} rows={5}
-                    style={{ width:'100%', background:'#191D24', border:'1px solid #232830', borderRadius:8,
-                      padding:'8px 12px', color:'#F0F2F5', fontSize:13, outline:'none',
+                    style={{ width:'100%', background:'#FDFCFB', border:'1px solid #E0DAD2', borderRadius:8,
+                      padding:'8px 12px', color:'#231F1B', fontSize:13, outline:'none',
                       boxSizing:'border-box', resize:'vertical', fontFamily:'monospace' }} />
                 </div>
                 <div>
-                  <label style={{ display:'block', fontSize:11, fontWeight:700, color:'#6B7280',
+                  <label style={{ display:'block', fontSize:11, fontWeight:700, color:'#96908A',
                     textTransform:'uppercase', letterSpacing:'0.06em', marginBottom:6 }}>Covering Note *</label>
                   <textarea value={editNote} onChange={e => setEditNote(e.target.value)} rows={3}
-                    style={{ width:'100%', background:'#191D24', border:'1px solid #232830', borderRadius:8,
-                      padding:'8px 12px', color:'#F0F2F5', fontSize:13, outline:'none',
+                    style={{ width:'100%', background:'#FDFCFB', border:'1px solid #E0DAD2', borderRadius:8,
+                      padding:'8px 12px', color:'#231F1B', fontSize:13, outline:'none',
                       boxSizing:'border-box', resize:'vertical' }} />
                 </div>
                 <div style={{ display:'flex', gap:10 }}>
                   <button onClick={handleSaveEdit} disabled={loading}
-                    style={{ padding:'9px 20px', background:'#4F7FFF', border:'none', borderRadius:8,
+                    style={{ padding:'9px 20px', background:'#8B1A1A', border:'none', borderRadius:8,
                       color:'#fff', fontSize:13, fontWeight:600, cursor:'pointer' }}>
                     {loading ? '…' : 'Save Changes'}
                   </button>
                   <button onClick={() => setEditing(false)}
-                    style={{ padding:'9px 16px', background:'transparent', border:'1px solid #232830',
-                      borderRadius:8, color:'#6B7280', fontSize:13, cursor:'pointer' }}>
+                    style={{ padding:'9px 16px', background:'transparent', border:'1px solid #E0DAD2',
+                      borderRadius:8, color:'#96908A', fontSize:13, cursor:'pointer' }}>
                     Cancel
                   </button>
                 </div>
@@ -479,29 +479,29 @@ export default function CircularResolutionsPage() {
   const closed   = resolutions.filter(r => ['APPROVED', 'REJECTED'].includes(r.status));
 
   return (
-    <div style={{ padding:'32px 40px', fontFamily:"'DM Sans',system-ui,sans-serif", maxWidth:900 }}>
-      <style>{`@import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&display=swap');
-        textarea::placeholder,input::placeholder{color:#374151} textarea:focus,input:focus{border-color:#4F7FFF!important}`}</style>
+    <div style={{ padding:'32px 40px', fontFamily:"'Instrument Sans',system-ui,sans-serif", maxWidth:900 }}>
+      <style>{`@import url('https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600&display=swap');
+        textarea::placeholder,input::placeholder{color:#96908A} textarea:focus,input:focus{border-color:#8B1A1A!important}`}</style>
 
       {/* Header */}
       <div style={{ display:'flex', alignItems:'flex-start', justifyContent:'space-between', marginBottom:32 }}>
         <div>
-          <h1 style={{ fontSize:22, fontWeight:700, color:'#F0F2F5', margin:'0 0 6px' }}>
+          <h1 style={{ fontSize:22, fontWeight:700, color:'#231F1B', margin:'0 0 6px' }}>
             Circular Resolutions
           </h1>
-          <p style={{ fontSize:13, color:'#6B7280', margin:0 }}>
+          <p style={{ fontSize:13, color:'#96908A', margin:0 }}>
             Section 175, Companies Act 2013 — Resolutions passed without a board meeting
           </p>
         </div>
         <button onClick={() => setShowCreate(true)}
-          style={{ padding:'10px 20px', background:'#4F7FFF', border:'none', borderRadius:10,
+          style={{ padding:'10px 20px', background:'#8B1A1A', border:'none', borderRadius:10,
             color:'#fff', fontSize:14, fontWeight:600, cursor:'pointer', whiteSpace:'nowrap' }}>
           + New Resolution
         </button>
       </div>
 
       {/* Info banner */}
-      <div style={{ background:'#1A2540', border:'1px solid #2A3A6A', borderRadius:12,
+      <div style={{ background:'#EBE6DF', border:'1px solid #2A3A6A', borderRadius:12,
         padding:'14px 18px', marginBottom:32, fontSize:13, color:'#93C5FD', lineHeight:1.6 }}>
         ℹ️ A resolution by circulation is passed when a majority of directors entitled to vote give their
         consent in writing. Once circulated, directors have until the deadline to sign. Any director may
@@ -509,19 +509,19 @@ export default function CircularResolutionsPage() {
       </div>
 
       {loading ? (
-        <div style={{ textAlign:'center', padding:'60px 0', color:'#6B7280' }}>
-          <div style={{ width:28, height:28, border:'2px solid #232830', borderTop:'2px solid #4F7FFF',
+        <div style={{ textAlign:'center', padding:'60px 0', color:'#96908A' }}>
+          <div style={{ width:28, height:28, border:'2px solid #E0DAD2', borderTop:'2px solid #8B1A1A',
             borderRadius:'50%', animation:'spin 0.8s linear infinite', margin:'0 auto 12px' }} />
           <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
           Loading…
         </div>
       ) : resolutions.length === 0 ? (
-        <div style={{ textAlign:'center', padding:'80px 0', color:'#6B7280' }}>
+        <div style={{ textAlign:'center', padding:'80px 0', color:'#96908A' }}>
           <p style={{ fontSize:48, margin:'0 0 16px' }}>📋</p>
-          <p style={{ fontSize:16, fontWeight:600, color:'#9CA3AF', margin:'0 0 8px' }}>No circular resolutions yet</p>
+          <p style={{ fontSize:16, fontWeight:600, color:'#96908A', margin:'0 0 8px' }}>No circular resolutions yet</p>
           <p style={{ fontSize:13, margin:'0 0 24px' }}>Create one to pass resolutions without calling a board meeting</p>
           <button onClick={() => setShowCreate(true)}
-            style={{ padding:'10px 24px', background:'#4F7FFF', border:'none', borderRadius:10,
+            style={{ padding:'10px 24px', background:'#8B1A1A', border:'none', borderRadius:10,
               color:'#fff', fontSize:14, fontWeight:600, cursor:'pointer' }}>
             Create First Resolution
           </button>
@@ -530,7 +530,7 @@ export default function CircularResolutionsPage() {
         <div style={{ display:'flex', flexDirection:'column', gap:32 }}>
           {open.length > 0 && (
             <div>
-              <h2 style={{ fontSize:13, fontWeight:700, color:'#60A5FA', textTransform:'uppercase',
+              <h2 style={{ fontSize:13, fontWeight:700, color:'#1D4ED8', textTransform:'uppercase',
                 letterSpacing:'0.08em', marginBottom:12 }}>Open for Signatures ({open.length})</h2>
               <div style={{ display:'flex', flexDirection:'column', gap:12 }}>
                 {open.map(r => <ResolutionCard key={r.id} res={r} companyId={companyId}
@@ -540,7 +540,7 @@ export default function CircularResolutionsPage() {
           )}
           {draft.length > 0 && (
             <div>
-              <h2 style={{ fontSize:13, fontWeight:700, color:'#6B7280', textTransform:'uppercase',
+              <h2 style={{ fontSize:13, fontWeight:700, color:'#96908A', textTransform:'uppercase',
                 letterSpacing:'0.08em', marginBottom:12 }}>Drafts ({draft.length})</h2>
               <div style={{ display:'flex', flexDirection:'column', gap:12 }}>
                 {draft.map(r => <ResolutionCard key={r.id} res={r} companyId={companyId}
@@ -550,7 +550,7 @@ export default function CircularResolutionsPage() {
           )}
           {closed.length > 0 && (
             <div>
-              <h2 style={{ fontSize:13, fontWeight:700, color:'#6B7280', textTransform:'uppercase',
+              <h2 style={{ fontSize:13, fontWeight:700, color:'#96908A', textTransform:'uppercase',
                 letterSpacing:'0.08em', marginBottom:12 }}>Closed ({closed.length})</h2>
               <div style={{ display:'flex', flexDirection:'column', gap:12 }}>
                 {closed.map(r => <ResolutionCard key={r.id} res={r} companyId={companyId}

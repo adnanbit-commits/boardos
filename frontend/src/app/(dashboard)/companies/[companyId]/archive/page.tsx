@@ -18,7 +18,7 @@ function formatDate(iso: string) {
   return new Date(iso).toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' });
 }
 function Spinner() {
-  return <div className="w-5 h-5 border-2 border-zinc-700 border-t-zinc-400 rounded-full animate-spin" />;
+  return <div className="w-5 h-5 border-2 border-[#E0DAD2] border-t-[#8B1A1A] rounded-full animate-spin" />;
 }
 
 const MODE_LABEL: Record<string, string> = {
@@ -100,7 +100,7 @@ function ArchiveCard({
   ] as const;
 
   return (
-    <div className="bg-[#191D24] border border-[#232830] rounded-2xl overflow-hidden">
+    <div className="bg-[#FDFCFB] border border-[#E0DAD2] rounded-2xl overflow-hidden">
       {/* Status bar */}
       <div className={`h-0.5 ${meeting.status === 'LOCKED' ? 'bg-zinc-600' : 'bg-green-600'}`} />
 
@@ -111,23 +111,23 @@ function ArchiveCard({
       >
         <div className="flex items-center gap-5 min-w-0">
           <div className="flex-shrink-0 w-12 text-center">
-            <p className="text-zinc-500 text-[10px] font-semibold uppercase tracking-wider">
+            <p className="text-[#5C5750] text-[10px] font-semibold uppercase tracking-wider">
               {d.toLocaleDateString('en-IN', { month: 'short' })}
             </p>
             <p className="text-[#F0F2F5] text-2xl font-bold leading-tight" style={{ fontFamily: 'monospace' }}>
               {d.getDate().toString().padStart(2, '0')}
             </p>
-            <p className="text-zinc-600 text-[10px]">{d.getFullYear()}</p>
+            <p className="text-[#96908A] text-[10px]">{d.getFullYear()}</p>
           </div>
-          <div className="w-px h-10 bg-[#232830] flex-shrink-0" />
+          <div className="w-px h-10 bg-[#EBE6DF] flex-shrink-0" />
           <div className="min-w-0">
             <p className="text-[#F0F2F5] font-semibold text-sm truncate" style={{ fontFamily: "'Playfair Display',serif" }}>
               {meeting.title}
             </p>
-            <p className="text-zinc-500 text-xs mt-0.5">
+            <p className="text-[#5C5750] text-xs mt-0.5">
               {formatDate(meeting.scheduledAt)}
               {meeting.attendanceRegister && (
-                <span className="ml-2 text-zinc-600">
+                <span className="ml-2 text-[#96908A]">
                   · {meeting.attendanceRegister.presentCount}/{meeting.attendanceRegister.totalCount} present
                   {meeting.attendanceRegister.quorumMet
                     ? <span className="text-green-600 ml-1">· Quorum ✓</span>
@@ -140,7 +140,7 @@ function ArchiveCard({
         </div>
         <div className="flex items-center gap-2.5 flex-shrink-0">
           {meeting.status === 'LOCKED' ? (
-            <span className="text-[10px] font-bold px-2.5 py-0.5 rounded-full uppercase tracking-wide text-zinc-400 bg-zinc-800">
+            <span className="text-[10px] font-bold px-2.5 py-0.5 rounded-full uppercase tracking-wide text-[#5C5750] bg-[#EBE6DF]">
               ⊗ Locked
             </span>
           ) : (
@@ -149,19 +149,19 @@ function ArchiveCard({
             </span>
           )}
           {meeting.signatureHash && (
-            <span className="text-zinc-600 text-[10px] hidden sm:flex items-center gap-1 bg-[#13161B] border border-[#232830] px-2.5 py-1 rounded-lg">
+            <span className="text-[#96908A] text-[10px] hidden sm:flex items-center gap-1 bg-[#FDFCFB] border border-[#E0DAD2] px-2.5 py-1 rounded-lg">
               ⛓ SHA-256
             </span>
           )}
-          <span className="text-zinc-600 text-xs">{open ? '▴' : '▾'}</span>
+          <span className="text-[#96908A] text-xs">{open ? '▴' : '▾'}</span>
         </div>
       </button>
 
       {/* Expanded register */}
       {open && (
-        <div className="border-t border-[#232830]">
+        <div className="border-t border-[#E0DAD2]">
           {/* Section tabs */}
-          <div className="flex gap-0 border-b border-[#232830] overflow-x-auto">
+          <div className="flex gap-0 border-b border-[#E0DAD2] overflow-x-auto">
             {sections.map(s => (
               <button
                 key={s.key}
@@ -169,7 +169,7 @@ function ArchiveCard({
                 className={`px-5 py-3 text-xs font-semibold whitespace-nowrap border-b-2 transition-colors ${
                   section === s.key
                     ? 'border-green-500 text-green-400'
-                    : 'border-transparent text-zinc-500 hover:text-zinc-300'
+                    : 'border-transparent text-[#5C5750] hover:text-[#231F1B]'
                 }`}
               >
                 {s.label}
@@ -182,30 +182,30 @@ function ArchiveCard({
             {/* ── Attendance Register ── */}
             {section === 'attendance' && (
               <div>
-                <p className="text-zinc-600 text-[10px] uppercase tracking-widest font-semibold mb-3">
+                <p className="text-[#96908A] text-[10px] uppercase tracking-widest font-semibold mb-3">
                   Attendance Register — Sec. 173 &amp; SS-1
                 </p>
                 {meeting.attendanceRegister?.present?.length > 0 ? (
                   <div className="space-y-1.5 mb-4">
                     {meeting.attendanceRegister.present.map((a: any) => (
-                      <div key={a.userId} className="flex items-center justify-between bg-[#13161B] border border-[#232830] rounded-lg px-4 py-2.5">
-                        <span className="text-zinc-200 text-sm font-medium">{a.name}</span>
+                      <div key={a.userId} className="flex items-center justify-between bg-[#FDFCFB] border border-[#E0DAD2] rounded-lg px-4 py-2.5">
+                        <span className="text-[#231F1B] text-sm font-medium">{a.name}</span>
                         <span className="text-[10px] font-semibold text-green-400 bg-green-950/50 border border-green-800/30 px-2.5 py-0.5 rounded-full">
                           {MODE_LABEL[a.mode] ?? a.mode}
                         </span>
                       </div>
                     ))}
                     {meeting.attendanceRegister.absent?.map((a: any) => (
-                      <div key={a.userId} className="flex items-center justify-between bg-[#13161B] border border-[#232830] rounded-lg px-4 py-2.5 opacity-50">
-                        <span className="text-zinc-400 text-sm">{a.name}</span>
-                        <span className="text-[10px] font-semibold text-zinc-500 bg-zinc-800/50 border border-zinc-700/30 px-2.5 py-0.5 rounded-full">
+                      <div key={a.userId} className="flex items-center justify-between bg-[#FDFCFB] border border-[#E0DAD2] rounded-lg px-4 py-2.5 opacity-50">
+                        <span className="text-[#5C5750] text-sm">{a.name}</span>
+                        <span className="text-[10px] font-semibold text-[#5C5750] bg-[#EBE6DF]/50 border border-[#E0DAD2]/30 px-2.5 py-0.5 rounded-full">
                           Absent
                         </span>
                       </div>
                     ))}
                   </div>
                 ) : (
-                  <p className="text-zinc-600 text-sm py-4">No attendance recorded for this meeting.</p>
+                  <p className="text-[#96908A] text-sm py-4">No attendance recorded for this meeting.</p>
                 )}
                 {meeting.attendanceRegister && (
                   <div className={`rounded-lg px-4 py-2.5 text-xs font-medium border ${
@@ -225,26 +225,26 @@ function ArchiveCard({
             {/* ── Director Declarations ── */}
             {section === 'declarations' && (
               <div>
-                <p className="text-zinc-600 text-[10px] uppercase tracking-widest font-semibold mb-3">
+                <p className="text-[#96908A] text-[10px] uppercase tracking-widest font-semibold mb-3">
                   Director Declarations — Sec. 152, 164, 184 CA2013
                 </p>
                 {meeting.declarations?.length > 0 ? (
                   <div className="space-y-3">
                     {meeting.declarations.map((dir: any) => (
-                      <div key={dir.name} className="bg-[#13161B] border border-[#232830] rounded-xl p-4">
-                        <p className="text-zinc-200 text-sm font-semibold mb-2">{dir.name}</p>
+                      <div key={dir.name} className="bg-[#FDFCFB] border border-[#E0DAD2] rounded-xl p-4">
+                        <p className="text-[#231F1B] text-sm font-semibold mb-2">{dir.name}</p>
                         <div className="grid grid-cols-3 gap-2">
                           {dir.forms.map((f: any) => (
                             <div key={f.formType} className={`rounded-lg p-2.5 border text-xs ${
                               f.received
                                 ? 'bg-green-950/20 border-green-800/20'
-                                : 'bg-[#0D0F12] border-[#232830]'
+                                : 'bg-[#F5F2EE] border-[#E0DAD2]'
                             }`}>
-                              <p className="font-bold text-zinc-300 mb-0.5">{f.formType.replace('_', '-')}</p>
-                              <p className={f.received ? 'text-green-400' : 'text-zinc-600'}>
+                              <p className="font-bold text-[#231F1B] mb-0.5">{f.formType.replace('_', '-')}</p>
+                              <p className={f.received ? 'text-green-400' : 'text-[#96908A]'}>
                                 {f.received ? '✓ Received' : '— Not received'}
                               </p>
-                              {f.notes && <p className="text-zinc-600 mt-1 italic text-[10px]">{f.notes}</p>}
+                              {f.notes && <p className="text-[#96908A] mt-1 italic text-[10px]">{f.notes}</p>}
                             </div>
                           ))}
                         </div>
@@ -252,7 +252,7 @@ function ArchiveCard({
                     ))}
                   </div>
                 ) : (
-                  <p className="text-zinc-600 text-sm py-4">No declarations recorded for this meeting.</p>
+                  <p className="text-[#96908A] text-sm py-4">No declarations recorded for this meeting.</p>
                 )}
               </div>
             )}
@@ -260,26 +260,26 @@ function ArchiveCard({
             {/* ── Resolutions ── */}
             {section === 'resolutions' && (
               <div>
-                <p className="text-zinc-600 text-[10px] uppercase tracking-widest font-semibold mb-3">
+                <p className="text-[#96908A] text-[10px] uppercase tracking-widest font-semibold mb-3">
                   Resolutions Passed
                 </p>
                 {meeting.resolutions?.length > 0 ? (
                   <div className="space-y-3">
                     {meeting.resolutions.map((r: any, i: number) => (
-                      <div key={r.id} className="bg-[#13161B] border border-[#232830] rounded-xl p-4">
+                      <div key={r.id} className="bg-[#FDFCFB] border border-[#E0DAD2] rounded-xl p-4">
                         <div className="flex items-start justify-between gap-3 mb-2">
-                          <p className="text-zinc-200 text-sm font-semibold">{i + 1}. {r.title}</p>
+                          <p className="text-[#231F1B] text-sm font-semibold">{i + 1}. {r.title}</p>
                           <span className={`flex-shrink-0 text-[10px] font-bold px-2 py-0.5 rounded-full border uppercase tracking-wide ${
                             r.status === 'APPROVED' ? 'text-green-400 bg-green-950 border-green-800/40'
                             : r.status === 'REJECTED' ? 'text-red-400 bg-red-950 border-red-800/40'
-                            : r.status === 'NOTED' ? 'text-zinc-400 bg-zinc-800 border-zinc-700/40'
-                            : 'text-zinc-500 bg-zinc-900 border-zinc-700/40'
+                            : r.status === 'NOTED' ? 'text-[#5C5750] bg-[#EBE6DF] border-[#E0DAD2]/40'
+                            : 'text-[#5C5750] bg-[#F5F2EE] border-[#E0DAD2]/40'
                           }`}>
                             {r.type === 'NOTING' ? 'On Record' : r.status}
                           </span>
                         </div>
                         {r.type !== 'NOTING' && (
-                          <div className="flex items-center gap-4 text-xs text-zinc-500 flex-wrap">
+                          <div className="flex items-center gap-4 text-xs text-[#5C5750] flex-wrap">
                             <span className="text-green-400">✓ {r.tally.APPROVE} For</span>
                             {r.tally.REJECT > 0 && <span className="text-red-400">✕ {r.tally.REJECT} Against</span>}
                             {r.tally.ABSTAIN > 0 && <span>◎ {r.tally.ABSTAIN} Abstain</span>}
@@ -289,7 +289,7 @@ function ArchiveCard({
                               </span>
                             )}
                             {r.certifiedCopiesCount > 0 && (
-                              <span className="text-blue-400">
+                              <span className="text-[#1D4ED8]">
                                 {r.certifiedCopiesCount} certified {r.certifiedCopiesCount === 1 ? 'copy' : 'copies'} issued
                               </span>
                             )}
@@ -309,7 +309,7 @@ function ArchiveCard({
                     ))}
                   </div>
                 ) : (
-                  <p className="text-zinc-600 text-sm py-4">No resolutions recorded for this meeting.</p>
+                  <p className="text-[#96908A] text-sm py-4">No resolutions recorded for this meeting.</p>
                 )}
               </div>
             )}
@@ -317,7 +317,7 @@ function ArchiveCard({
             {/* ── Minutes ── */}
             {section === 'minutes' && (
               <div>
-                <p className="text-zinc-600 text-[10px] uppercase tracking-widest font-semibold mb-3">
+                <p className="text-[#96908A] text-[10px] uppercase tracking-widest font-semibold mb-3">
                   Signed Minutes — Sec. 118 CA2013
                 </p>
                 {meeting.signatureHash ? (
@@ -327,13 +327,13 @@ function ArchiveCard({
                       <p className="text-green-400 text-xs font-semibold mb-1">
                         Minutes signed — {meeting.signedAt ? formatDate(meeting.signedAt) : 'date not recorded'}
                       </p>
-                      <p className="text-zinc-600 text-[10px] font-mono break-all leading-relaxed">
+                      <p className="text-[#96908A] text-[10px] font-mono break-all leading-relaxed">
                         sha256: {meeting.signatureHash}
                       </p>
                     </div>
                   </div>
                 ) : (
-                  <div className="bg-amber-950/20 border border-amber-800/20 rounded-lg px-4 py-3 mb-4 text-amber-400 text-xs">
+                  <div className="bg-amber-950/20 border border-amber-800/20 rounded-lg px-4 py-3 mb-4 text-amber-700 text-xs">
                     ⚠ Minutes not yet signed for this meeting.
                   </div>
                 )}
@@ -342,7 +342,7 @@ function ArchiveCard({
                   <button
                     onClick={handleExport}
                     disabled={exporting || !meeting.signatureHash}
-                    className="flex items-center gap-2 bg-[#13161B] border border-[#232830] hover:border-zinc-500 text-zinc-300 text-sm font-semibold px-4 py-2 rounded-lg transition-colors disabled:opacity-40"
+                    className="flex items-center gap-2 bg-[#FDFCFB] border border-[#E0DAD2] hover:border-zinc-500 text-[#231F1B] text-sm font-semibold px-4 py-2 rounded-lg transition-colors disabled:opacity-40"
                   >
                     {exporting ? <Spinner /> : '⬇'}
                     {exporting ? 'Generating…' : exportUrl ? '↗ Open PDF' : 'Download Minutes PDF'}
@@ -354,7 +354,7 @@ function ArchiveCard({
                     <button
                       onClick={handleLock}
                       disabled={locking}
-                      className="flex items-center gap-2 bg-[#13161B] border border-zinc-700/50 hover:border-zinc-500 text-zinc-400 text-sm font-semibold px-4 py-2 rounded-lg transition-colors disabled:opacity-40 ml-auto"
+                      className="flex items-center gap-2 bg-[#FDFCFB] border border-[#E0DAD2]/50 hover:border-zinc-500 text-[#5C5750] text-sm font-semibold px-4 py-2 rounded-lg transition-colors disabled:opacity-40 ml-auto"
                     >
                       {locking ? <Spinner /> : '⊗'}
                       {locking ? 'Locking…' : 'Lock Record'}
@@ -363,7 +363,7 @@ function ArchiveCard({
                 </div>
 
                 {meeting.status === 'LOCKED' && (
-                  <p className="text-zinc-600 text-[10px] mt-3">
+                  <p className="text-[#96908A] text-[10px] mt-3">
                     This record is permanently locked and cannot be modified.
                   </p>
                 )}
@@ -372,10 +372,10 @@ function ArchiveCard({
           </div>
 
           {/* Footer link */}
-          <div className="border-t border-[#232830] px-6 py-3 flex justify-end">
+          <div className="border-t border-[#E0DAD2] px-6 py-3 flex justify-end">
             <Link
               href={`/companies/${companyId}/meetings/${meeting.id}`}
-              className="text-zinc-600 text-xs hover:text-zinc-400 transition-colors"
+              className="text-[#96908A] text-xs hover:text-[#5C5750] transition-colors"
             >
               View original meeting →
             </Link>
@@ -420,15 +420,15 @@ export default function ArchivePage() {
     .filter(m => !search || m.title.toLowerCase().includes(search.toLowerCase()));
 
   return (
-    <div className="px-10 py-8 max-w-3xl" style={{ fontFamily: "'DM Sans',system-ui,sans-serif" }}>
-      <style>{`@import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Playfair+Display:wght@700&display=swap');`}</style>
+    <div className="px-10 py-8 max-w-3xl" style={{ fontFamily: "'Instrument Sans',system-ui,sans-serif" }}>
+      <style>{`@import url('https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600;700&family=Playfair+Display:wght@700&display=swap');`}</style>
 
       <div className="mb-8">
-        <p className="text-zinc-600 text-xs uppercase tracking-widest font-semibold mb-2">Statutory Register</p>
+        <p className="text-[#96908A] text-xs uppercase tracking-widest font-semibold mb-2">Statutory Register</p>
         <h1 className="text-[#F0F2F5] font-bold text-2xl mb-1" style={{ fontFamily: "'Playfair Display',serif", letterSpacing: '-0.02em' }}>
           Board Meeting Archive
         </h1>
-        <p className="text-zinc-500 text-sm leading-relaxed">
+        <p className="text-[#5C5750] text-sm leading-relaxed">
           The permanent statutory record of board meetings — attendance register, director declarations,
           resolutions, and signed minutes — maintained under Sec. 118 &amp; 173 of the Companies Act 2013.
         </p>
@@ -439,15 +439,15 @@ export default function ArchivePage() {
           value={search}
           onChange={e => setSearch(e.target.value)}
           placeholder="Search meetings…"
-          className="flex-1 bg-[#191D24] border border-[#232830] rounded-xl px-4 py-2.5 text-sm text-[#F0F2F5] placeholder:text-zinc-600 focus:outline-none focus:border-zinc-500 transition-colors"
+          className="flex-1 bg-[#FDFCFB] border border-[#E0DAD2] rounded-xl px-4 py-2.5 text-sm text-[#F0F2F5] placeholder:text-[#96908A] focus:outline-none focus:border-zinc-500 transition-colors"
         />
-        <div className="flex bg-[#191D24] border border-[#232830] rounded-xl p-1 gap-1">
+        <div className="flex bg-[#FDFCFB] border border-[#E0DAD2] rounded-xl p-1 gap-1">
           {(['all', 'signed', 'locked'] as const).map(f => (
             <button
               key={f}
               onClick={() => setFilter(f)}
               className={`px-3.5 py-1.5 rounded-lg text-xs font-semibold capitalize transition-all ${
-                filter === f ? 'bg-[#13161B] text-[#F0F2F5] border border-[#374151]' : 'text-zinc-500 hover:text-zinc-300'
+                filter === f ? 'bg-[#FDFCFB] text-[#F0F2F5] border border-[#E0DAD2]' : 'text-[#5C5750] hover:text-[#231F1B]'
               }`}
             >
               {f}
@@ -461,10 +461,10 @@ export default function ArchivePage() {
           <Spinner />
         </div>
       ) : filtered.length === 0 ? (
-        <div className="text-center py-20 text-zinc-600">
+        <div className="text-center py-20 text-[#96908A]">
           <p className="text-4xl mb-4 opacity-30">▤</p>
           <p className="text-sm font-medium">{search ? 'No meetings match.' : 'No archived meetings yet.'}</p>
-          <p className="text-xs mt-2 text-zinc-700">
+          <p className="text-xs mt-2 text-[#96908A]">
             Meetings appear here once signed by the Chairperson.
           </p>
         </div>
