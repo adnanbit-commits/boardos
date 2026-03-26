@@ -98,19 +98,6 @@ function detectConflicts(members: CompanyMember[]): string[] {
 
 // ── Shared atoms ──────────────────────────────────────────────────────────────
 
-
-// ── Light palette tokens ──────────────────────────────────────────────────────
-const T = {
-  pageBg:  '#F5F2EE', surface: '#FDFCFB', surface2: '#EBE6DF',
-  border:  '#E0DAD2', borderDk:'#C8C0B5',
-  ink:     '#231F1B', inkMid:  '#5C5750', inkMute: '#96908A',
-  crimson: '#8B1A1A', crimsonLt:'#F5E6E6', crimsonMid:'rgba(139,26,26,0.10)', crimsonBdr:'#ECC9C9',
-  gold:    '#C4973A', goldLt:  '#FBF5E6',  goldMid: 'rgba(196,151,58,0.10)',  goldBdr:  '#E8D499', goldText:'#9B7320',
-  green:   '#166534', greenLt: '#DCFCE7',  greenBdr:'#BBF7D0',
-  shadow:  '0 1px 3px rgba(35,31,27,0.07)',
-  shadowMd:'0 4px 12px rgba(35,31,27,0.10)',
-};
-
 const ROLE_SHORT: Record<string, string> = {
   DIRECTOR:          'Director — votes on resolutions, signs minutes',
   COMPANY_SECRETARY: 'Company Secretary — records and certifies board actions',
@@ -119,16 +106,10 @@ const ROLE_SHORT: Record<string, string> = {
 };
 
 const ROLE_CLS: Record<string, string> = {
-  DIRECTOR:          'border font-semibold',
-  COMPANY_SECRETARY: 'border font-semibold',
-  AUDITOR:           'border font-semibold',
-  OBSERVER:          'border font-semibold',
-};
-const ROLE_STYLE: Record<string, {color:string;bg:string;border:string}> = {
-  DIRECTOR:          {color:'#8B1A1A', bg:'#F5E6E6', border:'#ECC9C9'},
-  COMPANY_SECRETARY: {color:'#9B7320', bg:'#FBF5E6', border:'#E8D499'},
-  AUDITOR:           {color:'#166534', bg:'#DCFCE7', border:'#BBF7D0'},
-  OBSERVER:          {color:'#5C5750', bg:'#EBE6DF', border:'#D6CFC6'},
+  DIRECTOR:          'text-blue-400 bg-blue-950/60 border-blue-800/40',
+  COMPANY_SECRETARY: 'text-purple-400 bg-purple-950/60 border-purple-800/40',
+  AUDITOR:           'text-green-400 bg-green-950/60 border-green-800/40',
+  OBSERVER:          'text-slate-400 bg-slate-900/60 border-slate-700/40',
 };
 
 function RoleBadge({ role, isWorkspaceAdmin, additionalDesignation }: {
@@ -156,30 +137,26 @@ function RoleBadge({ role, isWorkspaceAdmin, additionalDesignation }: {
 function Avatar({ name }: { name: string }) {
   const initials = name.split(' ').slice(0, 2).map(w => w[0]).join('').toUpperCase();
   return (
-    <div style={{ width:32, height:32, borderRadius:'50%', background:'#F5E6E6', border:'1px solid #ECC9C9', display:'flex', alignItems:'center', justifyContent:'center', color:'#8B1A1A', fontWeight:700, fontSize:11, flexShrink:0 }}>
+    <div className="w-8 h-8 rounded-full bg-blue-950 border border-blue-800/40 flex items-center justify-center text-blue-400 font-bold text-[11px] flex-shrink-0">
       {initials}
     </div>
   );
 }
 
 function Spinner() {
-  return <div style={{ width:20, height:20, border:"2px solid #E0DAD2", borderTopColor:"#8B1A1A", borderRadius:"50%", animation:"spin 0.8s linear infinite" }} />;
+  return <div className="w-5 h-5 border-2 border-zinc-700 border-t-blue-500 rounded-full animate-spin" />;
 }
 
 function StatusPill({ status }: { status: string }) {
-  const map: Record<string,{color:string;bg:string;border:string}> = {
-    DRAFT:         {color:'#5C5750',bg:'#EBE6DF',border:'#D6CFC6'},
-    SCHEDULED:     {color:'#1D4ED8',bg:'#EFF6FF',border:'#BFDBFE'},
-    IN_PROGRESS:   {color:'#166534',bg:'#DCFCE7',border:'#BBF7D0'},
-    VOTING:        {color:'#92400E',bg:'#FEF3C7',border:'#FDE68A'},
-    MINUTES_DRAFT: {color:'#6B21A8',bg:'#F5F3FF',border:'#DDD6FE'},
-    SIGNED:        {color:'#166534',bg:'#DCFCE7',border:'#BBF7D0'},
-    LOCKED:        {color:'#5C5750',bg:'#EBE6DF',border:'#D6CFC6'},
+  const map: Record<string, string> = {
+    DRAFT: 'text-zinc-400 bg-zinc-800', SCHEDULED: 'text-blue-400 bg-blue-950',
+    IN_PROGRESS: 'text-green-400 bg-green-950', VOTING: 'text-amber-400 bg-amber-950',
+    MINUTES_DRAFT: 'text-purple-400 bg-purple-950', SIGNED: 'text-green-400 bg-green-950',
+    LOCKED: 'text-zinc-500 bg-zinc-800',
   };
-  const s = map[status]??map.DRAFT;
   return (
-    <span style={{ fontSize:10, fontWeight:700, padding:'2px 10px', borderRadius:20, textTransform:'uppercase' as const, letterSpacing:'0.06em', color:s.color, background:s.bg, border:`1px solid ${s.border}` }}>
-      {status.replace('_',' ')}
+    <span className={`text-[10px] font-bold px-2.5 py-0.5 rounded-full uppercase tracking-wide ${map[status] ?? map.DRAFT}`}>
+      {status.replace('_', ' ')}
     </span>
   );
 }
@@ -331,27 +308,27 @@ export default function CompanyWorkspacePage() {
   );
 
   return (
-    <div style={{ padding:'32px 40px', maxWidth:1060, fontFamily:"'Instrument Sans',system-ui,sans-serif", color:'#231F1B' }}>
-      <style>{`@import url('https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,500;0,600&family=Instrument+Sans:wght@400;500;600&display=swap'); @keyframes spin{to{transform:rotate(360deg)}}`}</style>
+    <div className="px-10 py-8 max-w-5xl" style={{ fontFamily: "'DM Sans',system-ui,sans-serif" }}>
+      <style>{`@import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Playfair+Display:wght@700&display=swap');`}</style>
 
       {/* Header */}
       <div className="flex items-start justify-between mb-8">
         <div className="flex items-center gap-4">
-          <div style={{ width:48, height:48, borderRadius:12, background:"#F5E6E6", border:"1px solid #ECC9C9", display:"flex", alignItems:"center", justifyContent:"center", color:"#8B1A1A", fontWeight:800, fontSize:20 }}>
+          <div className="w-12 h-12 rounded-xl bg-blue-950 border border-blue-800/40 flex items-center justify-center text-blue-400 font-black text-xl">
             {company?.name[0]}
           </div>
           <div>
-            <h1 style={{ fontFamily:"'Playfair Display',Georgia,serif", fontSize:24, fontWeight:600, color:"#231F1B", letterSpacing:"-0.02em" }}>
+            <h1 className="text-[#F0F2F5] font-bold text-2xl" style={{ fontFamily: "'Playfair Display',serif", letterSpacing: '-0.02em' }}>
               {company?.name}
             </h1>
-            {company?.cin && <p style={{ color:"#96908A", fontSize:11, margin:"2px 0 0", fontFamily:"monospace" }}>CIN: {company.cin}</p>}
+            {company?.cin && <p className="text-zinc-500 text-xs mt-1">CIN: {company.cin}</p>}
           </div>
         </div>
         <div className="flex gap-3">
-          <Link href={`/companies/${companyId}/meetings`}  style={{ fontSize:12, fontWeight:600, color:"#5C5750", background:"#FDFCFB", border:"1px solid #E0DAD2", padding:"7px 14px", borderRadius:8, textDecoration:"none", transition:"border-color 0.15s,color 0.15s" }}>◈ Meetings</Link>
-          <Link href={`/companies/${companyId}/templates`} style={{ fontSize:12, fontWeight:600, color:"#5C5750", background:"#FDFCFB", border:"1px solid #E0DAD2", padding:"7px 14px", borderRadius:8, textDecoration:"none", transition:"border-color 0.15s,color 0.15s" }}>▦ Templates</Link>
-          <Link href={`/companies/${companyId}/vault`}     style={{ fontSize:12, fontWeight:600, color:"#5C5750", background:"#FDFCFB", border:"1px solid #E0DAD2", padding:"7px 14px", borderRadius:8, textDecoration:"none", transition:"border-color 0.15s,color 0.15s" }}>⊟ Vault</Link>
-          <Link href={`/companies/${companyId}/archive`}   style={{ fontSize:12, fontWeight:600, color:"#5C5750", background:"#FDFCFB", border:"1px solid #E0DAD2", padding:"7px 14px", borderRadius:8, textDecoration:"none", transition:"border-color 0.15s,color 0.15s" }}>▤ Archive</Link>
+          <Link href={`/companies/${companyId}/meetings`}  className="text-sm font-semibold text-zinc-300 bg-[#191D24] border border-[#232830] px-4 py-2 rounded-lg hover:border-blue-800/40 transition-colors">◈ Meetings</Link>
+          <Link href={`/companies/${companyId}/templates`} className="text-sm font-semibold text-zinc-300 bg-[#191D24] border border-[#232830] px-4 py-2 rounded-lg hover:border-blue-800/40 transition-colors">▦ Templates</Link>
+          <Link href={`/companies/${companyId}/vault`}     className="text-sm font-semibold text-zinc-300 bg-[#191D24] border border-[#232830] px-4 py-2 rounded-lg hover:border-blue-800/40 transition-colors">⊟ Vault</Link>
+          <Link href={`/companies/${companyId}/archive`}   className="text-sm font-semibold text-zinc-300 bg-[#191D24] border border-[#232830] px-4 py-2 rounded-lg hover:border-blue-800/40 transition-colors">▤ Archive</Link>
         </div>
       </div>
 
@@ -359,7 +336,7 @@ export default function CompanyWorkspacePage() {
       <div className="flex gap-2 mb-7">
         {TABS.map(t => (
           <button key={t.id} onClick={() => setTab(t.id)}
-            className={`px-5 py-2.5 text-sm font-semibold rounded-lg transition-all ${tab === t.id ? "bg-white text-[#231F1B] border border-[#E0DAD2] shadow-sm" : "text-[#96908A] hover:text-[#5C5750]"}`}>
+            className={`px-5 py-2.5 text-sm font-semibold rounded-lg transition-all ${tab === t.id ? 'bg-[#191D24] text-[#F0F2F5] border border-[#232830]' : 'text-zinc-500 hover:text-zinc-300'}`}>
             {t.label}
           </button>
         ))}
@@ -378,20 +355,20 @@ export default function CompanyWorkspacePage() {
             />
           )}
           <div>
-            <p style={{ fontSize:10, fontWeight:700, color:"#96908A", textTransform:"uppercase" as const, letterSpacing:"0.1em", marginBottom:12 }}>What you can do here</p>
+            <p className="text-zinc-600 text-[10px] font-semibold uppercase tracking-widest mb-3">What you can do here</p>
             <div className="grid grid-cols-2 gap-3">
               {[
-                { icon: '⬡', label: 'Board Meetings',      count: company?._count.meetings    ?? 0, desc: 'Schedule, conduct and sign off board meetings end-to-end. Attendance, voting, minutes — all in one place.',                                href: '/companies/' + companyId + '/meetings',              color: '#1D4ED8', bg: 'bg-[#EFF6FF] border-[#BFDBFE]' },
-                { icon: '◎', label: 'Resolutions',          count: company?._count.resolutions ?? 0, desc: 'Track every board resolution with vote tallies, dissent records, and certified copies for banks and regulators.',                        href: '/companies/' + companyId + '/resolutions',            color: '#92400E', bg: 'bg-[#FEF3C7] border-[#FDE68A]' },
-                { icon: '⬡', label: 'Document Vault',       count: company?._count.documents   ?? 0, desc: 'Secure storage for statutory documents — MOA, AOA, incorporation certificate, board papers, and compliance filings.',                    href: '/companies/' + companyId + '/vault',                  color: '#6B21A8', bg: 'bg-[#F5F3FF] border-[#DDD6FE]' },
-                { icon: '↻', label: 'Circular Resolutions', count: 0,                               desc: 'Pass urgent resolutions without a meeting — circulate to all directors and collect approvals digitally per Sec. 175.',                    href: '/companies/' + companyId + '/circular-resolutions',   color: '#166534', bg: 'bg-[#DCFCE7] border-[#BBF7D0]' },
+                { icon: '⬡', label: 'Board Meetings',      count: company?._count.meetings    ?? 0, desc: 'Schedule, conduct and sign off board meetings end-to-end. Attendance, voting, minutes — all in one place.',                                href: '/companies/' + companyId + '/meetings',              color: '#4F7FFF', bg: 'bg-blue-950/20 border-blue-800/30' },
+                { icon: '◎', label: 'Resolutions',          count: company?._count.resolutions ?? 0, desc: 'Track every board resolution with vote tallies, dissent records, and certified copies for banks and regulators.',                        href: '/companies/' + companyId + '/resolutions',            color: '#F59E0B', bg: 'bg-amber-950/20 border-amber-800/30' },
+                { icon: '⬡', label: 'Document Vault',       count: company?._count.documents   ?? 0, desc: 'Secure storage for statutory documents — MOA, AOA, incorporation certificate, board papers, and compliance filings.',                    href: '/companies/' + companyId + '/vault',                  color: '#A78BFA', bg: 'bg-purple-950/20 border-purple-800/30' },
+                { icon: '↻', label: 'Circular Resolutions', count: 0,                               desc: 'Pass urgent resolutions without a meeting — circulate to all directors and collect approvals digitally per Sec. 175.',                    href: '/companies/' + companyId + '/circular-resolutions',   color: '#22C55E', bg: 'bg-green-950/20 border-green-800/30' },
               ].map(mod => (
                 <Link key={mod.label} href={mod.href}
-                  className={'flex flex-col gap-3 p-5 rounded-2xl border ' + mod.bg + ' hover:shadow-md transition-all group'} style={{ background:'#FDFCFB', textDecoration:'none' }}>
+                  className={'flex flex-col gap-3 p-5 rounded-2xl border ' + mod.bg + ' hover:brightness-110 transition-all group'}>
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2.5">
                       <span style={{ color: mod.color }} className="text-lg">{mod.icon}</span>
-                      <span style={{ fontSize:14, fontWeight:600, color:"#231F1B", margin:0 }}>{mod.label}</span>
+                      <span className="text-[#F0F2F5] font-semibold text-sm">{mod.label}</span>
                     </div>
                     <span className="font-bold text-lg font-mono" style={{ color: mod.color }}>{mod.count}</span>
                   </div>
@@ -402,44 +379,44 @@ export default function CompanyWorkspacePage() {
             </div>
           </div>
           <div className="grid grid-cols-5 gap-4">
-            <div style={{ gridColumn:"span 3", background:"#FDFCFB", border:"1px solid #E0DAD2", borderRadius:16, padding:24, boxShadow:"0 1px 3px rgba(35,31,27,0.06)" }}>
+            <div className="col-span-3 bg-[#191D24] border border-[#232830] rounded-2xl p-6">
               <div className="flex items-center justify-between mb-2">
-                <h2 style={{ fontSize:14, fontWeight:600, color:"#231F1B", margin:0 }}>Upcoming Meetings</h2>
-                <Link href={'/companies/' + companyId + '/meetings'} style={{ fontSize:12, color:"#8B1A1A", background:"none", border:"none", cursor:"pointer", fontWeight:500 }}>View all →</Link>
+                <h2 className="text-[#F0F2F5] font-semibold text-sm">Upcoming Meetings</h2>
+                <Link href={'/companies/' + companyId + '/meetings'} className="text-blue-400 text-xs hover:text-blue-300">View all →</Link>
               </div>
-              <p style={{ fontSize:12, color:"#96908A", marginBottom:16, lineHeight:1.6 }}>Board meetings managed end-to-end in full compliance with SS-1.</p>
+              <p className="text-zinc-600 text-xs mb-4 leading-relaxed">Board meetings managed end-to-end in full compliance with SS-1.</p>
               {upcoming.length === 0
-                ? <p className="" style={{ fontSize:13, color:"#96908A", textAlign:"center" as const, padding:"24px 0" }}>No upcoming meetings. Schedule one to get started.</p>
+                ? <p className="text-zinc-600 text-sm text-center py-6">No upcoming meetings. Schedule one to get started.</p>
                 : upcoming.slice(0, 4).map(m => (
                   <Link key={m.id} href={'/companies/' + companyId + '/meetings/' + m.id}
-                    style={{ display:"flex", alignItems:"center", justifyContent:"space-between", padding:"10px 14px", background:"#F5F2EE", border:"1px solid #E0DAD2", borderRadius:10, marginBottom:8, textDecoration:"none", transition:"border-color 0.15s" }}>
+                    className="flex items-center justify-between px-4 py-3 bg-[#13161B] border border-[#232830] rounded-xl hover:border-blue-800/30 transition-colors mb-2 group">
                     <div>
-                      <p style={{ fontSize:13, fontWeight:500, color:"#231F1B" }}>{m.title}</p>
-                      <p style={{ fontSize:11, color:"#96908A", marginTop:2 }}>{new Date(m.scheduledAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}</p>
+                      <p className="text-[#F0F2F5] text-sm font-medium group-hover:text-blue-300 transition-colors">{m.title}</p>
+                      <p className="text-zinc-500 text-xs mt-0.5">{new Date(m.scheduledAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}</p>
                     </div>
                     <StatusPill status={m.status} />
                   </Link>
                 ))
               }
             </div>
-            <div style={{ gridColumn:"span 2", background:"#FDFCFB", border:"1px solid #E0DAD2", borderRadius:16, padding:24, boxShadow:"0 1px 3px rgba(35,31,27,0.06)" }}>
+            <div className="col-span-2 bg-[#191D24] border border-[#232830] rounded-2xl p-6">
               <div className="flex items-center justify-between mb-2">
-                <h2 style={{ fontSize:14, fontWeight:600, color:"#231F1B", margin:0 }}>Board Members</h2>
-                <button onClick={() => setTab('members')} style={{ fontSize:12, color:"#8B1A1A", background:"none", border:"none", cursor:"pointer", fontWeight:500 }}>Manage →</button>
+                <h2 className="text-[#F0F2F5] font-semibold text-sm">Board Members</h2>
+                <button onClick={() => setTab('members')} className="text-blue-400 text-xs hover:text-blue-300">Manage →</button>
               </div>
-              <p style={{ fontSize:12, color:"#96908A", marginBottom:16, lineHeight:1.6 }}>Each role determines what appears in minutes and what they can do in meetings.</p>
+              <p className="text-zinc-600 text-xs mb-4 leading-relaxed">Each role determines what appears in minutes and what they can do in meetings.</p>
               <div className="space-y-2">
                 {members.slice(0, 6).map(m => (
-                  <div key={m.id} style={{ display:"flex", alignItems:"center", gap:10, padding:"10px 12px", background:"#F5F2EE", border:"1px solid #E0DAD2", borderRadius:10 }}>
+                  <div key={m.id} className="flex items-center gap-3 px-3 py-2.5 bg-[#13161B] border border-[#232830] rounded-xl">
                     <Avatar name={m.user.name} />
                     <div className="flex-1 min-w-0">
-                      <p style={{ fontSize:12, fontWeight:600, color:"#231F1B", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" as const }}>
-                        {m.user.name}{m.userId === me?.id && <span style={{ marginLeft:6, fontSize:9, color:"#8B1A1A", fontWeight:600 }}>you</span>}
+                      <p className="text-[#F0F2F5] text-xs font-semibold truncate">
+                        {m.user.name}{m.userId === me?.id && <span className="ml-1.5 text-blue-400 text-[9px]">you</span>}
                       </p>
-                      <p style={{ fontSize:10, color:"#96908A", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" as const }}>{ROLE_SHORT[m.role as keyof typeof ROLE_SHORT] ?? m.role}</p>
+                      <p className="text-zinc-600 text-[10px] truncate">{ROLE_SHORT[m.role as keyof typeof ROLE_SHORT] ?? m.role}</p>
                     </div>
                     {m.isWorkspaceAdmin && (
-                      <span className="" style={{ fontSize:9, fontWeight:700, color:"#9B7320", background:"#FBF5E6", border:"1px solid #E8D499", padding:"1px 6px", borderRadius:4, flexShrink:0 }}>Admin</span>
+                      <span className="text-[9px] font-bold text-amber-400 bg-amber-950/40 border border-amber-800/40 px-1.5 py-0.5 rounded flex-shrink-0">Admin</span>
                     )}
                   </div>
                 ))}
@@ -458,9 +435,9 @@ export default function CompanyWorkspacePage() {
           {conflicts.length > 0 && (
             <div className="space-y-2">
               {conflicts.map((w, i) => (
-                <div key={i} style={{ display:"flex", alignItems:"flex-start", gap:10, background:"#FEF3C7", border:"1px solid #FDE68A", borderRadius:10, padding:"10px 14px" }}>
-                  <span style={{ color:"#92400E", fontSize:14, marginTop:2, flexShrink:0 }}>⚠</span>
-                  <p style={{ color:"#78350F", fontSize:12, lineHeight:1.6, margin:0 }}>{w}</p>
+                <div key={i} className="flex items-start gap-3 bg-amber-950/20 border border-amber-800/30 rounded-xl px-4 py-3">
+                  <span className="text-amber-400 text-sm mt-0.5 flex-shrink-0">⚠</span>
+                  <p className="text-amber-300 text-xs leading-relaxed">{w}</p>
                 </div>
               ))}
             </div>
@@ -471,19 +448,19 @@ export default function CompanyWorkspacePage() {
             <div className="flex justify-end">
               <button
                 onClick={() => { setShowTransfer(true); setTransferErr(''); setTransferTarget(''); }}
-                style={{ fontSize:12, fontWeight:600, color:"#92400E", background:"#FEF3C7", border:"1px solid #FDE68A", padding:"7px 14px", borderRadius:8, cursor:"pointer", transition:"background 0.15s" }}
+                className="text-xs font-semibold text-amber-400 bg-amber-950/20 border border-amber-800/30 px-4 py-2 rounded-lg hover:bg-amber-950/40 transition-colors"
               >
                 ⇄ Transfer Workspace Admin
               </button>
             </div>
           )}
 
-          <div style={{ background:"#FDFCFB", border:"1px solid #E0DAD2", borderRadius:16, overflow:"hidden", boxShadow:"0 1px 3px rgba(35,31,27,0.06)" }}>
+          <div className="bg-[#191D24] border border-[#232830] rounded-2xl overflow-hidden">
             {members.length === 0
-              ? <p style={{ textAlign:"center" as const, color:"#96908A", padding:"48px 0" }}>No members yet.</p>
+              ? <p className="text-center text-zinc-600 py-12">No members yet.</p>
               : <table className="w-full">
                   <thead>
-                    <tr style={{ borderBottom:"1px solid #E0DAD2" }}>
+                    <tr className="border-b border-[#232830]">
                       {['Member', 'Email', 'Role & Designation', 'Joined', ''].map(h => (
                         <th key={h} className="text-left px-5 py-3 text-[10px] font-semibold text-zinc-500 uppercase tracking-widest">{h}</th>
                       ))}
@@ -493,24 +470,24 @@ export default function CompanyWorkspacePage() {
                     {members.map(m => {
                       const isSelf = m.userId === me?.id;
                       return (
-                        <tr key={m.id} className="" style={{ borderBottom:"1px solid #EBE6DF", transition:"background 0.15s" }}>
-                          <td style={{ padding:"12px 20px" }}>
+                        <tr key={m.id} className="border-b border-[#232830] last:border-0 hover:bg-[#13161B] transition-colors">
+                          <td className="px-5 py-4">
                             <div className="flex items-center gap-3">
                               <Avatar name={m.user.name} />
-                              <p style={{ fontSize:13, fontWeight:600, color:"#231F1B" }}>
+                              <p className="text-[#F0F2F5] text-sm font-semibold">
                                 {m.user.name}
                                 {isSelf && <span className="ml-2 text-blue-400 text-[10px]">(you)</span>}
                               </p>
                             </div>
                           </td>
                           <td className="px-5 py-4 text-zinc-400 text-sm">{m.user.email}</td>
-                          <td style={{ padding:"12px 20px" }}>
+                          <td className="px-5 py-4">
                             <RoleBadge role={m.role} isWorkspaceAdmin={m.isWorkspaceAdmin} additionalDesignation={m.additionalDesignation} />
                           </td>
                           <td className="px-5 py-4 text-zinc-500 text-xs">
                             {m.acceptedAt ? new Date(m.acceptedAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' }) : 'Pending'}
                           </td>
-                          <td style={{ padding:"12px 20px" }}>
+                          <td className="px-5 py-4">
                             {isAdmin && !isSelf && (
                               <div className="flex items-center gap-2 justify-end">
                                 <button
@@ -542,53 +519,53 @@ export default function CompanyWorkspacePage() {
       {tab === 'members' && (
         <div className="space-y-5">
           {isAdmin && (
-            <div style={{ background:"#FDFCFB", border:"1px solid #E0DAD2", borderRadius:16, padding:24, boxShadow:"0 1px 3px rgba(35,31,27,0.06)" }}>
-              <h2 style={{ fontSize:14, fontWeight:600, color:"#231F1B", marginBottom:20 }}>Invite a Member</h2>
+            <div className="bg-[#191D24] border border-[#232830] rounded-2xl p-6">
+              <h2 className="text-[#F0F2F5] font-semibold text-sm mb-5">Invite a Member</h2>
               <form onSubmit={sendInvite} className="flex items-end gap-3">
                 <div className="flex-1">
-                  <label style={{ display:"block", fontSize:10, fontWeight:700, color:"#96908A", textTransform:"uppercase" as const, letterSpacing:"0.08em", marginBottom:6 }}>Email Address</label>
+                  <label className="block text-zinc-500 text-[10px] font-semibold uppercase tracking-widest mb-1.5">Email Address</label>
                   <input type="email" required value={inviteEmail} onChange={e => setInviteEmail((e as any).target.value)}
                     placeholder="director@company.com"
-                    style={{ width:"100%", background:"#F5F2EE", border:"1px solid #E0DAD2", borderRadius:10, padding:"9px 14px", fontSize:13, color:"#231F1B", outline:"none", fontFamily:"inherit" }} />
+                    className="w-full bg-[#13161B] border border-[#232830] rounded-xl px-4 py-2.5 text-sm text-[#F0F2F5] placeholder:text-zinc-700 focus:outline-none focus:border-blue-600 transition-colors" />
                 </div>
                 <div>
-                  <label style={{ display:"block", fontSize:10, fontWeight:700, color:"#96908A", textTransform:"uppercase" as const, letterSpacing:"0.08em", marginBottom:6 }}>Role</label>
+                  <label className="block text-zinc-500 text-[10px] font-semibold uppercase tracking-widest mb-1.5">Role</label>
                   <select value={inviteRole} onChange={e => setInviteRole((e as any).target.value)}
-                    style={{ background:"#F5F2EE", border:"1px solid #E0DAD2", borderRadius:10, padding:"9px 14px", fontSize:13, color:"#5C5750", outline:"none", cursor:"pointer", fontFamily:"inherit" }}>
+                    className="bg-[#13161B] border border-[#232830] rounded-xl px-4 py-2.5 text-sm text-zinc-300 focus:outline-none cursor-pointer">
                     {['DIRECTOR', 'COMPANY_SECRETARY', 'AUDITOR', 'OBSERVER'].map(r => <option key={r}>{r}</option>)}
                   </select>
                 </div>
                 <button type="submit" disabled={inviting}
-                  style={{ display:"flex", alignItems:"center", gap:8, background:"#8B1A1A", color:"#fff", fontWeight:600, padding:"9px 18px", borderRadius:10, fontSize:13, border:"none", cursor:"pointer", transition:"background 0.15s" }}>
+                  className="flex items-center gap-2 bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-white font-semibold px-5 py-2.5 rounded-xl text-sm transition-colors">
                   {inviting ? '…' : '✉ Send Invite'}
                 </button>
               </form>
-              {inviteMsg.ok  && <p style={{ marginTop:10, fontSize:12, color:"#166534", background:"#DCFCE7", border:"1px solid #BBF7D0", borderRadius:8, padding:"8px 12px" }}>✓ {inviteMsg.ok}</p>}
-              {inviteMsg.err && <p style={{ marginTop:10, fontSize:12, color:"#991B1B", background:"#FEE2E2", border:"1px solid #FECACA", borderRadius:8, padding:"8px 12px" }}>{inviteMsg.err}</p>}
+              {inviteMsg.ok  && <p className="mt-3 text-green-400 text-xs bg-green-950/30 border border-green-800/30 rounded-lg px-3 py-2">✓ {inviteMsg.ok}</p>}
+              {inviteMsg.err && <p className="mt-3 text-red-400 text-xs bg-red-950/30 border border-red-800/30 rounded-lg px-3 py-2">{inviteMsg.err}</p>}
             </div>
           )}
-          <div style={{ background:"#FDFCFB", border:"1px solid #E0DAD2", borderRadius:16, overflow:"hidden", boxShadow:"0 1px 3px rgba(35,31,27,0.06)" }}>
-            <div style={{ padding:"14px 20px", borderBottom:"1px solid #E0DAD2", background:"#F5F2EE" }}>
-              <h2 style={{ fontSize:14, fontWeight:600, color:"#231F1B", margin:0 }}>Pending Invitations</h2>
+          <div className="bg-[#191D24] border border-[#232830] rounded-2xl overflow-hidden">
+            <div className="px-6 py-4 border-b border-[#232830]">
+              <h2 className="text-[#F0F2F5] font-semibold text-sm">Pending Invitations</h2>
             </div>
             {pending.length === 0
-              ? <p style={{ textAlign:"center" as const, color:"#96908A", padding:"40px 0", fontSize:13 }}>No pending invitations.</p>
+              ? <p className="text-center text-zinc-600 py-10 text-sm">No pending invitations.</p>
               : pending.map(inv => {
                   const daysLeft = Math.max(0, Math.ceil((+new Date(inv.expiresAt) - Date.now()) / 86400000));
                   return (
-                    <div key={inv.id} style={{ display:"flex", alignItems:"center", justifyContent:"space-between", padding:"12px 20px", borderBottom:"1px solid #EBE6DF" }}>
+                    <div key={inv.id} className="flex items-center justify-between px-6 py-4 border-b border-[#232830] last:border-0">
                       <div>
-                        <p style={{ fontSize:13, fontWeight:500, color:"#231F1B" }}>{inv.email}</p>
-                        <p style={{ fontSize:11, color:"#96908A", marginTop:2 }}>
+                        <p className="text-[#F0F2F5] text-sm font-medium">{inv.email}</p>
+                        <p className="text-zinc-500 text-xs mt-0.5">
                           {inv.role} · by {inv.invitedBy.name} ·{' '}
-                          <span style={{ color:daysLeft<=1?'#991B1B':'#96908A' }}>expires in {daysLeft === 0 ? 'today' : `${daysLeft}d`}</span>
+                          <span className={daysLeft <= 1 ? 'text-red-400' : 'text-zinc-500'}>expires in {daysLeft === 0 ? 'today' : `${daysLeft}d`}</span>
                         </p>
                       </div>
                       <div className="flex items-center gap-3">
-                        <span style={{ fontSize:10, fontWeight:700, padding:"2px 8px", borderRadius:20, color:"#92400E", background:"#FEF3C7", border:"1px solid #FDE68A", textTransform:"uppercase" as const }}>Pending</span>
+                        <span className="text-[10px] font-bold px-2.5 py-0.5 rounded-full text-amber-400 bg-amber-950 border border-amber-800/30 uppercase">Pending</span>
                         {isAdmin && (
                           <button onClick={() => invitationsApi.revoke(companyId, inv.id, jwt).then(() => setPending(p => p.filter(i => i.id !== inv.id)))}
-                            style={{ fontSize:12, color:"#96908A", background:"none", border:"none", cursor:"pointer", transition:"color 0.15s" }}>Revoke</button>
+                            className="text-zinc-600 hover:text-red-400 text-xs transition-colors">Revoke</button>
                         )}
                       </div>
                     </div>
@@ -601,14 +578,14 @@ export default function CompanyWorkspacePage() {
 
       {/* ── AUDIT ─────────────────────────────────────────────────────────────── */}
       {tab === 'audit' && (
-        <div style={{ background:"#FDFCFB", border:"1px solid #E0DAD2", borderRadius:16, overflow:"hidden", boxShadow:"0 1px 3px rgba(35,31,27,0.06)" }}>
-          <div style={{ padding:"14px 20px", borderBottom:"1px solid #E0DAD2", display:"flex", alignItems:"center", justifyContent:"space-between", background:"#F5F2EE" }}>
-            <h2 style={{ fontSize:14, fontWeight:600, color:"#231F1B", margin:0 }}>Audit Trail</h2>
-            <p style={{ fontSize:12, color:"#96908A" }}>{audit.length} events</p>
+        <div className="bg-[#191D24] border border-[#232830] rounded-2xl overflow-hidden">
+          <div className="px-6 py-4 border-b border-[#232830] flex items-center justify-between">
+            <h2 className="text-[#F0F2F5] font-semibold text-sm">Audit Trail</h2>
+            <p className="text-zinc-600 text-xs">{audit.length} events</p>
           </div>
           {audit.length === 0
-            ? <p style={{ textAlign:"center" as const, color:"#96908A", padding:"40px 0", fontSize:13 }}>No audit events yet.</p>
-            : <div style={{ maxHeight:520, overflowY:"auto" as const }}>
+            ? <p className="text-center text-zinc-600 py-10 text-sm">No audit events yet.</p>
+            : <div className="divide-y divide-[#232830] max-h-[520px] overflow-y-auto">
                 {audit.map((log, i) => (
                   <div key={log.id} className="flex items-start gap-4 px-6 py-3.5">
                     <div className="flex flex-col items-center pt-0.5 gap-1.5">
@@ -637,10 +614,10 @@ export default function CompanyWorkspacePage() {
       {/* ── SETTINGS ─────────────────────────────────────────────────────────── */}
       {tab === 'settings' && isAdmin && (
         <div className="max-w-xl space-y-6">
-          <div style={{ background:"#FDFCFB", border:"1px solid #E0DAD2", borderRadius:16, overflow:"hidden", boxShadow:"0 1px 3px rgba(35,31,27,0.06)" }}>
+          <div className="bg-[#191D24] border border-[#232830] rounded-2xl overflow-hidden">
             <div className="px-6 py-5 border-b border-[#232830]">
               <p className="text-zinc-500 text-[10px] font-semibold uppercase tracking-widest mb-1">Company Profile</p>
-              <h2 style={{ fontSize:14, fontWeight:600, color:"#231F1B", margin:0 }}>Company Details</h2>
+              <h2 className="text-[#F0F2F5] font-semibold text-sm">Company Details</h2>
               <p className="text-zinc-600 text-xs mt-1">These details appear on the letterhead of all generated documents — minutes, attendance register, and notices.</p>
             </div>
             <div className="px-6 py-5 space-y-4">
@@ -653,7 +630,7 @@ export default function CompanyWorkspacePage() {
                 { label: 'Website (optional)',    value: sfWebsite, set: setSfWebsite, type: 'url',   placeholder: 'https://company.com' },
               ].map(f => (
                 <div key={f.label}>
-                  <label style={{ display:"block", fontSize:10, fontWeight:700, color:"#96908A", textTransform:"uppercase" as const, letterSpacing:"0.08em", marginBottom:6 }}>{f.label}</label>
+                  <label className="block text-zinc-500 text-[10px] font-semibold uppercase tracking-widest mb-1.5">{f.label}</label>
                   <input
                     type={f.type}
                     value={f.value}
@@ -790,7 +767,7 @@ export default function CompanyWorkspacePage() {
                     >
                       <Avatar name={m.user.name} />
                       <div>
-                        <p style={{ fontSize:13, fontWeight:600, color:"#231F1B" }}>{m.user.name}</p>
+                        <p className="text-[#F0F2F5] text-sm font-semibold">{m.user.name}</p>
                         <p className="text-zinc-500 text-xs">{m.user.email}</p>
                       </div>
                       {transferTarget === m.userId && <span className="ml-auto text-amber-400 text-sm">✓</span>}
@@ -798,7 +775,7 @@ export default function CompanyWorkspacePage() {
                   ))}
                 </div>
               )}
-              {transferErr && <p style={{ marginTop:10, fontSize:12, color:"#991B1B", background:"#FEE2E2", border:"1px solid #FECACA", borderRadius:8, padding:"8px 12px" }}>{transferErr}</p>}
+              {transferErr && <p className="mt-3 text-red-400 text-xs bg-red-950/30 border border-red-800/30 rounded-lg px-3 py-2">{transferErr}</p>}
             </div>
             <div className="px-6 pb-5 flex gap-3">
               <button onClick={() => setShowTransfer(false)}

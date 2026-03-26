@@ -27,26 +27,26 @@ type CreateStep = 'pick' | 'form';
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
-const STATUS_CONFIG: Record<string, { label: string; color: string; bg: string; border: string }> = {
-  DRAFT:              { label: 'Draft',           color: '#5C5750', bg: '#EBE6DF', border: '#D6CFC6' },
-  SCHEDULED:          { label: 'Scheduled',       color: '#1D4ED8', bg: '#EFF6FF', border: '#BFDBFE' },
-  IN_PROGRESS:        { label: 'In Progress',     color: '#166534', bg: '#DCFCE7', border: '#BBF7D0' },
-  VOTING:             { label: 'Voting',           color: '#92400E', bg: '#FEF3C7', border: '#FDE68A' },
-  MINUTES_DRAFT:      { label: 'Minutes Draft',   color: '#6B21A8', bg: '#F5F3FF', border: '#DDD6FE' },
-  MINUTES_CIRCULATED: { label: 'Minutes Circ.',   color: '#6B21A8', bg: '#F5F3FF', border: '#DDD6FE' },
-  SIGNED:             { label: 'Signed',           color: '#166534', bg: '#DCFCE7', border: '#BBF7D0' },
-  LOCKED:             { label: 'Locked',           color: '#5C5750', bg: '#EBE6DF', border: '#D6CFC6' },
+const STATUS_CONFIG: Record<string, { label: string; color: string; bg: string }> = {
+  DRAFT:              { label: 'Draft',           color: '#9CA3AF', bg: '#1F2937' },
+  SCHEDULED:          { label: 'Scheduled',       color: '#60A5FA', bg: '#1E3A5F' },
+  IN_PROGRESS:        { label: 'In Progress',     color: '#34D399', bg: '#064E3B' },
+  VOTING:             { label: 'Voting',           color: '#FBBF24', bg: '#451A03' },
+  MINUTES_DRAFT:      { label: 'Minutes Draft',   color: '#A78BFA', bg: '#2E1065' },
+  MINUTES_CIRCULATED: { label: 'Minutes Circ.',   color: '#C4B5FD', bg: '#2E1065' },
+  SIGNED:             { label: 'Signed',           color: '#6EE7B7', bg: '#022C22' },
+  LOCKED:             { label: 'Locked',           color: '#F87171', bg: '#450A0A' },
 };
 
 const CAT_COLOR: Record<string, string> = {
-  BOARD: '#1D4ED8', AGM: '#166534', EGM: '#92400E', COMMITTEE: '#6B21A8',
+  BOARD: '#60A5FA', AGM: '#34D399', EGM: '#FBBF24', COMMITTEE: '#A78BFA',
 };
 
 function StatusPill({ status }: { status: string }) {
-  const cfg = STATUS_CONFIG[status] ?? { label: status, color: '#5C5750', bg: '#EBE6DF', border: '#D6CFC6' };
+  const cfg = STATUS_CONFIG[status] ?? { label: status, color: '#9CA3AF', bg: '#1F2937' };
   return (
-    <span style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.06em', textTransform: 'uppercase' as const,
-      color: cfg.color, background: cfg.bg, border: `1px solid ${(cfg as any).border}`, padding: '3px 10px', borderRadius: 20, flexShrink: 0 }}>
+    <span style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.06em', textTransform: 'uppercase',
+      color: cfg.color, background: cfg.bg, padding: '3px 10px', borderRadius: 20, flexShrink: 0 }}>
       {cfg.label}
     </span>
   );
@@ -371,8 +371,8 @@ export default function MeetingsPage() {
       {/* Header */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 28 }}>
         <div>
-          <h1 style={{ fontSize: 22, fontWeight: 700, color: '#231F1B', margin: 0 }}>Meetings</h1>
-          <p style={{ fontSize: 13, color: '#96908A', marginTop: 4 }}>
+          <h1 style={{ fontSize: 22, fontWeight: 700, color: '#F0F2F5', margin: 0 }}>Meetings</h1>
+          <p style={{ fontSize: 13, color: '#6B7280', marginTop: 4 }}>
             {meetings.length} meeting{meetings.length !== 1 ? 's' : ''} in this workspace
           </p>
         </div>
@@ -396,9 +396,9 @@ export default function MeetingsPage() {
           <div style={{ width: 28, height: 28, border: '2px solid #232830', borderTop: '2px solid #4F7FFF', borderRadius: '50%', animation: 'spin 0.8s linear infinite' }} />
         </div>
       ) : meetings.length === 0 ? (
-        <div style={{ textAlign: 'center', padding: '80px 20px', color: '#96908A' }}>
+        <div style={{ textAlign: 'center', padding: '80px 20px', color: '#6B7280' }}>
           <div style={{ fontSize: 40, marginBottom: 16 }}>◈</div>
-          <p style={{ fontSize: 15, fontWeight: 600, color: '#96908A', marginBottom: 8 }}>No meetings yet</p>
+          <p style={{ fontSize: 15, fontWeight: 600, color: '#9CA3AF', marginBottom: 8 }}>No meetings yet</p>
           <p style={{ fontSize: 13 }}>Schedule your first board meeting to get started.</p>
           <button onClick={openModal} style={{ ...primaryBtn, marginTop: 20 }}>+ New Meeting</button>
         </div>
@@ -414,7 +414,7 @@ export default function MeetingsPage() {
       {showModal && (
         <div onClick={closeModal} style={overlayStyle}>
           <div onClick={e => e.stopPropagation()} style={{
-            background: '#FDFCFB', border: '1px solid #E0DAD2', borderRadius: 20,
+            background: '#191D24', border: '1px solid #232830', borderRadius: 20,
             width: '100%',
             maxWidth: createStep === 'pick' ? 780 : 560,
             maxHeight: '90vh', overflow: 'hidden', display: 'flex', flexDirection: 'column',
@@ -426,20 +426,20 @@ export default function MeetingsPage() {
               <div>
                 {createStep === 'form' && (
                   <button onClick={() => setCreateStep('pick')}
-                    style={{ background: 'none', border: 'none', color: '#96908A', fontSize: 12, cursor: 'pointer', padding: 0, marginBottom: 6, display: 'block' }}>
+                    style={{ background: 'none', border: 'none', color: '#6B7280', fontSize: 12, cursor: 'pointer', padding: 0, marginBottom: 6, display: 'block' }}>
                     ← Back to templates
                   </button>
                 )}
-                <h2 style={{ fontSize: 17, fontWeight: 700, color: '#231F1B', margin: '0 0 2px' }}>
+                <h2 style={{ fontSize: 17, fontWeight: 700, color: '#F0F2F5', margin: '0 0 2px' }}>
                   {createStep === 'pick' ? 'Choose a Template' : 'Meeting Details'}
                 </h2>
-                <p style={{ fontSize: 12, color: '#96908A', margin: 0 }}>
+                <p style={{ fontSize: 12, color: '#6B7280', margin: 0 }}>
                   {createStep === 'pick'
                     ? 'Start from a system template, a saved template, or a blank meeting.'
                     : 'Set the title, date, and finalise your agenda before scheduling.'}
                 </p>
               </div>
-              <button onClick={closeModal} style={{ background: 'none', border: 'none', color: '#96908A', fontSize: 20, cursor: 'pointer' }}>×</button>
+              <button onClick={closeModal} style={{ background: 'none', border: 'none', color: '#4B5563', fontSize: 20, cursor: 'pointer' }}>×</button>
             </div>
 
             {/* Scrollable body */}
@@ -455,7 +455,7 @@ export default function MeetingsPage() {
                       <button key={tpl.id} className="tpl-card"
                         onClick={() => applySystemTemplate(tpl)}
                         style={{
-                          background: '#FDFCFB', border: '1px solid #E0DAD2', borderRadius: 12,
+                          background: '#13161B', border: '1px solid #232830', borderRadius: 12,
                           padding: '14px 16px', cursor: 'pointer', textAlign: 'left', transition: 'border-color 0.15s',
                         }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
@@ -465,10 +465,10 @@ export default function MeetingsPage() {
                             padding: '1px 7px', borderRadius: 20 }}>
                             {tpl.category}
                           </span>
-                          <span style={{ fontSize: 10, color: '#C8C0B5', fontWeight: 600 }}>{tpl.agendaItems.length} items</span>
+                          <span style={{ fontSize: 10, color: '#374151', fontWeight: 600 }}>{tpl.agendaItems.length} items</span>
                         </div>
-                        <p style={{ fontSize: 13, fontWeight: 700, color: '#231F1B', margin: '0 0 4px' }}>{tpl.name}</p>
-                        <p style={{ fontSize: 11, color: '#96908A', margin: 0, lineHeight: 1.5,
+                        <p style={{ fontSize: 13, fontWeight: 700, color: '#F0F2F5', margin: '0 0 4px' }}>{tpl.name}</p>
+                        <p style={{ fontSize: 11, color: '#6B7280', margin: 0, lineHeight: 1.5,
                           display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
                           {tpl.description}
                         </p>
@@ -485,7 +485,7 @@ export default function MeetingsPage() {
                           <button key={tpl.id} className="tpl-card"
                             onClick={() => applyTemplate(tpl.agendaItems as any[], tpl.id)}
                             style={{
-                              background: '#FDFCFB', border: '1px solid #E0DAD2', borderRadius: 12,
+                              background: '#13161B', border: '1px solid #232830', borderRadius: 12,
                               padding: '14px 16px', cursor: 'pointer', textAlign: 'left', transition: 'border-color 0.15s',
                             }}>
                             <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
@@ -496,16 +496,16 @@ export default function MeetingsPage() {
                                 padding: '1px 7px', borderRadius: 20 }}>
                                 {tpl.category}
                               </span>
-                              <span style={{ fontSize: 10, color: '#C8C0B5', fontWeight: 600 }}>
+                              <span style={{ fontSize: 10, color: '#374151', fontWeight: 600 }}>
                                 {(tpl.agendaItems as any[]).length} items
                               </span>
                               {tpl.usageCount > 0 && (
-                                <span style={{ fontSize: 10, color: '#C8C0B5', marginLeft: 'auto' }}>Used {tpl.usageCount}×</span>
+                                <span style={{ fontSize: 10, color: '#374151', marginLeft: 'auto' }}>Used {tpl.usageCount}×</span>
                               )}
                             </div>
-                            <p style={{ fontSize: 13, fontWeight: 700, color: '#231F1B', margin: '0 0 4px' }}>{tpl.name}</p>
+                            <p style={{ fontSize: 13, fontWeight: 700, color: '#F0F2F5', margin: '0 0 4px' }}>{tpl.name}</p>
                             {tpl.description && (
-                              <p style={{ fontSize: 11, color: '#96908A', margin: 0, lineHeight: 1.5,
+                              <p style={{ fontSize: 11, color: '#6B7280', margin: 0, lineHeight: 1.5,
                                 display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
                                 {tpl.description}
                               </p>
@@ -519,7 +519,7 @@ export default function MeetingsPage() {
                   {/* Blank option */}
                   <button onClick={startBlank} style={{
                     width: '100%', background: 'transparent', border: '1px dashed #2A3040',
-                    borderRadius: 12, padding: '14px 0', color: '#96908A', fontSize: 13,
+                    borderRadius: 12, padding: '14px 0', color: '#6B7280', fontSize: 13,
                     fontWeight: 600, cursor: 'pointer', transition: 'all 0.15s',
                   }}
                     onMouseEnter={e => { e.currentTarget.style.borderColor = '#374151'; e.currentTarget.style.color = '#9CA3AF'; }}
@@ -548,7 +548,7 @@ export default function MeetingsPage() {
 
                   <label style={{ ...labelStyle, marginTop: 16 }}>
                     Deemed Venue <span style={{ color: '#F87171' }}>*</span>
-                    <span style={{ fontSize: 10, color: '#96908A', fontWeight: 400, marginLeft: 6 }}>
+                    <span style={{ fontSize: 10, color: '#4B5563', fontWeight: 400, marginLeft: 6 }}>
                       SS-1 — official meeting venue for the record
                     </span>
                   </label>
@@ -566,7 +566,7 @@ export default function MeetingsPage() {
 
                   {/* First meeting flag */}
                   {!companyData?.firstBoardMeetingLockedId && (
-                    <div style={{ background: '#FDFCFB', border: '1px solid #1B3A2A', borderRadius: 10, padding: '12px 16px', marginTop: 16 }}>
+                    <div style={{ background: '#13161B', border: '1px solid #1B3A2A', borderRadius: 10, padding: '12px 16px', marginTop: 16 }}>
                       <label style={{ display: 'flex', alignItems: 'flex-start', gap: 10, cursor: 'pointer' }}>
                         <input type="checkbox" checked={isFirstMtg} onChange={e => setIsFirstMtg(e.target.checked)}
                           style={{ marginTop: 2, accentColor: '#34D399', width: 14, height: 14, flexShrink: 0 }} />
@@ -574,7 +574,7 @@ export default function MeetingsPage() {
                           <p style={{ fontSize: 13, fontWeight: 600, color: '#34D399', margin: '0 0 2px' }}>
                             First board meeting after incorporation
                           </p>
-                          <p style={{ fontSize: 11, color: '#96908A', margin: 0, lineHeight: 1.5 }}>
+                          <p style={{ fontSize: 11, color: '#6B7280', margin: 0, lineHeight: 1.5 }}>
                             Enables COI / MOA / AOA noting, DIR-2, custodian appointment and all mandatory first-meeting items under SS-1 Annexure B. Must be within 30 days of incorporation.
                           </p>
                         </div>
@@ -584,7 +584,7 @@ export default function MeetingsPage() {
 
                   {/* Agenda Builder */}
                   <div style={{ marginTop: 28, marginBottom: 4 }}>
-                    <p style={{ fontSize: 11, fontWeight: 700, color: '#8B1A1A', textTransform: 'uppercase', letterSpacing: '0.08em', margin: '0 0 14px' }}>
+                    <p style={{ fontSize: 11, fontWeight: 700, color: '#4F7FFF', textTransform: 'uppercase', letterSpacing: '0.08em', margin: '0 0 14px' }}>
                       Agenda Items
                     </p>
                     <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
@@ -601,11 +601,11 @@ export default function MeetingsPage() {
                         const borderCol = isFromTpl ? '#1B2D45' : '#232830';
                         const accentCol = typeColor[itemType] ?? '#4F7FFF';
                         return (
-                          <div key={item.id} className="agenda-card" style={{ background: '#FDFCFB', border: `1px solid ${borderCol}`, borderRadius: 12, overflow: 'hidden' }}>
+                          <div key={item.id} className="agenda-card" style={{ background: '#13161B', border: `1px solid ${borderCol}`, borderRadius: 12, overflow: 'hidden' }}>
                             {isFromTpl && <div style={{ height: 2, background: accentCol, opacity: 0.6 }} />}
-                            <div style={{ background: '#1a1e26', borderBottom: '1px solid #E0DAD2', padding: '8px 14px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                            <div style={{ background: '#1a1e26', borderBottom: '1px solid #232830', padding: '8px 14px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                               <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                                <span style={{ fontSize: 10, fontWeight: 700, color: '#8B1A1A', textTransform: 'uppercase', letterSpacing: '0.1em' }}>
+                                <span style={{ fontSize: 10, fontWeight: 700, color: '#4F7FFF', textTransform: 'uppercase', letterSpacing: '0.1em' }}>
                                   Agenda {idx + 1}
                                 </span>
                                 {isFromTpl && typeLabel[itemType] && (
@@ -618,7 +618,7 @@ export default function MeetingsPage() {
                               </div>
                               {agendaItems.length > 1 && (
                                 <button onClick={() => removeAgendaItem(item.id)}
-                                  style={{ background: 'none', border: 'none', color: '#96908A', cursor: 'pointer', fontSize: 16, lineHeight: 1, padding: '0 2px' }}>×</button>
+                                  style={{ background: 'none', border: 'none', color: '#4B5563', cursor: 'pointer', fontSize: 16, lineHeight: 1, padding: '0 2px' }}>×</button>
                               )}
                             </div>
                             <div style={{ padding: '12px 14px', display: 'flex', flexDirection: 'column', gap: 8 }}>
@@ -627,7 +627,7 @@ export default function MeetingsPage() {
                                 style={{ ...inputStyle, fontSize: 14, fontWeight: 600, padding: '9px 12px' }} />
                               {isFromTpl && (motionCount > 0 || notingCount > 0 || complianceCount > 0 || itemType === 'CHAIRPERSON_ELECTION' || itemType === 'QUORUM_CONFIRMATION') && (
                                 <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-                                  {motionCount > 0 && <span style={{ fontSize: 10, color: '#1D4ED8', background: 'rgba(59,130,246,0.08)', border: '1px solid rgba(59,130,246,0.2)', borderRadius: 20, padding: '2px 8px' }}>{motionCount} motion{motionCount > 1 ? 's' : ''} pre-configured</span>}
+                                  {motionCount > 0 && <span style={{ fontSize: 10, color: '#60A5FA', background: 'rgba(59,130,246,0.08)', border: '1px solid rgba(59,130,246,0.2)', borderRadius: 20, padding: '2px 8px' }}>{motionCount} motion{motionCount > 1 ? 's' : ''} pre-configured</span>}
                                   {notingCount > 0 && <span style={{ fontSize: 10, color: '#34D399', background: 'rgba(52,211,153,0.08)', border: '1px solid rgba(52,211,153,0.2)', borderRadius: 20, padding: '2px 8px' }}>{notingCount} doc{notingCount > 1 ? 's' : ''} to note</span>}
                                   {complianceCount > 0 && <span style={{ fontSize: 10, color: '#34D399', background: 'rgba(52,211,153,0.08)', border: '1px solid rgba(52,211,153,0.2)', borderRadius: 20, padding: '2px 8px' }}>{complianceCount} compliance form{complianceCount > 1 ? 's' : ''}</span>}
                                   {(itemType === 'CHAIRPERSON_ELECTION' || itemType === 'QUORUM_CONFIRMATION') && <span style={{ fontSize: 10, color: '#A78BFA', background: 'rgba(167,139,250,0.08)', border: '1px solid rgba(167,139,250,0.2)', borderRadius: 20, padding: '2px 8px' }}>handled automatically</span>}
@@ -635,14 +635,14 @@ export default function MeetingsPage() {
                               )}
                               <textarea value={item.goal} onChange={e => updateAgendaItem(item.id, 'goal', e.target.value)}
                                 placeholder="Notes for CS (optional)" rows={isFromTpl ? 1 : 2}
-                                style={{ ...inputStyle, fontSize: 12, color: '#96908A', resize: 'vertical', padding: '8px 12px' }} />
+                                style={{ ...inputStyle, fontSize: 12, color: '#9CA3AF', resize: 'vertical', padding: '8px 12px' }} />
                             </div>
                           </div>
                         );
                       })}
                     </div>
                     <button onClick={addAgendaItem}
-                      style={{ marginTop: 10, background: 'none', border: '1px dashed #2A3040', borderRadius: 10, color: '#8B1A1A', fontSize: 12, fontWeight: 600, cursor: 'pointer', padding: '9px 0', width: '100%' }}
+                      style={{ marginTop: 10, background: 'none', border: '1px dashed #2A3040', borderRadius: 10, color: '#4F7FFF', fontSize: 12, fontWeight: 600, cursor: 'pointer', padding: '9px 0', width: '100%' }}
                       onMouseEnter={e => (e.currentTarget.style.borderColor = '#4F7FFF')}
                       onMouseLeave={e => (e.currentTarget.style.borderColor = '#2A3040')}>
                       + Add Agenda Item
@@ -669,11 +669,11 @@ export default function MeetingsPage() {
       {/* ── Delete Confirm ────────────────────────────────────────────────────── */}
       {deleteTarget && (
         <div onClick={() => setDeleteTarget(null)} style={overlayStyle}>
-          <div onClick={e => e.stopPropagation()} style={{ background: '#FDFCFB', border: '1px solid #3B1A1A', borderRadius: 16, padding: '28px 28px 24px', width: '100%', maxWidth: 400 }}>
+          <div onClick={e => e.stopPropagation()} style={{ background: '#191D24', border: '1px solid #3B1A1A', borderRadius: 16, padding: '28px 28px 24px', width: '100%', maxWidth: 400 }}>
             <div style={{ fontSize: 28, marginBottom: 12 }}>🗑</div>
-            <h3 style={{ fontSize: 16, fontWeight: 700, color: '#231F1B', margin: '0 0 8px' }}>Delete meeting?</h3>
-            <p style={{ fontSize: 13, color: '#96908A', margin: '0 0 20px', lineHeight: 1.5 }}>
-              <strong style={{ color: '#231F1B' }}>{deleteTarget.title}</strong> and all its agenda items will be permanently deleted. This cannot be undone.
+            <h3 style={{ fontSize: 16, fontWeight: 700, color: '#F0F2F5', margin: '0 0 8px' }}>Delete meeting?</h3>
+            <p style={{ fontSize: 13, color: '#9CA3AF', margin: '0 0 20px', lineHeight: 1.5 }}>
+              <strong style={{ color: '#F0F2F5' }}>{deleteTarget.title}</strong> and all its agenda items will be permanently deleted. This cannot be undone.
             </p>
             <div style={{ display: 'flex', gap: 10 }}>
               <button onClick={() => setDeleteTarget(null)} style={ghostBtn}>Cancel</button>
@@ -697,7 +697,7 @@ function Section({ title, meetings, companyId, onDelete }: {
   const canDelete = (m: Meeting) => ['DRAFT', 'SCHEDULED'].includes(m.status);
   return (
     <div style={{ marginBottom: 32 }}>
-      <p style={{ fontSize: 11, fontWeight: 700, color: '#C8C0B5', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 10 }}>
+      <p style={{ fontSize: 11, fontWeight: 700, color: '#374151', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 10 }}>
         {title}
       </p>
       <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
@@ -705,23 +705,23 @@ function Section({ title, meetings, companyId, onDelete }: {
           <div key={m.id} style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
             <Link href={`/companies/${companyId}/meetings/${m.id}`} style={{ textDecoration: 'none', flex: 1, minWidth: 0 }}>
               <div
-                style={{ background: '#FDFCFB', border: '1px solid #E0DAD2', borderRadius: 14, padding: '16px 20px', display: 'flex', alignItems: 'center', gap: 16, cursor: 'pointer', transition: 'border-color 0.15s' }}
+                style={{ background: '#13161B', border: '1px solid #232830', borderRadius: 14, padding: '16px 20px', display: 'flex', alignItems: 'center', gap: 16, cursor: 'pointer', transition: 'border-color 0.15s' }}
                 onMouseEnter={e => (e.currentTarget.style.borderColor = '#374151')}
                 onMouseLeave={e => (e.currentTarget.style.borderColor = '#232830')}>
-                <div style={{ width: 40, height: 40, borderRadius: 10, background: '#1A2540', border: '1px solid #2A3A6A', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#8B1A1A', fontSize: 18, flexShrink: 0 }}>◈</div>
+                <div style={{ width: 40, height: 40, borderRadius: 10, background: '#1A2540', border: '1px solid #2A3A6A', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#4F7FFF', fontSize: 18, flexShrink: 0 }}>◈</div>
                 <div style={{ flex: 1, minWidth: 0 }}>
-                  <p style={{ fontSize: 14, fontWeight: 600, color: '#231F1B', margin: 0, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{m.title}</p>
-                  <p style={{ fontSize: 12, color: '#96908A', margin: '3px 0 0' }}>{fmt(m.scheduledAt)}</p>
+                  <p style={{ fontSize: 14, fontWeight: 600, color: '#F0F2F5', margin: 0, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{m.title}</p>
+                  <p style={{ fontSize: 12, color: '#6B7280', margin: '3px 0 0' }}>{fmt(m.scheduledAt)}</p>
                 </div>
                 <StatusPill status={m.status} />
-                <span style={{ color: '#C8C0B5', fontSize: 16, flexShrink: 0 }}>›</span>
+                <span style={{ color: '#374151', fontSize: 16, flexShrink: 0 }}>›</span>
               </div>
             </Link>
             {canDelete(m) && (
               <button
                 onClick={e => { e.preventDefault(); e.stopPropagation(); onDelete(m); }}
                 title="Delete meeting"
-                style={{ marginLeft: 8, flexShrink: 0, width: 32, height: 32, borderRadius: 8, background: 'transparent', border: '1px solid #E0DAD2', color: '#96908A', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'all 0.15s' }}
+                style={{ marginLeft: 8, flexShrink: 0, width: 32, height: 32, borderRadius: 8, background: 'transparent', border: '1px solid #232830', color: '#4B5563', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'all 0.15s' }}
                 onMouseEnter={e => { e.currentTarget.style.background = '#3B1A1A'; e.currentTarget.style.borderColor = '#7F1D1D'; e.currentTarget.style.color = '#FCA5A5'; }}
                 onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.borderColor = '#232830'; e.currentTarget.style.color = '#4B5563'; }}>
                 <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -740,18 +740,18 @@ function Section({ title, meetings, companyId, onDelete }: {
 // ── Styles ────────────────────────────────────────────────────────────────────
 
 const labelStyle: React.CSSProperties = {
-  display: 'block', fontSize: 12, fontWeight: 600, color: '#96908A', marginBottom: 6,
+  display: 'block', fontSize: 12, fontWeight: 600, color: '#9CA3AF', marginBottom: 6,
 };
 
 const sectionLabelStyle: React.CSSProperties = {
-  fontSize: 10, fontWeight: 700, color: '#96908A', textTransform: 'uppercase',
+  fontSize: 10, fontWeight: 700, color: '#4B5563', textTransform: 'uppercase',
   letterSpacing: '0.08em', margin: '0 0 10px',
 };
 
 const inputStyle: React.CSSProperties = {
   width: '100%', boxSizing: 'border-box',
-  background: '#F5F2EE', border: '1px solid #E0DAD2', borderRadius: 10,
-  padding: '10px 14px', fontSize: 13, color: '#231F1B', outline: 'none',
+  background: '#0D0F12', border: '1px solid #232830', borderRadius: 10,
+  padding: '10px 14px', fontSize: 13, color: '#F0F2F5', outline: 'none',
   fontFamily: "'DM Sans', system-ui, sans-serif",
 };
 
@@ -761,12 +761,12 @@ const primaryBtn: React.CSSProperties = {
 };
 
 const ghostBtn: React.CSSProperties = {
-  flex: 1, background: '#232830', color: '#96908A', border: 'none', borderRadius: 10,
+  flex: 1, background: '#232830', color: '#9CA3AF', border: 'none', borderRadius: 10,
   padding: '10px 0', fontSize: 13, fontWeight: 600, cursor: 'pointer',
 };
 
 const ghostBtnLink: React.CSSProperties = {
-  background: '#FDFCFB', color: '#96908A', border: '1px solid #E0DAD2', borderRadius: 10,
+  background: '#13161B', color: '#9CA3AF', border: '1px solid #232830', borderRadius: 10,
   padding: '9px 16px', textDecoration: 'none', display: 'inline-block',
 };
 
