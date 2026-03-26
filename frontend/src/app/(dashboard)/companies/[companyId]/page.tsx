@@ -121,12 +121,12 @@ function RoleBadge({ role, isWorkspaceAdmin, additionalDesignation }: {
         {role === 'COMPANY_SECRETARY' ? 'CS' : role}
       </span>
       {isWorkspaceAdmin && (
-        <span className="text-[10px] font-bold px-2.5 py-0.5 rounded-full border uppercase tracking-wide text-amber-700 bg-amber-950/60 border-amber-800/40">
+        <span className="text-[10px] font-bold px-2.5 py-0.5 rounded-full border uppercase tracking-wide text-amber-800 bg-amber-50 border-amber-200">
           Admin
         </span>
       )}
       {additionalDesignation && (
-        <span className="text-[10px] px-2 py-0.5 rounded-full border text-slate-400 bg-slate-900/40 border-slate-700/40 italic">
+        <span className="text-[10px] px-2 py-0.5 rounded-full border text-[#5C5750] bg-[#EBE6DF] border-[#E0DAD2] italic">
           {DESIGNATION_LABELS[additionalDesignation] ?? additionalDesignation}
         </span>
       )}
@@ -137,7 +137,7 @@ function RoleBadge({ role, isWorkspaceAdmin, additionalDesignation }: {
 function Avatar({ name }: { name: string }) {
   const initials = name.split(' ').slice(0, 2).map(w => w[0]).join('').toUpperCase();
   return (
-    <div className="w-8 h-8 rounded-full bg-[#EFF6FF] border border-[#BFDBFE]/40 flex items-center justify-center text-[#1D4ED8] font-bold text-[11px] flex-shrink-0">
+    <div className="w-8 h-8 rounded-full bg-[#EBE6DF] border border-[#E0DAD2] flex items-center justify-center text-[#5C5750] font-bold text-[11px] flex-shrink-0">
       {initials}
     </div>
   );
@@ -149,10 +149,10 @@ function Spinner() {
 
 function StatusPill({ status }: { status: string }) {
   const map: Record<string, string> = {
-    DRAFT: 'text-[#5C5750] bg-zinc-800', SCHEDULED: 'text-[#1D4ED8] bg-[#EFF6FF]',
-    IN_PROGRESS: 'text-green-400 bg-green-950', VOTING: 'text-amber-700 bg-amber-950',
-    MINUTES_DRAFT: 'text-purple-400 bg-purple-950', SIGNED: 'text-green-400 bg-green-950',
-    LOCKED: 'text-[#96908A] bg-zinc-800',
+    DRAFT: 'text-[#5C5750] bg-[#EBE6DF]', SCHEDULED: 'text-[#1D4ED8] bg-[#EFF6FF]',
+    IN_PROGRESS: 'text-[#166534] bg-[#F0FDF4]', VOTING: 'text-[#92400E] bg-amber-50',
+    MINUTES_DRAFT: 'text-[#6B21A8] bg-purple-50', SIGNED: 'text-[#166534] bg-[#F0FDF4]',
+    LOCKED: 'text-[#5C5750] bg-[#EBE6DF]',
   };
   return (
     <span className={`text-[10px] font-bold px-2.5 py-0.5 rounded-full uppercase tracking-wide ${map[status] ?? map.DRAFT}`}>
@@ -314,21 +314,21 @@ export default function CompanyWorkspacePage() {
       {/* Header */}
       <div className="flex items-start justify-between mb-8">
         <div className="flex items-center gap-4">
-          <div className="w-12 h-12 rounded-xl bg-[#EFF6FF] border border-[#BFDBFE]/40 flex items-center justify-center text-[#1D4ED8] font-black text-xl">
+          <div className="w-12 h-12 rounded-xl bg-[#EBE6DF] border border-[#E0DAD2] flex items-center justify-center text-[#5C5750] font-black text-xl">
             {company?.name[0]}
           </div>
           <div>
-            <h1 className="text-[#F0F2F5] font-bold text-2xl" style={{ fontFamily: "'Playfair Display',serif", letterSpacing: '-0.02em' }}>
+            <h1 className="text-[#231F1B] font-bold text-2xl" style={{ fontFamily: "'Playfair Display',serif", letterSpacing: '-0.02em' }}>
               {company?.name}
             </h1>
             {company?.cin && <p className="text-[#96908A] text-xs mt-1">CIN: {company.cin}</p>}
           </div>
         </div>
         <div className="flex gap-3">
-          <Link href={`/companies/${companyId}/meetings`}  className="text-sm font-semibold text-[#231F1B] bg-[#FDFCFB] border border-[#E0DAD2] px-4 py-2 rounded-lg hover:border-[#BFDBFE]/40 transition-colors">◈ Meetings</Link>
-          <Link href={`/companies/${companyId}/templates`} className="text-sm font-semibold text-[#231F1B] bg-[#FDFCFB] border border-[#E0DAD2] px-4 py-2 rounded-lg hover:border-[#BFDBFE]/40 transition-colors">▦ Templates</Link>
-          <Link href={`/companies/${companyId}/vault`}     className="text-sm font-semibold text-[#231F1B] bg-[#FDFCFB] border border-[#E0DAD2] px-4 py-2 rounded-lg hover:border-[#BFDBFE]/40 transition-colors">⊟ Vault</Link>
-          <Link href={`/companies/${companyId}/archive`}   className="text-sm font-semibold text-[#231F1B] bg-[#FDFCFB] border border-[#E0DAD2] px-4 py-2 rounded-lg hover:border-[#BFDBFE]/40 transition-colors">▤ Archive</Link>
+          <Link href={`/companies/${companyId}/meetings`}  className="text-sm font-semibold text-[#231F1B] bg-[#FDFCFB] border border-[#E0DAD2] px-4 py-2 rounded-lg hover:border-[#8B1A1A]/30 hover:text-[#8B1A1A] transition-colors">◈ Meetings</Link>
+          <Link href={`/companies/${companyId}/templates`} className="text-sm font-semibold text-[#231F1B] bg-[#FDFCFB] border border-[#E0DAD2] px-4 py-2 rounded-lg hover:border-[#8B1A1A]/30 hover:text-[#8B1A1A] transition-colors">▦ Templates</Link>
+          <Link href={`/companies/${companyId}/vault`}     className="text-sm font-semibold text-[#231F1B] bg-[#FDFCFB] border border-[#E0DAD2] px-4 py-2 rounded-lg hover:border-[#8B1A1A]/30 hover:text-[#8B1A1A] transition-colors">⊟ Vault</Link>
+          <Link href={`/companies/${companyId}/archive`}   className="text-sm font-semibold text-[#231F1B] bg-[#FDFCFB] border border-[#E0DAD2] px-4 py-2 rounded-lg hover:border-[#8B1A1A]/30 hover:text-[#8B1A1A] transition-colors">▤ Archive</Link>
         </div>
       </div>
 
@@ -336,7 +336,7 @@ export default function CompanyWorkspacePage() {
       <div className="flex gap-2 mb-7">
         {TABS.map(t => (
           <button key={t.id} onClick={() => setTab(t.id)}
-            className={`px-5 py-2.5 text-sm font-semibold rounded-lg transition-all ${tab === t.id ? 'bg-[#FDFCFB] text-[#F0F2F5] border border-[#E0DAD2]' : 'text-[#96908A] hover:text-[#231F1B]'}`}>
+            className={`px-5 py-2.5 text-sm font-semibold rounded-lg transition-all ${tab === t.id ? 'bg-[#FDFCFB] text-[#231F1B] border border-[#E0DAD2]' : 'text-[#96908A] hover:text-[#231F1B]'}`}>
             {t.label}
           </button>
         ))}
@@ -358,17 +358,17 @@ export default function CompanyWorkspacePage() {
             <p className="text-[#96908A] text-[10px] font-semibold uppercase tracking-widest mb-3">What you can do here</p>
             <div className="grid grid-cols-2 gap-3">
               {[
-                { icon: '⬡', label: 'Board Meetings',      count: company?._count.meetings    ?? 0, desc: 'Schedule, conduct and sign off board meetings end-to-end. Attendance, voting, minutes — all in one place.',                                href: '/companies/' + companyId + '/meetings',              color: '#8B1A1A', bg: 'bg-[#EFF6FF]/20 border-[#BFDBFE]/30' },
-                { icon: '◎', label: 'Resolutions',          count: company?._count.resolutions ?? 0, desc: 'Track every board resolution with vote tallies, dissent records, and certified copies for banks and regulators.',                        href: '/companies/' + companyId + '/resolutions',            color: '#F59E0B', bg: 'bg-amber-950/20 border-amber-200' },
-                { icon: '⬡', label: 'Document Vault',       count: company?._count.documents   ?? 0, desc: 'Secure storage for statutory documents — MOA, AOA, incorporation certificate, board papers, and compliance filings.',                    href: '/companies/' + companyId + '/vault',                  color: '#A78BFA', bg: 'bg-purple-950/20 border-purple-800/30' },
-                { icon: '↻', label: 'Circular Resolutions', count: 0,                               desc: 'Pass urgent resolutions without a meeting — circulate to all directors and collect approvals digitally per Sec. 175.',                    href: '/companies/' + companyId + '/circular-resolutions',   color: '#22C55E', bg: 'bg-green-950/20 border-green-800/30' },
+                { icon: '⬡', label: 'Board Meetings',      count: company?._count.meetings    ?? 0, desc: 'Schedule, conduct and sign off board meetings end-to-end. Attendance, voting, minutes — all in one place.',                                href: '/companies/' + companyId + '/meetings',              color: '#8B1A1A', bg: 'bg-[#FDFCFB] border-[#E0DAD2]' },
+                { icon: '◎', label: 'Resolutions',          count: company?._count.resolutions ?? 0, desc: 'Track every board resolution with vote tallies, dissent records, and certified copies for banks and regulators.',                        href: '/companies/' + companyId + '/resolutions',            color: '#92400E', bg: 'bg-amber-50 border-amber-200' },
+                { icon: '⬡', label: 'Document Vault',       count: company?._count.documents   ?? 0, desc: 'Secure storage for statutory documents — MOA, AOA, incorporation certificate, board papers, and compliance filings.',                    href: '/companies/' + companyId + '/vault',                  color: '#6B21A8', bg: 'bg-purple-50 border-purple-200' },
+                { icon: '↻', label: 'Circular Resolutions', count: 0,                               desc: 'Pass urgent resolutions without a meeting — circulate to all directors and collect approvals digitally per Sec. 175.',                    href: '/companies/' + companyId + '/circular-resolutions',   color: '#166534', bg: 'bg-green-50 border-green-200' },
               ].map(mod => (
                 <Link key={mod.label} href={mod.href}
                   className={'flex flex-col gap-3 p-5 rounded-2xl border ' + mod.bg + ' hover:brightness-110 transition-all group'}>
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2.5">
                       <span style={{ color: mod.color }} className="text-lg">{mod.icon}</span>
-                      <span className="text-[#F0F2F5] font-semibold text-sm">{mod.label}</span>
+                      <span className="text-[#231F1B] font-semibold text-sm">{mod.label}</span>
                     </div>
                     <span className="font-bold text-lg font-mono" style={{ color: mod.color }}>{mod.count}</span>
                   </div>
@@ -381,17 +381,17 @@ export default function CompanyWorkspacePage() {
           <div className="grid grid-cols-5 gap-4">
             <div className="col-span-3 bg-[#FDFCFB] border border-[#E0DAD2] rounded-2xl p-6">
               <div className="flex items-center justify-between mb-2">
-                <h2 className="text-[#F0F2F5] font-semibold text-sm">Upcoming Meetings</h2>
-                <Link href={'/companies/' + companyId + '/meetings'} className="text-[#1D4ED8] text-xs hover:text-blue-300">View all →</Link>
+                <h2 className="text-[#231F1B] font-semibold text-sm">Upcoming Meetings</h2>
+                <Link href={'/companies/' + companyId + '/meetings'} className="text-[#8B1A1A] text-xs font-medium hover:underline">View all →</Link>
               </div>
               <p className="text-[#96908A] text-xs mb-4 leading-relaxed">Board meetings managed end-to-end in full compliance with SS-1.</p>
               {upcoming.length === 0
                 ? <p className="text-[#96908A] text-sm text-center py-6">No upcoming meetings. Schedule one to get started.</p>
                 : upcoming.slice(0, 4).map(m => (
                   <Link key={m.id} href={'/companies/' + companyId + '/meetings/' + m.id}
-                    className="flex items-center justify-between px-4 py-3 bg-[#FDFCFB] border border-[#E0DAD2] rounded-xl hover:border-[#BFDBFE]/30 transition-colors mb-2 group">
+                    className="flex items-center justify-between px-4 py-3 bg-[#FDFCFB] border border-[#E0DAD2] rounded-xl hover:border-[#8B1A1A]/25 transition-colors mb-2 group">
                     <div>
-                      <p className="text-[#F0F2F5] text-sm font-medium group-hover:text-blue-300 transition-colors">{m.title}</p>
+                      <p className="text-[#231F1B] text-sm font-medium group-hover:text-[#8B1A1A] transition-colors">{m.title}</p>
                       <p className="text-[#96908A] text-xs mt-0.5">{new Date(m.scheduledAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}</p>
                     </div>
                     <StatusPill status={m.status} />
@@ -401,8 +401,8 @@ export default function CompanyWorkspacePage() {
             </div>
             <div className="col-span-2 bg-[#FDFCFB] border border-[#E0DAD2] rounded-2xl p-6">
               <div className="flex items-center justify-between mb-2">
-                <h2 className="text-[#F0F2F5] font-semibold text-sm">Board Members</h2>
-                <button onClick={() => setTab('members')} className="text-[#1D4ED8] text-xs hover:text-blue-300">Manage →</button>
+                <h2 className="text-[#231F1B] font-semibold text-sm">Board Members</h2>
+                <button onClick={() => setTab('members')} className="text-[#8B1A1A] text-xs font-medium hover:underline">Manage →</button>
               </div>
               <p className="text-[#96908A] text-xs mb-4 leading-relaxed">Each role determines what appears in minutes and what they can do in meetings.</p>
               <div className="space-y-2">
@@ -410,13 +410,13 @@ export default function CompanyWorkspacePage() {
                   <div key={m.id} className="flex items-center gap-3 px-3 py-2.5 bg-[#FDFCFB] border border-[#E0DAD2] rounded-xl">
                     <Avatar name={m.user.name} />
                     <div className="flex-1 min-w-0">
-                      <p className="text-[#F0F2F5] text-xs font-semibold truncate">
-                        {m.user.name}{m.userId === me?.id && <span className="ml-1.5 text-[#1D4ED8] text-[9px]">you</span>}
+                      <p className="text-[#231F1B] text-xs font-semibold truncate">
+                        {m.user.name}{m.userId === me?.id && <span className="ml-1.5 text-[#7A5C18] text-[9px]">you</span>}
                       </p>
                       <p className="text-[#96908A] text-[10px] truncate">{ROLE_SHORT[m.role as keyof typeof ROLE_SHORT] ?? m.role}</p>
                     </div>
                     {m.isWorkspaceAdmin && (
-                      <span className="text-[9px] font-bold text-amber-700 bg-amber-950/40 border border-amber-800/40 px-1.5 py-0.5 rounded flex-shrink-0">Admin</span>
+                      <span className="text-[9px] font-bold text-amber-800 bg-amber-50 border border-amber-200 px-1.5 py-0.5 rounded flex-shrink-0">Admin</span>
                     )}
                   </div>
                 ))}
@@ -435,7 +435,7 @@ export default function CompanyWorkspacePage() {
           {conflicts.length > 0 && (
             <div className="space-y-2">
               {conflicts.map((w, i) => (
-                <div key={i} className="flex items-start gap-3 bg-amber-950/20 border border-amber-200 rounded-xl px-4 py-3">
+                <div key={i} className="flex items-start gap-3 bg-amber-50 border border-amber-200 rounded-xl px-4 py-3">
                   <span className="text-amber-700 text-sm mt-0.5 flex-shrink-0">⚠</span>
                   <p className="text-amber-700 text-xs leading-relaxed">{w}</p>
                 </div>
@@ -448,7 +448,7 @@ export default function CompanyWorkspacePage() {
             <div className="flex justify-end">
               <button
                 onClick={() => { setShowTransfer(true); setTransferErr(''); setTransferTarget(''); }}
-                className="text-xs font-semibold text-amber-700 bg-amber-950/20 border border-amber-200 px-4 py-2 rounded-lg hover:bg-amber-950/40 transition-colors"
+                className="text-xs font-semibold text-amber-800 bg-amber-50 border border-amber-200 px-4 py-2 rounded-lg hover:bg-amber-100 transition-colors"
               >
                 ⇄ Transfer Workspace Admin
               </button>
@@ -470,11 +470,11 @@ export default function CompanyWorkspacePage() {
                     {members.map(m => {
                       const isSelf = m.userId === me?.id;
                       return (
-                        <tr key={m.id} className="border-b border-[#E0DAD2] last:border-0 hover:bg-[#FDFCFB] transition-colors">
+                        <tr key={m.id} className="border-b border-[#E0DAD2] last:border-0 hover:bg-[#F5F2EE] transition-colors">
                           <td className="px-5 py-4">
                             <div className="flex items-center gap-3">
                               <Avatar name={m.user.name} />
-                              <p className="text-[#F0F2F5] text-sm font-semibold">
+                              <p className="text-[#231F1B] text-sm font-semibold">
                                 {m.user.name}
                                 {isSelf && <span className="ml-2 text-[#1D4ED8] text-[10px]">(you)</span>}
                               </p>
@@ -498,7 +498,7 @@ export default function CompanyWorkspacePage() {
                                 </button>
                                 <button
                                   onClick={() => { if (confirm(`Remove ${m.user.name}?`)) companiesApi.removeMember(companyId, m.userId, jwt).then(load); }}
-                                  className="text-[#96908A] hover:text-red-400 text-xs transition-colors px-2.5 py-1.5 rounded-lg hover:bg-red-950/30"
+                                  className="text-[#96908A] hover:text-[#8B1A1A] text-xs transition-colors px-2.5 py-1.5 rounded-lg hover:bg-[rgba(139,26,26,0.06)]"
                                 >
                                   Remove
                                 </button>
@@ -520,13 +520,13 @@ export default function CompanyWorkspacePage() {
         <div className="space-y-5">
           {isAdmin && (
             <div className="bg-[#FDFCFB] border border-[#E0DAD2] rounded-2xl p-6">
-              <h2 className="text-[#F0F2F5] font-semibold text-sm mb-5">Invite a Member</h2>
+              <h2 className="text-[#231F1B] font-semibold text-sm mb-5">Invite a Member</h2>
               <form onSubmit={sendInvite} className="flex items-end gap-3">
                 <div className="flex-1">
                   <label className="block text-[#96908A] text-[10px] font-semibold uppercase tracking-widest mb-1.5">Email Address</label>
                   <input type="email" required value={inviteEmail} onChange={e => setInviteEmail((e as any).target.value)}
                     placeholder="director@company.com"
-                    className="w-full bg-[#FDFCFB] border border-[#E0DAD2] rounded-xl px-4 py-2.5 text-sm text-[#F0F2F5] placeholder:text-zinc-700 focus:outline-none focus:border-[#8B1A1A] transition-colors" />
+                    className="w-full bg-[#FDFCFB] border border-[#E0DAD2] rounded-xl px-4 py-2.5 text-sm text-[#231F1B] placeholder:text-[#96908A] focus:outline-none focus:border-[#8B1A1A] transition-colors" />
                 </div>
                 <div>
                   <label className="block text-[#96908A] text-[10px] font-semibold uppercase tracking-widest mb-1.5">Role</label>
@@ -536,17 +536,17 @@ export default function CompanyWorkspacePage() {
                   </select>
                 </div>
                 <button type="submit" disabled={inviting}
-                  className="flex items-center gap-2 bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-white font-semibold px-5 py-2.5 rounded-xl text-sm transition-colors">
+                  className="flex items-center gap-2 bg-[#8B1A1A] hover:bg-[#A52020] disabled:opacity-50 text-white font-semibold px-5 py-2.5 rounded-xl text-sm transition-colors">
                   {inviting ? '…' : '✉ Send Invite'}
                 </button>
               </form>
-              {inviteMsg.ok  && <p className="mt-3 text-green-400 text-xs bg-green-950/30 border border-green-800/30 rounded-lg px-3 py-2">✓ {inviteMsg.ok}</p>}
-              {inviteMsg.err && <p className="mt-3 text-red-400 text-xs bg-red-950/30 border border-red-800/30 rounded-lg px-3 py-2">{inviteMsg.err}</p>}
+              {inviteMsg.ok  && <p className="mt-3 text-[#166534] text-xs bg-[#F0FDF4] border border-[#86EFAC] rounded-lg px-3 py-2">✓ {inviteMsg.ok}</p>}
+              {inviteMsg.err && <p className="mt-3 text-[#8B1A1A] text-xs bg-[rgba(139,26,26,0.06)] border border-[rgba(139,26,26,0.2)] rounded-lg px-3 py-2">{inviteMsg.err}</p>}
             </div>
           )}
           <div className="bg-[#FDFCFB] border border-[#E0DAD2] rounded-2xl overflow-hidden">
             <div className="px-6 py-4 border-b border-[#E0DAD2]">
-              <h2 className="text-[#F0F2F5] font-semibold text-sm">Pending Invitations</h2>
+              <h2 className="text-[#231F1B] font-semibold text-sm">Pending Invitations</h2>
             </div>
             {pending.length === 0
               ? <p className="text-center text-[#96908A] py-10 text-sm">No pending invitations.</p>
@@ -555,17 +555,17 @@ export default function CompanyWorkspacePage() {
                   return (
                     <div key={inv.id} className="flex items-center justify-between px-6 py-4 border-b border-[#E0DAD2] last:border-0">
                       <div>
-                        <p className="text-[#F0F2F5] text-sm font-medium">{inv.email}</p>
+                        <p className="text-[#231F1B] text-sm font-medium">{inv.email}</p>
                         <p className="text-[#96908A] text-xs mt-0.5">
                           {inv.role} · by {inv.invitedBy.name} ·{' '}
                           <span className={daysLeft <= 1 ? 'text-red-400' : 'text-[#96908A]'}>expires in {daysLeft === 0 ? 'today' : `${daysLeft}d`}</span>
                         </p>
                       </div>
                       <div className="flex items-center gap-3">
-                        <span className="text-[10px] font-bold px-2.5 py-0.5 rounded-full text-amber-700 bg-amber-950 border border-amber-200 uppercase">Pending</span>
+                        <span className="text-[10px] font-bold px-2.5 py-0.5 rounded-full text-amber-800 bg-amber-50 border border-amber-200 uppercase">Pending</span>
                         {isAdmin && (
                           <button onClick={() => invitationsApi.revoke(companyId, inv.id, jwt).then(() => setPending(p => p.filter(i => i.id !== inv.id)))}
-                            className="text-[#96908A] hover:text-red-400 text-xs transition-colors">Revoke</button>
+                            className="text-[#96908A] hover:text-[#8B1A1A] text-xs transition-colors">Revoke</button>
                         )}
                       </div>
                     </div>
@@ -580,7 +580,7 @@ export default function CompanyWorkspacePage() {
       {tab === 'audit' && (
         <div className="bg-[#FDFCFB] border border-[#E0DAD2] rounded-2xl overflow-hidden">
           <div className="px-6 py-4 border-b border-[#E0DAD2] flex items-center justify-between">
-            <h2 className="text-[#F0F2F5] font-semibold text-sm">Audit Trail</h2>
+            <h2 className="text-[#231F1B] font-semibold text-sm">Audit Trail</h2>
             <p className="text-[#96908A] text-xs">{audit.length} events</p>
           </div>
           {audit.length === 0
@@ -589,13 +589,13 @@ export default function CompanyWorkspacePage() {
                 {audit.map((log, i) => (
                   <div key={log.id} className="flex items-start gap-4 px-6 py-3.5">
                     <div className="flex flex-col items-center pt-0.5 gap-1.5">
-                      <div className="w-1.5 h-1.5 rounded-full bg-blue-500 flex-shrink-0" />
-                      {i < audit.length - 1 && <div className="w-px flex-1 bg-[#232830] min-h-[18px]" />}
+                      <div className="w-1.5 h-1.5 rounded-full bg-[#C4973A] flex-shrink-0" />
+                      {i < audit.length - 1 && <div className="w-px flex-1 bg-[#E0DAD2] min-h-[18px]" />}
                     </div>
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2 flex-wrap">
-                        <span className="text-[#F0F2F5] text-xs font-semibold">{log.action}</span>
-                        <span className="text-[#5C5750] text-[10px] bg-[#FDFCFB] border border-[#E0DAD2] px-2 py-0.5 rounded font-mono">{log.entity}</span>
+                        <span className="text-[#231F1B] text-xs font-semibold">{log.action}</span>
+                        <span className="text-[#5C5750] text-[10px] bg-[#EBE6DF] border border-[#E0DAD2] px-2 py-0.5 rounded font-mono">{log.entity}</span>
                       </div>
                       {log.user && <p className="text-[#96908A] text-[11px] mt-0.5">by {log.user.name}</p>}
                     </div>
@@ -617,7 +617,7 @@ export default function CompanyWorkspacePage() {
           <div className="bg-[#FDFCFB] border border-[#E0DAD2] rounded-2xl overflow-hidden">
             <div className="px-6 py-5 border-b border-[#E0DAD2]">
               <p className="text-[#96908A] text-[10px] font-semibold uppercase tracking-widest mb-1">Company Profile</p>
-              <h2 className="text-[#F0F2F5] font-semibold text-sm">Company Details</h2>
+              <h2 className="text-[#231F1B] font-semibold text-sm">Company Details</h2>
               <p className="text-[#96908A] text-xs mt-1">These details appear on the letterhead of all generated documents — minutes, attendance register, and notices.</p>
             </div>
             <div className="px-6 py-5 space-y-4">
@@ -636,13 +636,13 @@ export default function CompanyWorkspacePage() {
                     value={f.value}
                     onChange={e => { f.set((e.target as any).value); setSettingsOk(false); setSettingsErr(''); }}
                     placeholder={f.placeholder}
-                    className="w-full bg-[#FDFCFB] border border-[#E0DAD2] rounded-xl px-4 py-2.5 text-sm text-[#231F1B] placeholder-zinc-700 focus:outline-none focus:border-[#8B1A1A] transition-colors"
+                    className="w-full bg-[#FDFCFB] border border-[#E0DAD2] rounded-xl px-4 py-2.5 text-sm text-[#231F1B] placeholder:text-[#96908A] focus:outline-none focus:border-[#8B1A1A] transition-colors"
                   />
                 </div>
               ))}
 
               {settingsErr && (
-                <div className="bg-red-950/30 border border-red-800/30 rounded-lg px-4 py-2.5 text-red-400 text-xs">
+                <div className="bg-[rgba(139,26,26,0.06)] border border-[rgba(139,26,26,0.18)] rounded-lg px-4 py-2.5 text-[#8B1A1A] text-xs">
                   {settingsErr}
                 </div>
               )}
@@ -690,7 +690,7 @@ export default function CompanyWorkspacePage() {
           <div onClick={e => e.stopPropagation()} className="bg-[#FDFCFB] border border-[#E0DAD2] rounded-2xl w-full max-w-md overflow-hidden">
             <div className="px-6 py-5 border-b border-[#E0DAD2]">
               <p className="text-[#96908A] text-[10px] font-semibold uppercase tracking-widest mb-1">Edit Member</p>
-              <h3 className="text-[#F0F2F5] font-bold text-lg">{editMember.user.name}</h3>
+              <h3 className="text-[#231F1B] font-bold text-lg">{editMember.user.name}</h3>
             </div>
             <div className="px-6 py-5 space-y-4">
               {/* Role */}
@@ -725,7 +725,7 @@ export default function CompanyWorkspacePage() {
                   value={editDesigLabel}
                   onChange={e => setEditDesigLabel((e as any).target.value)}
                   placeholder="e.g. Nominee Director — Sequoia Capital"
-                  className="w-full bg-[#FDFCFB] border border-[#E0DAD2] rounded-xl px-4 py-2.5 text-sm text-[#F0F2F5] placeholder:text-zinc-700 focus:outline-none focus:border-[#8B1A1A]"
+                  className="w-full bg-[#FDFCFB] border border-[#E0DAD2] rounded-xl px-4 py-2.5 text-sm text-[#231F1B] placeholder:text-[#96908A] focus:outline-none focus:border-[#8B1A1A]"
                 />
               </div>
             </div>
@@ -749,7 +749,7 @@ export default function CompanyWorkspacePage() {
           <div onClick={e => e.stopPropagation()} className="bg-[#FDFCFB] border border-[#E0DAD2] rounded-2xl w-full max-w-md overflow-hidden">
             <div className="px-6 py-5 border-b border-[#E0DAD2]">
               <p className="text-[#96908A] text-[10px] font-semibold uppercase tracking-widest mb-1">Workspace Admin</p>
-              <h3 className="text-[#F0F2F5] font-bold text-lg">Transfer Admin Rights</h3>
+              <h3 className="text-[#231F1B] font-bold text-lg">Transfer Admin Rights</h3>
               <p className="text-[#96908A] text-xs mt-1.5 leading-relaxed">
                 The new admin will be able to invite members, manage roles, and transfer admin again. You will retain your Director role.
               </p>
@@ -767,7 +767,7 @@ export default function CompanyWorkspacePage() {
                     >
                       <Avatar name={m.user.name} />
                       <div>
-                        <p className="text-[#F0F2F5] text-sm font-semibold">{m.user.name}</p>
+                        <p className="text-[#231F1B] text-sm font-semibold">{m.user.name}</p>
                         <p className="text-[#96908A] text-xs">{m.user.email}</p>
                       </div>
                       {transferTarget === m.userId && <span className="ml-auto text-amber-700 text-sm">✓</span>}
@@ -775,7 +775,7 @@ export default function CompanyWorkspacePage() {
                   ))}
                 </div>
               )}
-              {transferErr && <p className="mt-3 text-red-400 text-xs bg-red-950/30 border border-red-800/30 rounded-lg px-3 py-2">{transferErr}</p>}
+              {transferErr && <p className="mt-3 text-[#8B1A1A] text-xs bg-[rgba(139,26,26,0.06)] border border-[rgba(139,26,26,0.2)] rounded-lg px-3 py-2">{transferErr}</p>}
             </div>
             <div className="px-6 pb-5 flex gap-3">
               <button onClick={() => setShowTransfer(false)}

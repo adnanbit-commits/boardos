@@ -339,7 +339,7 @@ export default function MeetingWorkspacePage() {
                     className={`w-full text-left px-3 py-2.5 rounded-lg transition-all duration-150
                       ${activeAgenda === item.id && panel === 'resolutions'
                         ? 'bg-[rgba(139,26,26,0.08)] border border-[rgba(139,26,26,0.2)]'
-                        : 'hover:bg-[#FDFCFB] border border-transparent'}`}>
+                        : 'hover:bg-[#EBE6DF] border border-transparent'}`}>
                     <div className="flex items-start gap-2.5">
                       <span className={`flex-shrink-0 w-5 h-5 rounded-full border text-[10px] font-bold flex items-center justify-center mt-0.5
                         ${allDone ? 'bg-green-950 border-green-700 text-green-400'
@@ -555,7 +555,7 @@ function WorkflowProgress({ status }: { status: MeetingStatus }) {
           <div key={step.key} className="flex items-center gap-1 flex-1">
             <div className="flex-1 flex flex-col items-center gap-1">
               <div className={`h-0.5 w-full rounded-full transition-all duration-500 ${done?'bg-[#8B1A1A]':current?'bg-[#8B1A1A]/50':'bg-[#EBE6DF]'}`}/>
-              <span className={`text-[9px] font-medium tracking-wide whitespace-nowrap ${current?'text-[#1D4ED8]':done?'text-[#96908A]':'text-zinc-700'}`}>{step.label}</span>
+              <span className={`text-[9px] font-medium tracking-wide whitespace-nowrap ${current?'text-[#8B1A1A] font-semibold':done?'text-[#5C5750]':'text-[#96908A]'}`}>{step.label}</span>
             </div>
           </div>
         );
@@ -745,7 +745,7 @@ function ChairpersonModal({ companyId, meetingId, jwt, currentUserId, onElected,
                     key={d.userId}
                     title={`${d.name}${nomination.confirmedBy.includes(d.userId) ? ' ✓' : ''}`}
                     className={`h-1.5 flex-1 rounded-full transition-colors duration-300 ${
-                      nomination.confirmedBy.includes(d.userId) ? 'bg-green-500' : 'bg-zinc-700'
+                      nomination.confirmedBy.includes(d.userId) ? 'bg-[#166534]' : 'bg-[#E0DAD2]'
                     }`}
                   />
                 ))}
@@ -1682,7 +1682,7 @@ function ResolutionCard({ resolution, index, companyId, jwt, currentUserId, meet
     : resolution.status === 'REJECTED' ? 'bg-red-500'
     : resolution.status === 'NOTED'    ? 'bg-zinc-600'
     : resolution.status === 'VOTING'   ? 'bg-amber-500'
-    : isNoting ? 'bg-zinc-700' : 'bg-[#8B1A1A]';
+    : isNoting ? 'bg-[#EBE6DF]' : 'bg-[#8B1A1A]';
 
   async function propose() {
     // Gate: all variables in the motion text must be filled before voting opens
@@ -2130,7 +2130,7 @@ function ClosurePanel({ companyId, meetingId, jwt, meeting, canClose, alreadyClo
               <button
                 onClick={handleClose}
                 disabled={closing}
-                className="w-full bg-zinc-700 hover:bg-zinc-600 disabled:opacity-50 disabled:cursor-not-allowed text-[#231F1B] text-sm font-semibold py-3 rounded-xl transition-colors flex items-center justify-center gap-2"
+                className="w-full bg-[#EBE6DF] hover:bg-[#E0DAD2] disabled:opacity-50 disabled:cursor-not-allowed text-[#231F1B] text-sm font-semibold py-3 rounded-xl transition-colors flex items-center justify-center gap-2"
               >
                 {closing ? 'Recording…' : '⬡ Declare Meeting Closed'}
               </button>
@@ -2796,7 +2796,7 @@ function GuidedMeetingView({
               <div key={idx} className={`h-1.5 rounded-full transition-all duration-300 ${
                 idx === safeStep ? 'bg-[#8B1A1A] w-4'
                 : idx < safeStep ? 'bg-green-600 w-1.5'
-                : 'bg-zinc-700 w-1.5'
+                : 'bg-[#E0DAD2] w-1.5'
               }`} />
             ))}
           </div>

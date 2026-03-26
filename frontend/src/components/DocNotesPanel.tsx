@@ -192,10 +192,10 @@ export default function DocNotesPanel({
 
                 // Status colour for noted state
                 const noteStatusColor = cell.note?.status === 'NOTED'
-                  ? '#34D399'
+                  ? '#166534'
                   : cell.note?.status === 'PHYSICALLY_PRESENT'
                   ? '#1D4ED8'
-                  : '#FBBF24';
+                  : '#92400E';
 
                 const noteStatusLabel = cell.note?.status === 'NOTED'
                   ? '✓ Noted'
@@ -225,9 +225,9 @@ export default function DocNotesPanel({
                             style={{
                               display: 'inline-flex', alignItems: 'center', gap: 6,
                               fontSize: 11, fontWeight: 600,
-                              color:      hasReviewed ? '#34D399' : '#1D4ED8',
-                              background: hasReviewed ? 'rgba(52,211,153,0.08)' : 'rgba(96,165,250,0.08)',
-                              border:     `1px solid ${hasReviewed ? 'rgba(52,211,153,0.25)' : 'rgba(96,165,250,0.25)'}`,
+                              color:      hasReviewed ? '#166534' : '#1D4ED8',
+                              background: hasReviewed ? '#F0FDF4' : '#EFF6FF',
+                              border:     `1px solid ${hasReviewed ? '#86EFAC' : '#BFDBFE'}`,
                               borderRadius: 8, padding: '5px 10px',
                               textDecoration: 'none', maxWidth: '100%',
                               overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
@@ -241,8 +241,8 @@ export default function DocNotesPanel({
                         ) : (
                           <span style={{
                             fontSize: 10, fontWeight: 700,
-                            color: '#F87171', background: '#450A0A',
-                            border: '1px solid #7F1D1D', padding: '3px 8px',
+                            color: '#8B1A1A', background: 'rgba(139,26,26,0.07)',
+                            border: '1px solid rgba(139,26,26,0.22)', padding: '3px 8px',
                             borderRadius: 10, textTransform: 'uppercase',
                             letterSpacing: '0.06em', display: 'inline-block',
                           }}>
@@ -287,8 +287,8 @@ export default function DocNotesPanel({
                                   style={{
                                     fontSize: 11, fontWeight: 700,
                                     color:      (canNote && hasReviewed) ? '#8B1A1A' : '#5C5750',
-                                    background: (canNote && hasReviewed) ? 'rgba(79,127,255,0.08)' : 'rgba(75,85,99,0.08)',
-                                    border:     `1px solid ${(canNote && hasReviewed) ? 'rgba(79,127,255,0.3)' : 'rgba(75,85,99,0.2)'}`,
+                                    background: (canNote && hasReviewed) ? 'rgba(139,26,26,0.07)' : '#F5F2EE',
+                                    border:     `1px solid ${(canNote && hasReviewed) ? 'rgba(139,26,26,0.25)' : '#E0DAD2'}`,
                                     borderRadius: 7, padding: '6px 12px',
                                     cursor: (canNote && hasReviewed) ? 'pointer' : 'not-allowed',
                                     opacity: (canNote && hasReviewed) ? 1 : 0.5,
@@ -303,9 +303,9 @@ export default function DocNotesPanel({
                                 disabled={isNoting || !canNote}
                                 style={{
                                   fontSize: 11, fontWeight: 600,
-                                  color:      canNote ? '#1D4ED8' : '#5C5750',
-                                  background: canNote ? 'rgba(96,165,250,0.08)' : 'rgba(75,85,99,0.08)',
-                                  border:     `1px solid ${canNote ? 'rgba(96,165,250,0.3)' : 'rgba(75,85,99,0.2)'}`,
+                                  color:      canNote ? '#5C5750' : '#96908A',
+                                  background: canNote ? '#F5F2EE' : '#EBE6DF',
+                                  border:     `1px solid ${canNote ? '#E0DAD2' : '#E0DAD2'}`,
                                   borderRadius: 7, padding: '6px 12px',
                                   cursor: canNote ? 'pointer' : 'not-allowed',
                                   opacity: canNote ? 1 : 0.5,
@@ -328,7 +328,7 @@ export default function DocNotesPanel({
                                 </button>
                                 <button
                                   onClick={() => setActiveCell({ userId: row.userId, formType: cell.formType, mode: 'exception' })}
-                                  style={{ fontSize: 11, fontWeight: 600, color: '#FBBF24', background: '#1A1000', border: '1px solid #78350F', borderRadius: 7, padding: '6px 10px', cursor: 'pointer' }}
+                                  style={{ fontSize: 11, fontWeight: 600, color: '#92400E', background: '#FFFBEB', border: '1px solid #FCD34D', borderRadius: 7, padding: '6px 10px', cursor: 'pointer' }}
                                 >
                                   ⚠ Exception
                                 </button>
@@ -346,13 +346,13 @@ export default function DocNotesPanel({
                                 onChange={e => setExceptionText(e.target.value)}
                                 placeholder="Describe the exception (e.g. Director to submit within 30 days per SS-1)"
                                 rows={2}
-                                style={{ width: '100%', boxSizing: 'border-box', background: '#FDFCFB', border: '1px solid #78350F', borderRadius: 8, padding: '8px 10px', fontSize: 11, color: '#231F1B', resize: 'vertical', marginBottom: 6, fontFamily: "'Instrument Sans', system-ui, sans-serif" }}
+                                style={{ width: '100%', boxSizing: 'border-box', background: '#FDFCFB', border: '1px solid #FCD34D', borderRadius: 8, padding: '8px 10px', fontSize: 11, color: '#231F1B', resize: 'vertical', marginBottom: 6, fontFamily: "'Instrument Sans', system-ui, sans-serif" }}
                               />
                               <div style={{ display: 'flex', gap: 6 }}>
                                 <button
                                   onClick={() => submitNote(row.userId, cell.formType, 'NOTED_WITH_EXCEPTION', exceptionText)}
                                   disabled={!exceptionText.trim()}
-                                  style={{ fontSize: 11, fontWeight: 700, color: '#FBBF24', background: '#1A1000', border: '1px solid #78350F', borderRadius: 7, padding: '6px 14px', cursor: exceptionText.trim() ? 'pointer' : 'default', opacity: exceptionText.trim() ? 1 : 0.5 }}
+                                  style={{ fontSize: 11, fontWeight: 700, color: '#92400E', background: '#FFFBEB', border: '1px solid #FCD34D', borderRadius: 7, padding: '6px 14px', cursor: exceptionText.trim() ? 'pointer' : 'default', opacity: exceptionText.trim() ? 1 : 0.5 }}
                                 >
                                   Record Exception
                                 </button>
@@ -362,8 +362,8 @@ export default function DocNotesPanel({
 
                           ) : activeCell?.mode === 'physical' ? (
                             /* Physical presence confirmation */
-                            <div style={{ background: '#0D1824', border: '1px solid rgba(96,165,250,0.2)', borderRadius: 10, padding: '12px' }}>
-                              <p style={{ fontSize: 11, color: '#93C5FD', margin: '0 0 8px', lineHeight: 1.5 }}>
+                            <div style={{ background: '#EFF6FF', border: '1px solid #BFDBFE', borderRadius: 10, padding: '12px' }}>
+                              <p style={{ fontSize: 11, color: '#1D4ED8', margin: '0 0 8px', lineHeight: 1.5 }}>
                                 Confirm that <strong>{meta.label}</strong> for <strong>{row.name}</strong> was
                                 physically present at the deemed venue
                                 {deemedVenue ? <strong> ({deemedVenue})</strong> : ''} and
