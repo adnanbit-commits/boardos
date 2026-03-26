@@ -9,12 +9,12 @@ import { useRequireAuth } from '@/hooks/useAuth';
 import { resolutions as resApi, type Resolution } from '@/lib/api';
 
 const STATUS_STYLE: Record<string, { label: string; color: string; bg: string }> = {
-  DRAFT:         { label: 'Draft',     color: '#6B7280', bg: '#1A1D23' },
-  PROPOSED:      { label: 'Proposed',  color: '#4F7FFF', bg: '#1A2540' },
+  DRAFT:         { label: 'Draft',     color: '#96908A', bg: '#1A1D23' },
+  PROPOSED:      { label: 'Proposed',  color: '#8B1A1A', bg: '#EBE6DF' },
   VOTING:        { label: 'Voting',    color: '#F59E0B', bg: '#261A05' },
   APPROVED:      { label: 'Approved',  color: '#22C55E', bg: '#0D2318' },
   REJECTED:      { label: 'Rejected',  color: '#EF4444', bg: '#2D1515' },
-  WITHDRAWN:     { label: 'Withdrawn', color: '#6B7280', bg: '#1A1D23' },
+  WITHDRAWN:     { label: 'Withdrawn', color: '#96908A', bg: '#1A1D23' },
 };
 
 export default function ResolutionsPage() {
@@ -39,16 +39,16 @@ export default function ResolutionsPage() {
 
   if (loading) return (
     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%' }}>
-      <div style={{ width: 24, height: 24, border: '2px solid #232830', borderTopColor: '#4F7FFF', borderRadius: '50%', animation: 'spin 0.8s linear infinite' }} />
+      <div style={{ width: 24, height: 24, border: '2px solid #232830', borderTopColor: '#8B1A1A', borderRadius: '50%', animation: 'spin 0.8s linear infinite' }} />
       <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
     </div>
   );
 
   return (
-    <div style={{ padding: '36px 48px', maxWidth: 900, fontFamily: "'DM Sans', system-ui, sans-serif" }}>
+    <div style={{ padding: '36px 48px', maxWidth: 900, fontFamily: "'Instrument Sans', system-ui, sans-serif" }}>
       <div style={{ marginBottom: 28 }}>
-        <h1 style={{ fontSize: 22, fontWeight: 700, color: '#F0F2F5', marginBottom: 4 }}>Board Resolutions</h1>
-        <p style={{ fontSize: 13, color: '#6B7280' }}>All resolutions passed at board meetings. For circular resolutions, see the Circular Resolutions section.</p>
+        <h1 style={{ fontSize: 22, fontWeight: 700, color: '#231F1B', marginBottom: 4 }}>Board Resolutions</h1>
+        <p style={{ fontSize: 13, color: '#96908A' }}>All resolutions passed at board meetings. For circular resolutions, see the Circular Resolutions section.</p>
       </div>
 
       {/* Filter tabs */}
@@ -57,9 +57,9 @@ export default function ResolutionsPage() {
           <button key={s} onClick={() => setFilter(s)} style={{
             padding: '5px 14px', borderRadius: 8, fontSize: 12, fontWeight: 600, cursor: 'pointer',
             border: '1px solid',
-            background: filter === s ? '#1A2540' : 'transparent',
-            borderColor: filter === s ? '#4F7FFF' : '#232830',
-            color: filter === s ? '#4F7FFF' : '#6B7280',
+            background: filter === s ? '#EBE6DF' : 'transparent',
+            borderColor: filter === s ? '#8B1A1A' : '#E0DAD2',
+            color: filter === s ? '#8B1A1A' : '#96908A',
           }}>
             {s === 'ALL' ? 'All' : STATUS_STYLE[s]?.label ?? s}
             {s !== 'ALL' && (
@@ -72,7 +72,7 @@ export default function ResolutionsPage() {
       </div>
 
       {filtered.length === 0 ? (
-        <div style={{ textAlign: 'center', padding: '60px 0', color: '#374151' }}>
+        <div style={{ textAlign: 'center', padding: '60px 0', color: '#E0DAD2' }}>
           <p style={{ fontSize: 32, marginBottom: 12 }}>◇</p>
           <p style={{ fontSize: 14 }}>No resolutions{filter !== 'ALL' ? ` with status "${STATUS_STYLE[filter]?.label}"` : ''} yet.</p>
           <p style={{ fontSize: 12, marginTop: 8 }}>Resolutions are created within meetings.</p>
@@ -90,23 +90,23 @@ export default function ResolutionsPage() {
               <Link key={r.id} href={`/companies/${companyId}/meetings/${r.meetingId}`}
                 style={{ textDecoration: 'none' }}>
                 <div style={{
-                  background: '#191D24', border: '1px solid #232830', borderRadius: 14,
+                  background: '#FDFCFB', border: '1px solid #232830', borderRadius: 14,
                   padding: '18px 20px', cursor: 'pointer',
                 }}
-                  onMouseEnter={e => (e.currentTarget as HTMLElement).style.borderColor = '#374151'}
-                  onMouseLeave={e => (e.currentTarget as HTMLElement).style.borderColor = '#232830'}
+                  onMouseEnter={e => (e.currentTarget as HTMLElement).style.borderColor = '#E0DAD2'}
+                  onMouseLeave={e => (e.currentTarget as HTMLElement).style.borderColor = '#E0DAD2'}
                 >
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 10 }}>
                     <div style={{ flex: 1, minWidth: 0, marginRight: 16 }}>
-                      <p style={{ fontSize: 14, fontWeight: 600, color: '#F0F2F5', marginBottom: 4 }}>{r.title}</p>
-                      <p style={{ fontSize: 12, color: '#6B7280', lineHeight: 1.5, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{r.motionText}</p>
+                      <p style={{ fontSize: 14, fontWeight: 600, color: '#231F1B', marginBottom: 4 }}>{r.title}</p>
+                      <p style={{ fontSize: 12, color: '#96908A', lineHeight: 1.5, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{r.motionText}</p>
                     </div>
                     <span style={{ background: s.bg, color: s.color, padding: '3px 10px', borderRadius: 20, fontSize: 10, fontWeight: 700, letterSpacing: '0.06em', flexShrink: 0 }}>
                       {s.label}
                     </span>
                   </div>
                   {total > 0 && (
-                    <div style={{ display: 'flex', gap: 12, fontSize: 11, color: '#6B7280' }}>
+                    <div style={{ display: 'flex', gap: 12, fontSize: 11, color: '#96908A' }}>
                       <span style={{ color: '#22C55E' }}>✓ {approve} for</span>
                       <span style={{ color: '#EF4444' }}>✕ {reject} against</span>
                       {abstain > 0 && <span>~ {abstain} abstain</span>}

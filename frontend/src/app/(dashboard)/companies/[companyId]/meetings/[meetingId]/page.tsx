@@ -161,14 +161,14 @@ export default function MeetingWorkspacePage() {
   const directors = members.filter((m: any) => ['DIRECTOR','COMPANY_SECRETARY'].includes(m.role));
 
   return (
-    <div className="flex flex-col h-screen bg-[#0D0F12] overflow-hidden"
-      style={{ fontFamily: "'DM Sans', system-ui, sans-serif" }}>
+    <div className="flex flex-col h-screen bg-[#F5F2EE] overflow-hidden"
+      style={{ fontFamily: "'Instrument Sans', system-ui, sans-serif" }}>
       <style>{`
-        @import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Playfair+Display:wght@700&display=swap');
+        @import url('https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600&family=Playfair+Display:wght@700&display=swap');
         @keyframes fadeUp { from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)} }
         .fade-up { animation: fadeUp 0.3s ease forwards; }
         ::-webkit-scrollbar{width:5px}::-webkit-scrollbar-track{background:transparent}
-        ::-webkit-scrollbar-thumb{background:#2a303a;border-radius:10px}
+        ::-webkit-scrollbar-thumb{background:#E0DAD2;border-radius:10px}
       `}</style>
 
       {/* Chairperson election modal */}
@@ -182,22 +182,22 @@ export default function MeetingWorkspacePage() {
       )}
 
       {/* ── Header ──────────────────────────────────────────────────────────── */}
-      <header className="flex-shrink-0 bg-[#13161B] border-b border-[#232830] px-6 py-4">
+      <header className="flex-shrink-0 bg-[#FDFCFB] border-b border-[#E0DAD2] px-6 py-4">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3 min-w-0">
-            <div className="text-zinc-600 text-xs flex items-center gap-1.5 flex-shrink-0">
-              <a href={`/companies/${companyId}`} className="hover:text-zinc-400">Workspace</a>
+            <div className="text-[#96908A] text-xs flex items-center gap-1.5 flex-shrink-0">
+              <a href={`/companies/${companyId}`} className="hover:text-[#5C5750]">Workspace</a>
               <span>›</span>
-              <a href={`/companies/${companyId}/meetings`} className="hover:text-zinc-400">Meetings</a>
+              <a href={`/companies/${companyId}/meetings`} className="hover:text-[#5C5750]">Meetings</a>
               <span>›</span>
             </div>
-            <h1 className="text-white font-bold text-lg truncate"
+            <h1 className="text-[#231F1B] font-bold text-lg truncate"
               style={{ fontFamily: "'Playfair Display', Georgia, serif", letterSpacing: '-0.02em' }}>
               {meeting.title}
             </h1>
             <StatusBadge status={meeting.status.toLowerCase()} />
             {totalCount > 0 && (
-              <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-zinc-800 border border-zinc-700 text-zinc-400">
+              <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-[#EBE6DF] border border-[#E0DAD2] text-[#5C5750]">
                 {presentCount}/{totalCount} present
               </span>
             )}
@@ -210,7 +210,7 @@ export default function MeetingWorkspacePage() {
           <div className="flex items-center gap-3 flex-shrink-0">
             {meeting.videoUrl && (
               <a href={meeting.videoUrl} target="_blank" rel="noopener noreferrer"
-                className="flex items-center gap-2 text-xs text-blue-400 bg-blue-950 border border-blue-800/50 px-3 py-1.5 rounded-lg hover:bg-blue-900">
+                className="flex items-center gap-2 text-xs text-[#1D4ED8] bg-blue-950 border border-[rgba(139,26,26,0.2)] px-3 py-1.5 rounded-lg hover:bg-blue-900">
                 <span>▶</span> Join {meeting.videoProvider ?? 'Video Call'}
               </a>
             )}
@@ -220,11 +220,11 @@ export default function MeetingWorkspacePage() {
                 <span>◎</span> Invite Members
               </a>
             )}
-            <span className="text-zinc-500 text-xs">
+            <span className="text-[#96908A] text-xs">
               {new Date(meeting.scheduledAt).toLocaleDateString('en-IN',{day:'numeric',month:'short',year:'numeric'})}
             </span>
             {(meeting as any).deemedVenue && (
-              <span className="text-zinc-600 text-[10px] bg-[#13161B] border border-[#232830] px-2.5 py-1 rounded-lg hidden sm:block" title="Deemed Venue (SS-1)">
+              <span className="text-[#96908A] text-[10px] bg-[#FDFCFB] border border-[#E0DAD2] px-2.5 py-1 rounded-lg hidden sm:block" title="Deemed Venue (SS-1)">
                 ◎ {(meeting as any).deemedVenue}
               </span>
             )}
@@ -233,8 +233,8 @@ export default function MeetingWorkspacePage() {
                 onClick={() => { setGuidedMode(g => !g); setGuidedStep(0); }}
                 className={`flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-lg border transition-all ${
                   guidedMode
-                    ? 'bg-blue-600 border-blue-500 text-white'
-                    : 'bg-[#13161B] border-[#232830] text-zinc-400 hover:text-zinc-200 hover:border-zinc-500'
+                    ? 'bg-blue-600 border-blue-500 text-[#231F1B]'
+                    : 'bg-[#FDFCFB] border-[#E0DAD2] text-[#5C5750] hover:text-[#231F1B] hover:border-[#5C5750]'
                 }`}>
                 {guidedMode ? '✕ Exit Guided' : '▶ Guided Mode'}
               </button>
@@ -270,9 +270,9 @@ export default function MeetingWorkspacePage() {
       />}
       {!guidedMode && <div className="flex flex-1 overflow-hidden">
         {/* ── Sidebar ─────────────────────────────────────────────────────────── */}
-        <aside className="w-60 flex-shrink-0 bg-[#13161B] border-r border-[#232830] flex flex-col overflow-y-auto">
+        <aside className="w-60 flex-shrink-0 bg-[#F5F2EE] border-r border-[#E0DAD2] flex flex-col overflow-y-auto">
           <div className="px-4 pt-5 pb-2">
-            <p className="text-zinc-600 text-[10px] uppercase tracking-widest font-semibold">Agenda</p>
+            <p className="text-[#96908A] text-[10px] uppercase tracking-widest font-semibold">Agenda</p>
           </div>
           {/* ── Pre-business procedural gates (not agenda items) ─────────── */}
           {['IN_PROGRESS'].includes(meeting.status) && (() => {
@@ -296,7 +296,7 @@ export default function MeetingWorkspacePage() {
                   const done          = (meeting as any).quorumConfirmedAt || (allMarked && quorumMet2);
                   return (
                     <div
-                      className={`flex items-center gap-2 px-3 py-2 rounded-lg cursor-pointer transition-colors ${done ? 'text-green-400' : totalCount2 > 0 ? 'text-blue-400 hover:bg-[#191D24]' : 'text-zinc-500'}`}
+                      className={`flex items-center gap-2 px-3 py-2 rounded-lg cursor-pointer transition-colors ${done ? 'text-green-400' : totalCount2 > 0 ? 'text-[#1D4ED8] hover:bg-[#FDFCFB]' : 'text-[#96908A]'}`}
                       onClick={() => totalCount2 > 0 && setPanel('attendance')}
                       title={totalCount2 > 0 ? 'Click to view attendance' : undefined}
                     >
@@ -311,14 +311,14 @@ export default function MeetingWorkspacePage() {
                     </div>
                   );
                 })()}
-                <div className="border-t border-[#232830] mt-1" />
+                <div className="border-t border-[#E0DAD2] mt-1" />
               </div>
             );
           })()}
 
           <nav className="flex flex-col gap-0.5 px-2 pb-4">
             {meeting.agendaItems.length === 0 ? (
-              <p className="text-zinc-600 text-xs px-2 py-3">No agenda items yet.</p>
+              <p className="text-[#96908A] text-xs px-2 py-3">No agenda items yet.</p>
             ) : (() => {
               // Filter out procedural steps — these are shown as gates above, not agenda items
               const PROCEDURAL = ['CHAIRPERSON_ELECTION', 'QUORUM_CONFIRMATION'];
@@ -338,23 +338,23 @@ export default function MeetingWorkspacePage() {
                     onClick={() => { setActiveAgenda(item.id === activeAgenda ? null : item.id); setPanel('resolutions'); }}
                     className={`w-full text-left px-3 py-2.5 rounded-lg transition-all duration-150
                       ${activeAgenda === item.id && panel === 'resolutions'
-                        ? 'bg-blue-950/60 border border-blue-800/50'
-                        : 'hover:bg-[#191D24] border border-transparent'}`}>
+                        ? 'bg-[rgba(139,26,26,0.08)] border border-[rgba(139,26,26,0.2)]'
+                        : 'hover:bg-[#FDFCFB] border border-transparent'}`}>
                     <div className="flex items-start gap-2.5">
                       <span className={`flex-shrink-0 w-5 h-5 rounded-full border text-[10px] font-bold flex items-center justify-center mt-0.5
                         ${allDone ? 'bg-green-950 border-green-700 text-green-400'
                         : hasVoting ? 'bg-amber-950 border-amber-700 text-amber-400'
-                        : 'bg-zinc-900 border-zinc-700 text-zinc-500'}`}>
+                        : 'bg-[#F5F2EE] border-[#E0DAD2] text-[#96908A]'}`}>
                         {allDone ? '✓' : n}
                       </span>
                       <div className="min-w-0">
                         <p className={`text-xs font-medium leading-tight ${
-                          activeAgenda === item.id && panel === 'resolutions' ? 'text-blue-300' : 'text-zinc-300'}`}>
+                          activeAgenda === item.id && panel === 'resolutions' ? 'text-[#8B1A1A]' : 'text-[#231F1B]'}`}>
                           {item.title}
                           {item.isAob && <span className="ml-1 text-[9px] text-amber-500">AOB</span>}
                         </p>
                         {itemRes.length > 0 && (
-                          <p className="text-zinc-600 text-[10px] mt-0.5">
+                          <p className="text-[#96908A] text-[10px] mt-0.5">
                             {itemRes.length} item{itemRes.length !== 1 ? 's' : ''}{hasVoting && ' · voting open'}
                           </p>
                         )}
@@ -373,8 +373,8 @@ export default function MeetingWorkspacePage() {
             );
             if (pending.length === 0) return null;
             return (
-              <div className="px-3 pb-3 border-t border-[#232830] pt-2">
-                <p className="text-zinc-600 text-[10px] uppercase tracking-widest font-semibold mb-2">
+              <div className="px-3 pb-3 border-t border-[#E0DAD2] pt-2">
+                <p className="text-[#96908A] text-[10px] uppercase tracking-widest font-semibold mb-2">
                   Pending Admission ({pending.length})
                 </p>
                 <div className="space-y-1.5">
@@ -382,7 +382,7 @@ export default function MeetingWorkspacePage() {
                     <div key={item.id} className="bg-amber-950/20 border border-amber-800/30 rounded-lg px-3 py-2">
                       <p className="text-amber-300 text-[11px] font-medium leading-tight">{item.title}</p>
                       {item.description && (
-                        <p className="text-zinc-600 text-[10px] mt-0.5">{item.description}</p>
+                        <p className="text-[#96908A] text-[10px] mt-0.5">{item.description}</p>
                       )}
                       {isChairpersonUser && (
                         <div className="flex gap-2 mt-2">
@@ -403,13 +403,13 @@ export default function MeetingWorkspacePage() {
                                 await reload();
                               } catch {}
                             }}
-                            className="text-[10px] text-zinc-600 hover:text-zinc-400">
+                            className="text-[10px] text-[#96908A] hover:text-[#5C5750]">
                             ✕ Decline
                           </button>
                         </div>
                       )}
                       {!isChairpersonUser && (
-                        <p className="text-zinc-600 text-[10px] mt-1 italic">Awaiting Chairperson</p>
+                        <p className="text-[#96908A] text-[10px] mt-1 italic">Awaiting Chairperson</p>
                       )}
                     </div>
                   ))}
@@ -419,7 +419,7 @@ export default function MeetingWorkspacePage() {
           })()}
 
           {isAdmin && !['MINUTES_DRAFT','MINUTES_CIRCULATED','SIGNED','LOCKED'].includes(meeting.status) && (
-            <div className="px-3 pb-4 pt-2 border-t border-[#232830]">
+            <div className="px-3 pb-4 pt-2 border-t border-[#E0DAD2]">
               <ProposeAgendaForm
                 companyId={companyId} meetingId={meetingId} jwt={jwt}
                 isChairperson={isChairpersonUser} meetingStatus={meeting.status}
@@ -430,7 +430,7 @@ export default function MeetingWorkspacePage() {
 
           {/* Role assignments */}
           {isAdmin && !['SIGNED','LOCKED'].includes(meeting.status) && (
-            <div className="px-3 pb-3 pt-1 border-t border-[#232830]">
+            <div className="px-3 pb-3 pt-1 border-t border-[#E0DAD2]">
               <RoleAssignmentMini
                 meeting={meeting} directors={directors}
                 companyId={companyId} meetingId={meetingId}
@@ -440,8 +440,8 @@ export default function MeetingWorkspacePage() {
           )}
 
           {/* Panel switcher */}
-          <div className="px-3 pb-4 pt-1 border-t border-[#232830] space-y-1">
-            <p className="text-zinc-600 text-[10px] uppercase tracking-widest font-semibold mb-2 px-1">View</p>
+          <div className="px-3 pb-4 pt-1 border-t border-[#E0DAD2] space-y-1">
+            <p className="text-[#96908A] text-[10px] uppercase tracking-widest font-semibold mb-2 px-1">View</p>
             {[
               { key: 'resolutions', label: '◇ Business', always: true },
               // Declarations panel removed — DocNotesPanel (Compliance Docs) is the single source
@@ -455,7 +455,7 @@ export default function MeetingWorkspacePage() {
             ].map((p: any) => p.always || p.show ? (
               <button key={p.key} onClick={() => setPanel(p.key as any)}
                 className={`w-full text-left px-3 py-2 rounded-lg text-xs font-medium transition-colors
-                  ${panel === p.key ? 'bg-[#191D24] text-zinc-200' : 'text-zinc-500 hover:text-zinc-300'}`}>
+                  ${panel === p.key ? 'bg-[#EBE6DF] text-[#231F1B] font-semibold' : 'text-[#96908A] hover:text-[#231F1B]'}`}>
                 {p.label}
                 {p.badge && (
                   <span className={`ml-2 text-[9px] bg-${p.badgeColor}-900/60 text-${p.badgeColor}-400 border border-${p.badgeColor}-700/40 px-1.5 py-0.5 rounded-full`}>
@@ -477,13 +477,13 @@ export default function MeetingWorkspacePage() {
               <span className="text-amber-400 text-xl flex-shrink-0 mt-0.5">⚑</span>
               <div className="flex-1">
                 <p className="text-amber-400 text-sm font-semibold mb-1">Elect Chairperson — first act of every board meeting</p>
-                <p className="text-zinc-400 text-xs leading-relaxed mb-3">
+                <p className="text-[#5C5750] text-xs leading-relaxed mb-3">
                   No business can proceed until a Chairperson is elected (SS-1 Annexure B).
                 </p>
                 {/* Any director can open the nomination modal */}
                 <button
                   onClick={() => setShowChairModal(true)}
-                  className="bg-amber-600 hover:bg-amber-500 text-white text-xs font-semibold px-4 py-2 rounded-lg transition-colors"
+                  className="bg-amber-600 hover:bg-amber-500 text-[#231F1B] text-xs font-semibold px-4 py-2 rounded-lg transition-colors"
                 >
                   Elect Chairperson →
                 </button>
@@ -554,8 +554,8 @@ function WorkflowProgress({ status }: { status: MeetingStatus }) {
         return (
           <div key={step.key} className="flex items-center gap-1 flex-1">
             <div className="flex-1 flex flex-col items-center gap-1">
-              <div className={`h-0.5 w-full rounded-full transition-all duration-500 ${done?'bg-blue-500':current?'bg-blue-500/50':'bg-[#232830]'}`}/>
-              <span className={`text-[9px] font-medium tracking-wide whitespace-nowrap ${current?'text-blue-400':done?'text-zinc-500':'text-zinc-700'}`}>{step.label}</span>
+              <div className={`h-0.5 w-full rounded-full transition-all duration-500 ${done?'bg-[#8B1A1A]':current?'bg-[#8B1A1A]/50':'bg-[#EBE6DF]'}`}/>
+              <span className={`text-[9px] font-medium tracking-wide whitespace-nowrap ${current?'text-[#1D4ED8]':done?'text-[#96908A]':'text-zinc-700'}`}>{step.label}</span>
             </div>
           </div>
         );
@@ -677,12 +677,12 @@ function ChairpersonModal({ companyId, meetingId, jwt, currentUserId, onElected,
   if (!nomination) {
     return (
       <div className="fixed inset-0 bg-black/70 z-50 flex items-center justify-center p-4">
-        <div className="bg-[#13161B] border border-[#232830] rounded-2xl p-7 max-w-md w-full">
+        <div className="bg-[#FDFCFB] border border-[#E0DAD2] rounded-2xl p-7 max-w-md w-full">
           {loadError
             ? <p className="text-red-400 text-sm">{loadError}</p>
-            : <div className="flex items-center gap-3"><div className="w-5 h-5 border-2 border-zinc-700 border-t-blue-500 rounded-full animate-spin"/><p className="text-zinc-400 text-sm">Loading…</p></div>
+            : <div className="flex items-center gap-3"><div className="w-5 h-5 border-2 border-[#E0DAD2] border-t-[#8B1A1A] rounded-full animate-spin"/><p className="text-[#5C5750] text-sm">Loading…</p></div>
           }
-          <button onClick={onClose} className="mt-4 text-zinc-600 text-xs hover:text-zinc-400">Cancel</button>
+          <button onClick={onClose} className="mt-4 text-[#96908A] text-xs hover:text-[#5C5750]">Cancel</button>
         </div>
       </div>
     );
@@ -696,12 +696,12 @@ function ChairpersonModal({ companyId, meetingId, jwt, currentUserId, onElected,
 
   return (
     <div className="fixed inset-0 bg-black/70 z-50 flex items-center justify-center p-4">
-      <div className="bg-[#13161B] border border-[#232830] rounded-2xl p-7 max-w-md w-full fade-up">
-        <p className="text-zinc-500 text-[10px] uppercase tracking-widest mb-1">SS-1 Annexure B — Item 1</p>
-        <h2 className="text-white font-bold text-lg mb-1" style={{fontFamily:"'Playfair Display',serif"}}>
+      <div className="bg-[#FDFCFB] border border-[#E0DAD2] rounded-2xl p-7 max-w-md w-full fade-up">
+        <p className="text-[#96908A] text-[10px] uppercase tracking-widest mb-1">SS-1 Annexure B — Item 1</p>
+        <h2 className="text-[#231F1B] font-bold text-lg mb-1" style={{fontFamily:"'Playfair Display',serif"}}>
           Elect Chairperson
         </h2>
-        <p className="text-zinc-500 text-xs mb-5">
+        <p className="text-[#96908A] text-xs mb-5">
           Any director may nominate. Nomination requires confirmation by a majority
           of directors before the election is finalised.
         </p>
@@ -709,21 +709,21 @@ function ChairpersonModal({ companyId, meetingId, jwt, currentUserId, onElected,
         {!nomination.nomineeId ? (
           // ── Step 1: No pending nomination — anyone can propose ──────────────
           <div className="space-y-3">
-            <p className="text-zinc-400 text-xs font-semibold mb-2">Nominate a Chairperson</p>
+            <p className="text-[#5C5750] text-xs font-semibold mb-2">Nominate a Chairperson</p>
             {nomination.directors.map(d => (
               <button
                 key={d.userId}
                 onClick={() => nominate(d.userId)}
                 disabled={saving}
-                className="w-full flex items-center justify-between px-4 py-3 bg-[#0D0F12] border border-[#232830] rounded-xl hover:border-blue-700/50 hover:bg-[#0d1524] transition-all text-left disabled:opacity-50"
+                className="w-full flex items-center justify-between px-4 py-3 bg-[#F5F2EE] border border-[#E0DAD2] rounded-xl hover:border-blue-700/50 hover:bg-[#0d1524] transition-all text-left disabled:opacity-50"
               >
                 <div>
-                  <p className="text-sm font-semibold text-zinc-200">{d.name}</p>
-                  <p className="text-[10px] text-zinc-600 mt-0.5">
+                  <p className="text-sm font-semibold text-[#231F1B]">{d.name}</p>
+                  <p className="text-[10px] text-[#96908A] mt-0.5">
                     {d.userId === myId ? 'Nominate yourself' : 'Nominate this director'}
                   </p>
                 </div>
-                <span className="text-zinc-600 text-xs">→</span>
+                <span className="text-[#96908A] text-xs">→</span>
               </button>
             ))}
           </div>
@@ -732,9 +732,9 @@ function ChairpersonModal({ companyId, meetingId, jwt, currentUserId, onElected,
           <div className="space-y-4">
             {/* Nomination card */}
             <div className="bg-blue-950/20 border border-blue-800/30 rounded-xl p-4">
-              <p className="text-[10px] text-zinc-500 mb-1">Proposed by {proposerName}</p>
+              <p className="text-[10px] text-[#96908A] mb-1">Proposed by {proposerName}</p>
               <p className="text-base font-bold text-zinc-100">{nomineeName}</p>
-              <p className="text-[10px] text-zinc-500 mt-1">
+              <p className="text-[10px] text-[#96908A] mt-1">
                 {nomination.confirmCount} of {nomination.totalDirectors} director{nomination.totalDirectors > 1 ? 's' : ''} confirmed
                 {nomination.totalDirectors > 1 ? ` · ${nomination.majorityNeeded} needed` : ''}
               </p>
@@ -754,9 +754,9 @@ function ChairpersonModal({ companyId, meetingId, jwt, currentUserId, onElected,
 
             {/* Current director action */}
             {!iHaveConfirmed && !iAmProposer && (
-              <div className="bg-[#0D0F12] border border-[#232830] rounded-xl p-4">
-                <p className="text-xs text-zinc-400 mb-3">
-                  {proposerName} has proposed <strong className="text-zinc-200">{nomineeName}</strong> as Chairperson.
+              <div className="bg-[#F5F2EE] border border-[#E0DAD2] rounded-xl p-4">
+                <p className="text-xs text-[#5C5750] mb-3">
+                  {proposerName} has proposed <strong className="text-[#231F1B]">{nomineeName}</strong> as Chairperson.
                   Do you confirm?
                 </p>
                 <div className="flex gap-2">
@@ -773,7 +773,7 @@ function ChairpersonModal({ companyId, meetingId, jwt, currentUserId, onElected,
                       : myId
                     )}
                     disabled={saving}
-                    className="px-4 py-2 bg-transparent border border-zinc-700/50 text-zinc-500 text-xs font-semibold rounded-lg hover:text-zinc-300 transition-colors disabled:opacity-50"
+                    className="px-4 py-2 bg-transparent border border-[#E0DAD2]/50 text-[#96908A] text-xs font-semibold rounded-lg hover:text-[#231F1B] transition-colors disabled:opacity-50"
                   >
                     Propose someone else
                   </button>
@@ -782,14 +782,14 @@ function ChairpersonModal({ companyId, meetingId, jwt, currentUserId, onElected,
             )}
 
             {iAmProposer && !nomination.isMajority && (
-              <p className="text-zinc-500 text-xs bg-[#0D0F12] border border-[#232830] rounded-lg px-4 py-3">
+              <p className="text-[#96908A] text-xs bg-[#F5F2EE] border border-[#E0DAD2] rounded-lg px-4 py-3">
                 You proposed {nomineeName}. Waiting for other directors to confirm…
                 <span className="block text-zinc-700 text-[10px] mt-1">This page updates automatically every few seconds.</span>
               </p>
             )}
 
             {iHaveConfirmed && !iAmProposer && !nomination.isMajority && (
-              <p className="text-zinc-500 text-xs bg-[#0D0F12] border border-[#232830] rounded-lg px-4 py-3">
+              <p className="text-[#96908A] text-xs bg-[#F5F2EE] border border-[#E0DAD2] rounded-lg px-4 py-3">
                 ✓ You confirmed. Waiting for more directors…
               </p>
             )}
@@ -801,20 +801,20 @@ function ChairpersonModal({ companyId, meetingId, jwt, currentUserId, onElected,
                   ✓ Majority confirmed — ready to finalise
                 </p>
                 <div>
-                  <label className="text-zinc-500 text-[10px] uppercase tracking-widest block mb-1.5">
-                    Minutes Recorder <span className="text-zinc-600">(optional)</span>
+                  <label className="text-[#96908A] text-[10px] uppercase tracking-widest block mb-1.5">
+                    Minutes Recorder <span className="text-[#96908A]">(optional)</span>
                   </label>
                   <select
                     value={recId}
                     onChange={e => setRecId(e.target.value)}
-                    className="w-full bg-[#0D0F12] border border-[#232830] rounded-lg px-3 py-2 text-sm text-zinc-200 focus:outline-none focus:border-blue-600"
+                    className="w-full bg-[#F5F2EE] border border-[#E0DAD2] rounded-lg px-3 py-2 text-sm text-[#231F1B] focus:outline-none focus:border-[#8B1A1A]"
                   >
                     <option value="">Same as Chairperson (default)</option>
                     {nomination.directors.map(d => (
                       <option key={d.userId} value={d.userId}>{d.name}</option>
                     ))}
                   </select>
-                  <p className="text-zinc-600 text-[10px] mt-1">
+                  <p className="text-[#96908A] text-[10px] mt-1">
                     Best practice: a different director records the minutes
                   </p>
                 </div>
@@ -826,15 +826,15 @@ function ChairpersonModal({ companyId, meetingId, jwt, currentUserId, onElected,
 
             <button
               onClick={() => nominate(nomination.directors[0]?.userId ?? '')}
-              className="text-zinc-600 text-xs hover:text-zinc-400"
+              className="text-[#96908A] text-xs hover:text-[#5C5750]"
             >
               ← Start over with a different nominee
             </button>
           </div>
         )}
 
-        <div className="mt-4 pt-4 border-t border-[#232830]">
-          <button onClick={onClose} className="text-zinc-600 text-xs hover:text-zinc-400">Cancel</button>
+        <div className="mt-4 pt-4 border-t border-[#E0DAD2]">
+          <button onClick={onClose} className="text-[#96908A] text-xs hover:text-[#5C5750]">Cancel</button>
         </div>
       </div>
     </div>
@@ -865,13 +865,13 @@ function RoleAssignmentMini({ meeting, directors, companyId, meetingId, jwt, onU
 
   return (
     <div className="space-y-2 py-2">
-      <p className="text-zinc-600 text-[10px] uppercase tracking-widest font-semibold px-1">Meeting Roles</p>
+      <p className="text-[#96908A] text-[10px] uppercase tracking-widest font-semibold px-1">Meeting Roles</p>
 
       {/* Chairperson */}
       <div>
-        <p className="text-zinc-600 text-[10px] mb-0.5 px-1">Chairperson</p>
+        <p className="text-[#96908A] text-[10px] mb-0.5 px-1">Chairperson</p>
         {chairName
-          ? <p className="text-zinc-300 text-xs px-1 font-medium">{chairName}</p>
+          ? <p className="text-[#231F1B] text-xs px-1 font-medium">{chairName}</p>
           : <button onClick={() => {}} className="text-amber-400 text-[10px] px-1 hover:text-amber-300">
               ⚠ Not elected
             </button>
@@ -880,13 +880,13 @@ function RoleAssignmentMini({ meeting, directors, companyId, meetingId, jwt, onU
 
       {/* Minutes Recorder — selectable dropdown */}
       <div>
-        <p className="text-zinc-600 text-[10px] mb-1 px-1">Minutes Recorder</p>
+        <p className="text-[#96908A] text-[10px] mb-1 px-1">Minutes Recorder</p>
         {canSetRecorder ? (
           <select
             value={meeting.minutesRecorderId ?? ''}
             onChange={e => e.target.value && changeRecorder(e.target.value)}
             disabled={saving}
-            className="w-full bg-[#0D0F12] border border-[#232830] rounded-lg px-2 py-1 text-[11px] text-zinc-300 focus:outline-none focus:border-blue-600 cursor-pointer disabled:opacity-50"
+            className="w-full bg-[#F5F2EE] border border-[#E0DAD2] rounded-lg px-2 py-1 text-[11px] text-[#231F1B] focus:outline-none focus:border-[#8B1A1A] cursor-pointer disabled:opacity-50"
           >
             <option value="">— Designate recorder</option>
             <option value={meeting.chairpersonId ?? ''}>
@@ -897,7 +897,7 @@ function RoleAssignmentMini({ meeting, directors, companyId, meetingId, jwt, onU
             ))}
           </select>
         ) : (
-          <p className="text-zinc-400 text-[10px] px-1">
+          <p className="text-[#5C5750] text-[10px] px-1">
             {recorderName
               ? meeting.minutesRecorderId === meeting.chairpersonId
                 ? `${recorderName} (Chairperson)`
@@ -940,8 +940,8 @@ function DeclarationsPanel({ companyId, meetingId, jwt, meeting, declarations, i
     <div className="max-w-3xl fade-up">
       <div className="flex items-start justify-between mb-6">
         <div>
-          <p className="text-zinc-600 text-xs uppercase tracking-widest font-semibold mb-1">Sec. 152 · 164 · 184 — CA2013</p>
-          <h2 className="text-white text-xl font-bold" style={{fontFamily:"'Playfair Display',serif"}}>
+          <p className="text-[#96908A] text-xs uppercase tracking-widest font-semibold mb-1">Sec. 152 · 164 · 184 — CA2013</p>
+          <h2 className="text-[#231F1B] text-xl font-bold" style={{fontFamily:"'Playfair Display',serif"}}>
             Director Declarations
           </h2>
         </div>
@@ -957,21 +957,21 @@ function DeclarationsPanel({ companyId, meetingId, jwt, meeting, declarations, i
       {/* Form legend */}
       <div className="grid grid-cols-3 gap-3 mb-6">
         {(Object.entries(FORM_META) as [DeclarationFormType, any][]).map(([key, meta]) => (
-          <div key={key} className="bg-[#191D24] border border-[#232830] rounded-xl p-3">
-            <p className="text-xs font-bold text-zinc-200">{meta.label}</p>
-            <p className="text-[10px] text-zinc-500 mt-0.5">{meta.law}</p>
-            <p className="text-[10px] text-zinc-600 mt-1">{meta.desc}</p>
+          <div key={key} className="bg-[#FDFCFB] border border-[#E0DAD2] rounded-xl p-3">
+            <p className="text-xs font-bold text-[#231F1B]">{meta.label}</p>
+            <p className="text-[10px] text-[#96908A] mt-0.5">{meta.law}</p>
+            <p className="text-[10px] text-[#96908A] mt-1">{meta.desc}</p>
           </div>
         ))}
       </div>
 
       <div className="space-y-3">
         {declarations.map((dir: any) => (
-          <div key={dir.userId} className="bg-[#191D24] border border-[#232830] rounded-xl p-4">
+          <div key={dir.userId} className="bg-[#FDFCFB] border border-[#E0DAD2] rounded-xl p-4">
             <div className="flex items-center gap-3 mb-3">
               <div>
-                <p className="text-sm font-semibold text-zinc-200">{dir.name}</p>
-                <p className="text-zinc-600 text-[11px]">{dir.email}</p>
+                <p className="text-sm font-semibold text-[#231F1B]">{dir.name}</p>
+                <p className="text-[#96908A] text-[11px]">{dir.email}</p>
               </div>
               {dir.isWorkspaceAdmin && (
                 <span className="text-[9px] font-bold bg-amber-900/40 text-amber-400 border border-amber-700/30 px-1.5 py-0.5 rounded-full">
@@ -990,16 +990,16 @@ function DeclarationsPanel({ companyId, meetingId, jwt, meeting, declarations, i
                   <div key={form.formType} className={`rounded-lg p-3 border transition-all
                     ${form.received
                       ? 'bg-green-950/30 border-green-800/30'
-                      : 'bg-[#13161B] border-[#232830]'}`}>
+                      : 'bg-[#FDFCFB] border-[#E0DAD2]'}`}>
                     <div className="flex items-center justify-between mb-1.5">
-                      <span className="text-xs font-bold text-zinc-300">{meta.label}</span>
+                      <span className="text-xs font-bold text-[#231F1B]">{meta.label}</span>
                       {form.received
                         ? <span className="text-green-400 text-[10px] font-semibold">✓ Received</span>
-                        : <span className="text-zinc-600 text-[10px]">Pending</span>}
+                        : <span className="text-[#96908A] text-[10px]">Pending</span>}
                     </div>
 
                     {form.notes && (
-                      <p className="text-zinc-500 text-[10px] mb-2 italic truncate">{form.notes}</p>
+                      <p className="text-[#96908A] text-[10px] mb-2 italic truncate">{form.notes}</p>
                     )}
 
                     {/* MBP-1 notes input */}
@@ -1010,7 +1010,7 @@ function DeclarationsPanel({ companyId, meetingId, jwt, meeting, declarations, i
                           value={noteText}
                           onChange={e => setNoteText(e.target.value)}
                           placeholder="Interests disclosed..."
-                          className="w-full bg-[#0D0F12] border border-[#232830] rounded px-2 py-1 text-[10px] text-zinc-200 placeholder:text-zinc-700 focus:outline-none focus:border-blue-600"
+                          className="w-full bg-[#F5F2EE] border border-[#E0DAD2] rounded px-2 py-1 text-[10px] text-[#231F1B] placeholder:text-[#96908A] focus:outline-none focus:border-[#8B1A1A]"
                         />
                       </div>
                     )}
@@ -1036,7 +1036,7 @@ function DeclarationsPanel({ companyId, meetingId, jwt, meeting, declarations, i
                         </button>
                         {noteOpen === key && (
                           <button onClick={() => setNoteOpen(null)}
-                            className="text-[10px] text-zinc-600 hover:text-zinc-400 px-1">✕</button>
+                            className="text-[10px] text-[#96908A] hover:text-[#5C5750] px-1">✕</button>
                         )}
                       </div>
                     )}
@@ -1110,9 +1110,9 @@ function AttendancePanel({ companyId, meetingId, jwt, meeting, attendance, curre
   if (meeting.status !== 'IN_PROGRESS') {
     return (
       <div className="max-w-2xl fade-up">
-        <p className="text-zinc-600 text-xs uppercase tracking-widest font-semibold mb-1">Roll Call</p>
-        <h2 className="text-white text-xl font-bold mb-4" style={{fontFamily:"'Playfair Display',serif"}}>Attendance</h2>
-        <div className="bg-[#191D24] border border-[#232830] rounded-xl px-5 py-4 text-zinc-500 text-sm">
+        <p className="text-[#96908A] text-xs uppercase tracking-widest font-semibold mb-1">Roll Call</p>
+        <h2 className="text-[#231F1B] text-xl font-bold mb-4" style={{fontFamily:"'Playfair Display',serif"}}>Attendance</h2>
+        <div className="bg-[#FDFCFB] border border-[#E0DAD2] rounded-xl px-5 py-4 text-[#96908A] text-sm">
           Roll call is taken by the Chairperson after the meeting opens.
         </div>
       </div>
@@ -1124,8 +1124,8 @@ function AttendancePanel({ companyId, meetingId, jwt, meeting, attendance, curre
       {/* Header */}
       <div className="flex items-start justify-between mb-6">
         <div>
-          <p className="text-zinc-600 text-xs uppercase tracking-widest font-semibold mb-1">SS-1 · Sec. 174 · Roll Call</p>
-          <h2 className="text-white text-xl font-bold" style={{fontFamily:"'Playfair Display',serif"}}>Attendance</h2>
+          <p className="text-[#96908A] text-xs uppercase tracking-widest font-semibold mb-1">SS-1 · Sec. 174 · Roll Call</p>
+          <h2 className="text-[#231F1B] text-xl font-bold" style={{fontFamily:"'Playfair Display',serif"}}>Attendance</h2>
         </div>
         <div className={`px-4 py-2 rounded-xl border text-xs font-semibold ${quorumMet
           ? 'bg-green-950/40 border-green-800/40 text-green-400'
@@ -1139,12 +1139,12 @@ function AttendancePanel({ companyId, meetingId, jwt, meeting, attendance, curre
 
       {/* Chairperson instruction */}
       {canRecord ? (
-        <div className="mb-5 bg-[#191D24] border border-[#232830] rounded-xl px-4 py-3 text-zinc-400 text-xs leading-relaxed">
+        <div className="mb-5 bg-[#FDFCFB] border border-[#E0DAD2] rounded-xl px-4 py-3 text-[#5C5750] text-xs leading-relaxed">
           Call the roll — mark each director's mode of attendance.
           For Video or Phone, confirm their location and that no third party is present (SS-1 Rule 3(4)).
         </div>
       ) : (
-        <div className="mb-5 bg-[#191D24] border border-[#232830] rounded-xl px-4 py-3 text-zinc-500 text-xs leading-relaxed">
+        <div className="mb-5 bg-[#FDFCFB] border border-[#E0DAD2] rounded-xl px-4 py-3 text-[#96908A] text-xs leading-relaxed">
           Attendance is being recorded by the Chairperson.
         </div>
       )}
@@ -1160,23 +1160,23 @@ function AttendancePanel({ companyId, meetingId, jwt, meeting, attendance, curre
           const ntp      = ntpChecks[dir.userId] ?? false;
 
           const modeColor = (m: string | null) => {
-            if (!m) return 'text-zinc-600';
+            if (!m) return 'text-[#96908A]';
             if (m === 'ABSENT')    return 'text-red-400';
             if (m === 'IN_PERSON') return 'text-green-400';
-            return 'text-blue-400';
+            return 'text-[#1D4ED8]';
           };
           const modeLabel = (m: string | null) =>
             !m ? '—' : m === 'IN_PERSON' ? 'In Person' : m.charAt(0) + m.slice(1).toLowerCase();
 
           return (
-            <div key={dir.userId} className="bg-[#191D24] border border-[#232830] rounded-xl p-4">
+            <div key={dir.userId} className="bg-[#FDFCFB] border border-[#E0DAD2] rounded-xl p-4">
               <div className="flex items-center gap-4">
                 {/* Director info */}
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 flex-wrap">
-                    <p className="text-sm font-semibold text-zinc-200">{dir.name}</p>
+                    <p className="text-sm font-semibold text-[#231F1B]">{dir.name}</p>
                     {dir.userId === currentUserId && (
-                      <span className="text-[9px] font-bold bg-blue-900/40 text-blue-400 border border-blue-700/30 px-1.5 py-0.5 rounded-full">you</span>
+                      <span className="text-[9px] font-bold bg-blue-900/40 text-[#1D4ED8] border border-blue-700/30 px-1.5 py-0.5 rounded-full">you</span>
                     )}
                     {meeting.chairpersonId === dir.userId && (
                       <span className="text-[9px] font-bold bg-purple-900/40 text-purple-400 border border-purple-700/30 px-1.5 py-0.5 rounded-full">Chairperson</span>
@@ -1186,7 +1186,7 @@ function AttendancePanel({ companyId, meetingId, jwt, meeting, attendance, curre
                     )}
                   </div>
                   {dir.attendance?.location && (
-                    <p className="text-zinc-600 text-[10px] mt-0.5">📍 {dir.attendance.location}</p>
+                    <p className="text-[#96908A] text-[10px] mt-0.5">📍 {dir.attendance.location}</p>
                   )}
                 </div>
 
@@ -1208,8 +1208,8 @@ function AttendancePanel({ companyId, meetingId, jwt, meeting, attendance, curre
                         mode === m
                           ? m === 'ABSENT'    ? 'bg-red-950/60 border-red-700/60 text-red-400'
                           : m === 'IN_PERSON' ? 'bg-green-950/60 border-green-700/60 text-green-400'
-                          : 'bg-blue-950/60 border-blue-700/60 text-blue-400'
-                          : 'bg-transparent border-zinc-700/40 text-zinc-500 hover:text-zinc-300 hover:border-zinc-600'
+                          : 'bg-[rgba(139,26,26,0.08)] border-blue-700/60 text-[#1D4ED8]'
+                          : 'bg-transparent border-[#E0DAD2]/40 text-[#96908A] hover:text-[#231F1B] hover:border-zinc-600'
                       }`}
                     >
                       {isSaving && mode !== m ? '…' : m === 'IN_PERSON' ? '◉ In Person' : m === 'VIDEO' ? '▶ Video' : m === 'PHONE' ? '◌ Phone' : '✕ Absent'}
@@ -1220,15 +1220,15 @@ function AttendancePanel({ companyId, meetingId, jwt, meeting, attendance, curre
 
               {/* Location + noThirdParty form — shown for VIDEO or PHONE */}
               {canRecord && (expandedRow === rowKey('VIDEO') || expandedRow === rowKey('PHONE')) && (
-                <div className="mt-3 bg-[#0D0F12] border border-[#232830] rounded-xl p-3 space-y-3">
-                  <p className="text-zinc-400 text-[11px] font-semibold">
+                <div className="mt-3 bg-[#F5F2EE] border border-[#E0DAD2] rounded-xl p-3 space-y-3">
+                  <p className="text-[#5C5750] text-[11px] font-semibold">
                     SS-1 Rule 3(4) — Confirm remote attendance details for {dir.name}
                   </p>
                   <input
                     value={location}
                     onChange={e => setLocationInputs(prev => ({...prev, [dir.userId]: e.target.value}))}
                     placeholder="Location (e.g. Mumbai, Maharashtra)"
-                    className="w-full bg-[#13161B] border border-[#232830] rounded-lg px-3 py-2 text-xs text-zinc-200 placeholder:text-zinc-700 focus:outline-none focus:border-blue-600"
+                    className="w-full bg-[#FDFCFB] border border-[#E0DAD2] rounded-lg px-3 py-2 text-xs text-[#231F1B] placeholder:text-[#96908A] focus:outline-none focus:border-[#8B1A1A]"
                   />
                   <label className="flex items-start gap-2 cursor-pointer">
                     <input
@@ -1238,9 +1238,9 @@ function AttendancePanel({ companyId, meetingId, jwt, meeting, attendance, curre
                       className="mt-0.5 flex-shrink-0"
                       style={{ accentColor: '#34D399', width: 13, height: 13 }}
                     />
-                    <span className="text-[11px] text-zinc-400 leading-relaxed">
+                    <span className="text-[11px] text-[#5C5750] leading-relaxed">
                       Director confirms no third party is present at their location
-                      <span className="text-zinc-600"> (SS-1 Rule 3(4)(ii))</span>
+                      <span className="text-[#96908A]"> (SS-1 Rule 3(4)(ii))</span>
                     </span>
                   </label>
                   <div className="flex gap-2">
@@ -1251,13 +1251,13 @@ function AttendancePanel({ companyId, meetingId, jwt, meeting, attendance, curre
                         expandedRow === rowKey('VIDEO') ? 'VIDEO' : 'PHONE',
                         location, ntp
                       )}
-                      className="px-3 py-1.5 rounded-lg text-[11px] font-semibold bg-blue-900/50 border border-blue-700/50 text-blue-400 disabled:opacity-50 hover:bg-blue-900/70 transition-colors"
+                      className="px-3 py-1.5 rounded-lg text-[11px] font-semibold bg-blue-900/50 border border-blue-700/50 text-[#1D4ED8] disabled:opacity-50 hover:bg-blue-900/70 transition-colors"
                     >
                       {isSaving ? '…' : '✓ Confirm'}
                     </button>
                     <button
                       onClick={() => setExpandedRow(null)}
-                      className="px-3 py-1.5 text-[11px] text-zinc-600 hover:text-zinc-400"
+                      className="px-3 py-1.5 text-[11px] text-[#96908A] hover:text-[#5C5750]"
                     >Cancel</button>
                   </div>
                 </div>
@@ -1268,7 +1268,7 @@ function AttendancePanel({ companyId, meetingId, jwt, meeting, attendance, curre
       </div>
 
       {attendance.length === 0 && (
-        <p className="text-zinc-600 text-sm text-center py-10">No members found.</p>
+        <p className="text-[#96908A] text-sm text-center py-10">No members found.</p>
       )}
     </div>
   );
@@ -1326,10 +1326,10 @@ function ResolutionsPanel({ companyId, meetingId: meetingIdProp, jwt, meeting, r
     <div className="max-w-2xl fade-up">
       <div className="flex items-center justify-between mb-6">
         <div>
-          <p className="text-zinc-600 text-xs uppercase tracking-widest font-semibold mb-1">
+          <p className="text-[#96908A] text-xs uppercase tracking-widest font-semibold mb-1">
             {activeAgendaItem ? `Agenda — ${activeAgendaItem.title}` : 'All Business Items'}
           </p>
-          <h2 className="text-white text-xl font-bold" style={{fontFamily:"'Playfair Display',serif"}}>Agenda Business</h2>
+          <h2 className="text-[#231F1B] text-xl font-bold" style={{fontFamily:"'Playfair Display',serif"}}>Agenda Business</h2>
         </div>
         {isAdmin && canAdd && (
           <Button size="sm" onClick={() => setShowAdd(s => !s)}>{showAdd ? '✕ Cancel' : '+ New Motion'}</Button>
@@ -1342,10 +1342,10 @@ function ResolutionsPanel({ companyId, meetingId: meetingIdProp, jwt, meeting, r
         </div>
       )}
       {resolutions.length === 0 && (
-        <div className="text-center py-16 text-zinc-600">
+        <div className="text-center py-16 text-[#96908A]">
           <p className="text-3xl mb-3">◇</p>
           <p className="text-sm">No motions yet for this agenda item.</p>
-          {isAdmin && canAdd && <button onClick={() => setShowAdd(true)} className="mt-3 text-blue-400 text-xs hover:text-blue-300">+ Add first motion</button>}
+          {isAdmin && canAdd && <button onClick={() => setShowAdd(true)} className="mt-3 text-[#1D4ED8] text-xs hover:text-[#8B1A1A]">+ Add first motion</button>}
         </div>
       )}
       <div className="space-y-4">
@@ -1406,8 +1406,8 @@ function ComplianceNotingInline({ companyId, meetingId, jwt, meeting, isChairper
   const deemedVenue = (meeting as any).deemedVenue ?? (meeting as any).location ?? 'deemed venue';
 
   if (loading) return (
-    <div className="max-w-2xl fade-up flex items-center gap-3 py-8 text-zinc-500 text-sm">
-      <div className="w-4 h-4 border-2 border-zinc-700 border-t-blue-500 rounded-full animate-spin"/>
+    <div className="max-w-2xl fade-up flex items-center gap-3 py-8 text-[#96908A] text-sm">
+      <div className="w-4 h-4 border-2 border-[#E0DAD2] border-t-[#8B1A1A] rounded-full animate-spin"/>
       Loading compliance declarations…
     </div>
   );
@@ -1424,47 +1424,47 @@ function ComplianceNotingInline({ companyId, meetingId, jwt, meeting, isChairper
   return (
     <div className="max-w-2xl fade-up space-y-4">
       <div>
-        <p className="text-zinc-600 text-xs uppercase tracking-widest font-semibold mb-1">
+        <p className="text-[#96908A] text-xs uppercase tracking-widest font-semibold mb-1">
           {agendaItem?.title ?? 'Director Declarations'}
         </p>
-        <h2 className="text-white text-xl font-bold mb-1" style={{fontFamily:"'Playfair Display',serif"}}>
+        <h2 className="text-[#231F1B] text-xl font-bold mb-1" style={{fontFamily:"'Playfair Display',serif"}}>
           Compliance Declarations
         </h2>
-        <p className="text-zinc-500 text-xs">
+        <p className="text-[#96908A] text-xs">
           The Chairperson must open and note each director's statutory declaration before proceeding.
         </p>
       </div>
 
       {/* Progress */}
-      <div className={`rounded-xl border px-4 py-3 flex items-center justify-between ${data.allNoted ? 'bg-green-950/20 border-green-800/30' : 'bg-[#191D24] border-[#232830]'}`}>
-        <p className={`text-sm font-semibold ${data.allNoted ? 'text-green-400' : 'text-zinc-300'}`}>
+      <div className={`rounded-xl border px-4 py-3 flex items-center justify-between ${data.allNoted ? 'bg-green-50 border-green-200' : 'bg-[#FDFCFB] border-[#E0DAD2]'}`}>
+        <p className={`text-sm font-semibold ${data.allNoted ? 'text-green-400' : 'text-[#231F1B]'}`}>
           {data.allNoted ? '✓ All declarations noted' : `${data.totalNoted} of ${data.totalRequired} noted`}
         </p>
         <div className="flex items-center gap-2">
-          <div className="w-24 h-1.5 bg-zinc-800 rounded-full overflow-hidden">
-            <div className="h-full rounded-full transition-all" style={{ width: `${data.totalRequired > 0 ? Math.round(data.totalNoted / data.totalRequired * 100) : 0}%`, background: data.allNoted ? '#34D399' : '#4F7FFF' }} />
+          <div className="w-24 h-1.5 bg-[#EBE6DF] rounded-full overflow-hidden">
+            <div className="h-full rounded-full transition-all" style={{ width: `${data.totalRequired > 0 ? Math.round(data.totalNoted / data.totalRequired * 100) : 0}%`, background: data.allNoted ? '#34D399' : '#8B1A1A' }} />
           </div>
-          <span className="text-zinc-500 text-xs">{data.totalRequired > 0 ? Math.round(data.totalNoted / data.totalRequired * 100) : 0}%</span>
+          <span className="text-[#96908A] text-xs">{data.totalRequired > 0 ? Math.round(data.totalNoted / data.totalRequired * 100) : 0}%</span>
         </div>
       </div>
 
       {missingDocs.length > 0 && (
         <div className="bg-amber-950/20 border border-amber-800/30 rounded-xl px-4 py-3">
           <p className="text-amber-400 text-xs font-semibold mb-1">⚠ {missingDocs.length} form{missingDocs.length > 1 ? 's' : ''} not uploaded to vault</p>
-          <p className="text-zinc-500 text-xs">These can still be noted as physically present at {deemedVenue}.</p>
+          <p className="text-[#96908A] text-xs">These can still be noted as physically present at {deemedVenue}.</p>
         </div>
       )}
 
       {/* Director × Form matrix */}
       <div className="space-y-3">
         {data.rows.map((row: any) => (
-          <div key={row.userId} className="bg-[#191D24] border border-[#232830] rounded-xl overflow-hidden">
-            <div className="bg-[#1a1e26] border-b border-[#232830] px-4 py-2.5 flex items-center justify-between">
+          <div key={row.userId} className="bg-[#FDFCFB] border border-[#E0DAD2] rounded-xl overflow-hidden">
+            <div className="bg-[#1a1e26] border-b border-[#E0DAD2] px-4 py-2.5 flex items-center justify-between">
               <div>
-                <span className="text-sm font-semibold text-zinc-200">{row.name}</span>
-                <span className="text-zinc-600 text-[11px] ml-2">{row.email}</span>
+                <span className="text-sm font-semibold text-[#231F1B]">{row.name}</span>
+                <span className="text-[#96908A] text-[11px] ml-2">{row.email}</span>
               </div>
-              <span className="text-[10px] font-bold text-zinc-600 uppercase tracking-wider">{row.role}</span>
+              <span className="text-[10px] font-bold text-[#96908A] uppercase tracking-wider">{row.role}</span>
             </div>
             <div className={`grid gap-0`} style={{ gridTemplateColumns: `repeat(${row.forms.length}, 1fr)` }}>
               {row.forms.map((cell: any, ci: number) => {
@@ -1483,16 +1483,16 @@ function ComplianceNotingInline({ companyId, meetingId, jwt, meeting, isChairper
                 return (
                   <div key={cell.formType} className="p-3.5" style={{ borderRight: ci < row.forms.length - 1 ? '1px solid #232830' : 'none' }}>
                     <div className="flex items-center gap-1.5 mb-1">
-                      <span className="text-xs font-bold text-zinc-300">{meta.label}</span>
-                      <span className="text-[10px] text-zinc-600">{meta.law}</span>
+                      <span className="text-xs font-bold text-[#231F1B]">{meta.label}</span>
+                      <span className="text-[10px] text-[#96908A]">{meta.law}</span>
                     </div>
-                    <p className="text-[10px] text-zinc-600 mb-2 leading-tight">{meta.description}</p>
+                    <p className="text-[10px] text-[#96908A] mb-2 leading-tight">{meta.description}</p>
 
                     {/* Doc link */}
                     {hasDoc && downloadUrl ? (
                       <a href={downloadUrl} target="_blank" rel="noopener noreferrer"
                         onClick={() => setReviewed(prev => new Set(prev).add(cellKey))}
-                        className={`inline-flex items-center gap-1 text-[11px] font-semibold px-2 py-1 rounded-lg border mb-2 transition-colors ${hasReviewed ? 'text-green-400 border-green-800/40 bg-green-950/20' : 'text-blue-400 border-blue-800/40 bg-blue-950/10 hover:bg-blue-950/20'}`}>
+                        className={`inline-flex items-center gap-1 text-[11px] font-semibold px-2 py-1 rounded-lg border mb-2 transition-colors ${hasReviewed ? 'text-green-400 border-green-800/40 bg-green-950/20' : 'text-[#1D4ED8] border-blue-800/40 bg-blue-950/10 hover:bg-blue-950/20'}`}>
                         {hasReviewed ? '✓' : '↗'} {cell.complianceDoc.fileName?.slice(0, 20) ?? 'Open'}
                       </a>
                     ) : (
@@ -1509,14 +1509,14 @@ function ComplianceNotingInline({ companyId, meetingId, jwt, meeting, isChairper
                             <button
                               onClick={() => hasReviewed && setActiveCell({ userId: row.userId, formType: cell.formType, mode: 'options' })}
                               disabled={!hasReviewed}
-                              className="text-[11px] font-semibold text-blue-400 disabled:text-zinc-700 disabled:cursor-not-allowed"
+                              className="text-[11px] font-semibold text-[#1D4ED8] disabled:text-zinc-700 disabled:cursor-not-allowed"
                               title={!hasReviewed ? 'Open doc above first' : undefined}>
                               {isNoting ? '…' : hasReviewed ? 'Note ›' : 'Open doc first'}
                             </button>
                           )}
                           <button
                             onClick={() => setActiveCell({ userId: row.userId, formType: cell.formType, mode: 'physical' })}
-                            className="text-[11px] font-semibold text-zinc-400 hover:text-blue-400 transition-colors">
+                            className="text-[11px] font-semibold text-[#5C5750] hover:text-[#1D4ED8] transition-colors">
                             Physical ›
                           </button>
                         </div>
@@ -1526,30 +1526,30 @@ function ComplianceNotingInline({ companyId, meetingId, jwt, meeting, isChairper
                             className="text-[11px] font-semibold text-green-400 bg-green-950/30 border border-green-800/30 px-2 py-1 rounded cursor-pointer">✓ Note</button>
                           <button onClick={() => setActiveCell({ userId: row.userId, formType: cell.formType, mode: 'exception' })}
                             className="text-[11px] font-semibold text-amber-400 bg-amber-950/30 border border-amber-800/30 px-2 py-1 rounded cursor-pointer">⚠</button>
-                          <button onClick={() => setActiveCell(null)} className="text-[11px] text-zinc-600 px-1">✕</button>
+                          <button onClick={() => setActiveCell(null)} className="text-[11px] text-[#96908A] px-1">✕</button>
                         </div>
                       ) : activeCell?.mode === 'exception' ? (
                         <div className="space-y-1">
                           <textarea value={exceptionText} onChange={e => setExceptionText(e.target.value)} rows={2} placeholder="Describe exception…"
-                            className="w-full bg-[#0D0F12] border border-amber-800/30 rounded px-2 py-1 text-[11px] text-zinc-300 resize-none focus:outline-none"/>
+                            className="w-full bg-[#F5F2EE] border border-amber-800/30 rounded px-2 py-1 text-[11px] text-[#231F1B] resize-none focus:outline-none"/>
                           <div className="flex gap-1">
                             <button onClick={() => submitNote(row.userId, cell.formType, 'NOTED_WITH_EXCEPTION', exceptionText)} disabled={!exceptionText.trim()}
                               className="text-[11px] font-semibold text-amber-400 disabled:opacity-40 cursor-pointer">Save</button>
-                            <button onClick={() => setActiveCell(null)} className="text-[11px] text-zinc-600">Cancel</button>
+                            <button onClick={() => setActiveCell(null)} className="text-[11px] text-[#96908A]">Cancel</button>
                           </div>
                         </div>
                       ) : activeCell?.mode === 'physical' ? (
-                        <div className="bg-[#0D0F12] border border-zinc-700/40 rounded p-2 space-y-1">
-                          <p className="text-[10px] text-zinc-400">Confirm {meta.label} physically present at {deemedVenue}</p>
+                        <div className="bg-[#F5F2EE] border border-[#E0DAD2]/40 rounded p-2 space-y-1">
+                          <p className="text-[10px] text-[#5C5750]">Confirm {meta.label} physically present at {deemedVenue}</p>
                           <div className="flex gap-1">
                             <button onClick={() => submitNote(row.userId, cell.formType, 'PHYSICALLY_PRESENT', `${meta.label} physically present at ${deemedVenue}`)}
-                              className="text-[11px] font-semibold text-blue-400 cursor-pointer">✓ Confirm</button>
-                            <button onClick={() => setActiveCell(null)} className="text-[11px] text-zinc-600">Cancel</button>
+                              className="text-[11px] font-semibold text-[#1D4ED8] cursor-pointer">✓ Confirm</button>
+                            <button onClick={() => setActiveCell(null)} className="text-[11px] text-[#96908A]">Cancel</button>
                           </div>
                         </div>
                       ) : null
                     ) : (
-                      <span className="text-[11px] text-zinc-600 italic">Awaiting Chair</span>
+                      <span className="text-[11px] text-[#96908A] italic">Awaiting Chair</span>
                     )}
                   </div>
                 );
@@ -1579,16 +1579,16 @@ function DocumentNotingInline({ companyId, meetingId, jwt, meeting, resolutions,
     return (
       <div className="max-w-2xl fade-up">
         <div className="mb-4">
-          <p className="text-zinc-600 text-xs uppercase tracking-widest font-semibold mb-1">
+          <p className="text-[#96908A] text-xs uppercase tracking-widest font-semibold mb-1">
             {agendaItem?.title ?? 'Document Noting'}
           </p>
-          <h2 className="text-white text-xl font-bold" style={{fontFamily:"'Playfair Display',serif"}}>
+          <h2 className="text-[#231F1B] text-xl font-bold" style={{fontFamily:"'Playfair Display',serif"}}>
             Document Noting
           </h2>
         </div>
-        <div className="bg-[#191D24] border border-[#232830] rounded-xl px-5 py-6 text-center">
-          <p className="text-zinc-500 text-sm mb-1">No noting item yet for this agenda.</p>
-          <p className="text-zinc-600 text-xs">This was not auto-created — the document may not have been in the vault when the meeting was set up.</p>
+        <div className="bg-[#FDFCFB] border border-[#E0DAD2] rounded-xl px-5 py-6 text-center">
+          <p className="text-[#96908A] text-sm mb-1">No noting item yet for this agenda.</p>
+          <p className="text-[#96908A] text-xs">This was not auto-created — the document may not have been in the vault when the meeting was set up.</p>
         </div>
       </div>
     );
@@ -1597,13 +1597,13 @@ function DocumentNotingInline({ companyId, meetingId, jwt, meeting, resolutions,
   return (
     <div className="max-w-2xl fade-up space-y-4">
       <div>
-        <p className="text-zinc-600 text-xs uppercase tracking-widest font-semibold mb-1">
+        <p className="text-[#96908A] text-xs uppercase tracking-widest font-semibold mb-1">
           {agendaItem?.title ?? 'Document Noting'}
         </p>
-        <h2 className="text-white text-xl font-bold mb-1" style={{fontFamily:"'Playfair Display',serif"}}>
+        <h2 className="text-[#231F1B] text-xl font-bold mb-1" style={{fontFamily:"'Playfair Display',serif"}}>
           Document Noting
         </h2>
-        <p className="text-zinc-500 text-xs">
+        <p className="text-[#96908A] text-xs">
           Chairperson must confirm document evidence before placing on record.
         </p>
       </div>
@@ -1674,15 +1674,15 @@ function ResolutionCard({ resolution, index, companyId, jwt, currentUserId, meet
 
   const borderColor = resolution.status === 'APPROVED' ? 'border-green-800/50'
     : resolution.status === 'REJECTED' ? 'border-red-800/50'
-    : resolution.status === 'NOTED'    ? 'border-zinc-700/50'
+    : resolution.status === 'NOTED'    ? 'border-[#E0DAD2]/50'
     : resolution.status === 'VOTING'   ? 'border-amber-800/40'
-    : 'border-[#232830]';
+    : 'border-[#E0DAD2]';
 
   const accentBar = resolution.status === 'APPROVED' ? 'bg-green-500'
     : resolution.status === 'REJECTED' ? 'bg-red-500'
     : resolution.status === 'NOTED'    ? 'bg-zinc-600'
     : resolution.status === 'VOTING'   ? 'bg-amber-500'
-    : isNoting ? 'bg-zinc-700' : 'bg-blue-600';
+    : isNoting ? 'bg-zinc-700' : 'bg-[#8B1A1A]';
 
   async function propose() {
     // Gate: all variables in the motion text must be filled before voting opens
@@ -1755,18 +1755,18 @@ function ResolutionCard({ resolution, index, companyId, jwt, currentUserId, meet
   const totalVotes = (resolution.tally?.APPROVE ?? 0) + (resolution.tally?.REJECT ?? 0) + (resolution.tally?.ABSTAIN ?? 0);
 
   return (
-    <div className={`bg-[#191D24] border ${borderColor} rounded-2xl overflow-hidden transition-all duration-200`}>
+    <div className={`bg-[#FDFCFB] border ${borderColor} rounded-2xl overflow-hidden transition-all duration-200`}>
       <div className={`h-0.5 ${accentBar}`} />
       <button className="w-full text-left px-6 py-4 flex items-start justify-between gap-4 hover:bg-[#1d2229]"
         onClick={() => setExpanded(e => !e)}>
         <div className="flex items-start gap-3 min-w-0">
-          <span className="flex-shrink-0 w-6 h-6 rounded-full bg-zinc-800 border border-zinc-700 text-zinc-500 text-[10px] font-bold flex items-center justify-center mt-0.5">
+          <span className="flex-shrink-0 w-6 h-6 rounded-full bg-[#EBE6DF] border border-[#E0DAD2] text-[#96908A] text-[10px] font-bold flex items-center justify-center mt-0.5">
             {index}
           </span>
           <div className="min-w-0">
             <div className="flex items-center gap-2 flex-wrap">
-              <p className="text-white font-semibold text-sm leading-snug">{resolution.title}</p>
-              {isNoting && <span className="text-[9px] bg-zinc-800 border border-zinc-700 text-zinc-500 px-1.5 py-0.5 rounded-full">Noting</span>}
+              <p className="text-[#231F1B] font-semibold text-sm leading-snug">{resolution.title}</p>
+              {isNoting && <span className="text-[9px] bg-[#EBE6DF] border border-[#E0DAD2] text-[#96908A] px-1.5 py-0.5 rounded-full">Noting</span>}
             </div>
             {resolution.status === 'VOTING' && (
               <p className="text-amber-400 text-[11px] mt-0.5">{totalVotes} of {resolution.directorCount ?? '?'} voted</p>
@@ -1775,7 +1775,7 @@ function ResolutionCard({ resolution, index, companyId, jwt, currentUserId, meet
         </div>
         <div className="flex items-center gap-3 flex-shrink-0">
           <StatusBadge status={resolution.status.toLowerCase()} />
-          <span className="text-zinc-600 text-xs">{expanded ? '▴' : '▾'}</span>
+          <span className="text-[#96908A] text-xs">{expanded ? '▴' : '▾'}</span>
         </div>
       </button>
 
@@ -1787,7 +1787,7 @@ function ResolutionCard({ resolution, index, companyId, jwt, currentUserId, meet
       )}
 
       {expanded && (
-        <div className="px-6 pb-5 fade-up space-y-4 border-t border-[#232830] pt-4">
+        <div className="px-6 pb-5 fade-up space-y-4 border-t border-[#E0DAD2] pt-4">
           {/* Motion text (pre-vote) OR Resolution text (post-approval) */}
           {!isNoting && (() => {
             const isApproved = resolution.status === 'APPROVED';
@@ -1800,10 +1800,10 @@ function ResolutionCard({ resolution, index, companyId, jwt, currentUserId, meet
               : resolution.status === 'VOTING'
               ? 'Motion before the Board'
               : 'Motion';
-            const borderColor = isApproved ? 'border-green-700' : resolution.status === 'REJECTED' ? 'border-red-800' : 'border-zinc-700';
+            const borderColor = isApproved ? 'border-green-700' : resolution.status === 'REJECTED' ? 'border-red-800' : 'border-[#E0DAD2]';
             return (
-              <div className={`bg-[#13161B] border-l-2 ${borderColor} pl-4 py-3 pr-3 rounded-r-xl`}>
-                <p className={`text-[10px] uppercase tracking-widest font-semibold mb-1.5 ${isApproved ? 'text-green-600' : resolution.status === 'REJECTED' ? 'text-red-700' : 'text-zinc-600'}`}>
+              <div className={`bg-[#FDFCFB] border-l-2 ${borderColor} pl-4 py-3 pr-3 rounded-r-xl`}>
+                <p className={`text-[10px] uppercase tracking-widest font-semibold mb-1.5 ${isApproved ? 'text-green-600' : resolution.status === 'REJECTED' ? 'text-red-700' : 'text-[#96908A]'}`}>
                   {label}
                 </p>
                 <VariableTokenText
@@ -1821,45 +1821,45 @@ function ResolutionCard({ resolution, index, companyId, jwt, currentUserId, meet
                 />
                 {/* Hint for directors who cannot fill — amber tokens are visible but non-clickable */}
                 {!canFill && (activeAgendaItem as any)?.variables?.length > 0 && (
-                  <p className="text-zinc-600 text-[10px] mt-2 italic">
+                  <p className="text-[#96908A] text-[10px] mt-2 italic">
                     Amber fields to be filled by the Chairperson or Minutes Recorder before voting.
                   </p>
                 )}
                 {/* If approved and resolutionText exists, also show the motion text collapsed */}
                 {isApproved && resolution.resolutionText && resolution.motionText && (
                   <details className="mt-2">
-                    <summary className="text-zinc-700 text-[10px] cursor-pointer hover:text-zinc-500">
+                    <summary className="text-zinc-700 text-[10px] cursor-pointer hover:text-[#96908A]">
                       Original motion text
                     </summary>
-                    <p className="text-zinc-600 text-[10px] leading-relaxed whitespace-pre-wrap mt-1">{resolution.motionText}</p>
+                    <p className="text-[#96908A] text-[10px] leading-relaxed whitespace-pre-wrap mt-1">{resolution.motionText}</p>
                   </details>
                 )}
               </div>
             );
           })()}
           {isNoting && (
-            <div className="bg-[#13161B] border-l-2 border-zinc-700 pl-4 py-3 pr-3 rounded-r-xl">
-              <p className="text-zinc-600 text-[10px] uppercase tracking-widest font-semibold mb-1.5">Noting</p>
-              <p className="text-zinc-400 text-xs leading-relaxed whitespace-pre-wrap">{resolution.motionText}</p>
+            <div className="bg-[#FDFCFB] border-l-2 border-[#E0DAD2] pl-4 py-3 pr-3 rounded-r-xl">
+              <p className="text-[#96908A] text-[10px] uppercase tracking-widest font-semibold mb-1.5">Noting</p>
+              <p className="text-[#5C5750] text-xs leading-relaxed whitespace-pre-wrap">{resolution.motionText}</p>
             </div>
           )}
 
           {/* ── Document Evidence Section (NOTING type only) ──────────────── */}
           {isNoting && resolution.status === 'DRAFT' && (
             <div className="space-y-3">
-              <p className="text-zinc-500 text-[10px] uppercase tracking-widest font-semibold">Document Evidence</p>
+              <p className="text-[#96908A] text-[10px] uppercase tracking-widest font-semibold">Document Evidence</p>
 
               {/* Path A — SafeMinutes Vault */}
               {hasVaultDoc && (
                 <div className={`rounded-xl border p-3.5 flex items-center gap-3 transition-colors ${
-                  openedVault ? 'bg-green-950/20 border-green-800/30' : 'bg-[#13161B] border-amber-800/30'
+                  openedVault ? 'bg-green-50 border-green-200' : 'bg-[#FDFCFB] border-amber-800/30'
                 }`}>
                   <span className="text-lg flex-shrink-0">{openedVault ? '✓' : '📁'}</span>
                   <div className="flex-1 min-w-0">
-                    <p className="text-xs font-semibold text-zinc-300 truncate">
+                    <p className="text-xs font-semibold text-[#231F1B] truncate">
                       {ed?.vaultDocLabel ?? ed?.fileName ?? 'Vault document'}
                     </p>
-                    <p className="text-[10px] text-zinc-500 mt-0.5">
+                    <p className="text-[10px] text-[#96908A] mt-0.5">
                       {openedVault ? 'Reviewed from SafeMinutes vault' : 'Open to review before placing on record'}
                     </p>
                   </div>
@@ -1868,7 +1868,7 @@ function ResolutionCard({ resolution, index, companyId, jwt, currentUserId, meet
                     className={`text-xs font-semibold px-3 py-1.5 rounded-lg border transition-colors flex-shrink-0 ${
                       openedVault
                         ? 'text-green-400 border-green-700/40 bg-green-950/30'
-                        : 'text-blue-400 border-blue-700/40 bg-blue-950/30 hover:bg-blue-950/50'
+                        : 'text-[#1D4ED8] border-blue-700/40 bg-blue-950/30 hover:bg-blue-950/50'
                     }`}>
                     {openedVault ? '↗ Re-open' : '↗ Open'}
                   </a>
@@ -1880,46 +1880,46 @@ function ResolutionCard({ resolution, index, companyId, jwt, currentUserId, meet
                 <div className="rounded-xl border border-blue-800/30 bg-blue-950/10 p-3.5 flex items-center gap-3">
                   <span className="text-lg">{PLATFORM_META[ed?.externalDocPlatform ?? resolution.externalDocPlatform ?? 'Other']?.icon ?? '🔗'}</span>
                   <div className="flex-1 min-w-0">
-                    <p className="text-xs font-semibold text-zinc-300">
+                    <p className="text-xs font-semibold text-[#231F1B]">
                       {PLATFORM_META[ed?.externalDocPlatform ?? resolution.externalDocPlatform ?? 'Other']?.label ?? 'External'}
                     </p>
                     <a href={ed?.externalDocUrl ?? resolution.externalDocUrl ?? '#'} target="_blank" rel="noopener noreferrer"
-                      className="text-[10px] text-blue-400 hover:underline truncate block max-w-xs">
+                      className="text-[10px] text-[#1D4ED8] hover:underline truncate block max-w-xs">
                       {ed?.externalDocUrl ?? resolution.externalDocUrl}
                     </a>
                   </div>
-                  <span className="text-[9px] font-bold text-blue-400 bg-blue-950 border border-blue-800/40 px-2 py-0.5 rounded-full">Confirmed</span>
+                  <span className="text-[9px] font-bold text-[#1D4ED8] bg-blue-950 border border-blue-800/40 px-2 py-0.5 rounded-full">Confirmed</span>
                 </div>
               )}
 
               {/* Path C — Physical presence (confirmed) */}
               {hasPhysicalEvid && (
-                <div className="rounded-xl border border-zinc-700/40 bg-zinc-900/30 p-3.5 flex items-center gap-3">
+                <div className="rounded-xl border border-[#E0DAD2]/40 bg-[#F5F2EE]/30 p-3.5 flex items-center gap-3">
                   <span className="text-lg">📄</span>
                   <div className="flex-1">
-                    <p className="text-xs font-semibold text-zinc-300">Physical copy confirmed</p>
-                    <p className="text-[10px] text-zinc-500 mt-0.5">
+                    <p className="text-xs font-semibold text-[#231F1B]">Physical copy confirmed</p>
+                    <p className="text-[10px] text-[#96908A] mt-0.5">
                       {ed?.physicalEvidence ?? resolution.physicalEvidence ?? 'Present at deemed venue'}
                     </p>
                   </div>
-                  <span className="text-[9px] font-bold text-zinc-400 bg-zinc-800 border border-zinc-700 px-2 py-0.5 rounded-full">Confirmed</span>
+                  <span className="text-[9px] font-bold text-[#5C5750] bg-[#EBE6DF] border border-[#E0DAD2] px-2 py-0.5 rounded-full">Confirmed</span>
                 </div>
               )}
 
               {/* Evidence path selector — shown when no evidence confirmed yet */}
               {isChairperson && !evidenceConfirmed && !hasVaultDoc && evidPath === null && (
-                <div className="bg-[#0D0F12] border border-[#232830] rounded-xl p-4 space-y-2">
-                  <p className="text-zinc-400 text-xs font-semibold mb-3">How was this document reviewed?</p>
+                <div className="bg-[#F5F2EE] border border-[#E0DAD2] rounded-xl p-4 space-y-2">
+                  <p className="text-[#5C5750] text-xs font-semibold mb-3">How was this document reviewed?</p>
                   {[
                     { path: 'B' as const, icon: '🔗', label: 'External platform', sub: 'MCA21, Google Drive, Dropbox, etc.' },
                     { path: 'C' as const, icon: '📄', label: 'Physical copy',      sub: `Present at ${(meeting as any).deemedVenue ?? 'deemed venue'}` },
                   ].map(opt => (
                     <button key={opt.path} onClick={() => setEvidPath(opt.path)}
-                      className="w-full flex items-center gap-3 px-4 py-3 bg-[#13161B] border border-[#232830] rounded-xl hover:border-zinc-600 transition-all text-left">
+                      className="w-full flex items-center gap-3 px-4 py-3 bg-[#FDFCFB] border border-[#E0DAD2] rounded-xl hover:border-zinc-600 transition-all text-left">
                       <span className="text-xl flex-shrink-0">{opt.icon}</span>
                       <div>
-                        <p className="text-sm font-semibold text-zinc-200">{opt.label}</p>
-                        <p className="text-[10px] text-zinc-600 mt-0.5">{opt.sub}</p>
+                        <p className="text-sm font-semibold text-[#231F1B]">{opt.label}</p>
+                        <p className="text-[10px] text-[#96908A] mt-0.5">{opt.sub}</p>
                       </div>
                       <span className="ml-auto text-zinc-700 text-xs">→</span>
                     </button>
@@ -1929,15 +1929,15 @@ function ResolutionCard({ resolution, index, companyId, jwt, currentUserId, meet
 
               {/* No vault + not chairperson: show guidance */}
               {!isChairperson && !evidenceConfirmed && !hasVaultDoc && (
-                <div className="bg-[#0D0F12] border border-[#232830] rounded-xl px-4 py-3">
-                  <p className="text-zinc-600 text-xs">Waiting for Chairperson to confirm document evidence.</p>
+                <div className="bg-[#F5F2EE] border border-[#E0DAD2] rounded-xl px-4 py-3">
+                  <p className="text-[#96908A] text-xs">Waiting for Chairperson to confirm document evidence.</p>
                 </div>
               )}
 
               {/* Link to vault if vault doc not uploaded yet */}
               {isChairperson && !hasVaultDoc && (
                 <a href={`/companies/${companyId}/vault`} target="_blank" rel="noopener noreferrer"
-                  className="flex items-center gap-2 text-[11px] text-zinc-500 hover:text-blue-400 transition-colors">
+                  className="flex items-center gap-2 text-[11px] text-[#96908A] hover:text-[#1D4ED8] transition-colors">
                   <span>📁</span>
                   <span>Upload to SafeMinutes vault instead →</span>
                 </a>
@@ -1945,15 +1945,15 @@ function ResolutionCard({ resolution, index, companyId, jwt, currentUserId, meet
 
               {/* Path B — External URL form */}
               {evidPath === 'B' && (
-                <div className="bg-[#0D0F12] border border-blue-800/30 rounded-xl p-4 space-y-3">
-                  <p className="text-blue-400 text-xs font-semibold">External Platform</p>
+                <div className="bg-[#F5F2EE] border border-blue-800/30 rounded-xl p-4 space-y-3">
+                  <p className="text-[#1D4ED8] text-xs font-semibold">External Platform</p>
                   <div className="grid grid-cols-2 gap-2">
                     {PLATFORMS.map(p => (
                       <button key={p} type="button" onClick={() => setExtPlatform(p)}
                         className={`flex items-center gap-2 px-3 py-2 rounded-lg border text-xs font-medium transition-all ${
                           extPlatform === p
-                            ? 'bg-blue-950/60 border-blue-700 text-blue-300'
-                            : 'bg-[#13161B] border-[#232830] text-zinc-500 hover:border-zinc-600'
+                            ? 'bg-[rgba(139,26,26,0.08)] border-blue-700 text-[#8B1A1A]'
+                            : 'bg-[#FDFCFB] border-[#E0DAD2] text-[#96908A] hover:border-zinc-600'
                         }`}>
                         <span>{PLATFORM_META[p].icon}</span>
                         <span>{PLATFORM_META[p].label}</span>
@@ -1964,25 +1964,25 @@ function ResolutionCard({ resolution, index, companyId, jwt, currentUserId, meet
                     value={extUrl}
                     onChange={e => setExtUrl(e.target.value)}
                     placeholder={PLATFORM_META[extPlatform]?.urlHint ?? 'https://...'}
-                    className="w-full bg-[#13161B] border border-[#232830] rounded-lg px-3 py-2 text-xs text-zinc-200 placeholder:text-zinc-700 focus:outline-none focus:border-blue-600"
+                    className="w-full bg-[#FDFCFB] border border-[#E0DAD2] rounded-lg px-3 py-2 text-xs text-[#231F1B] placeholder:text-[#96908A] focus:outline-none focus:border-[#8B1A1A]"
                   />
                   {evidErr && <p className="text-red-400 text-[11px]">{evidErr}</p>}
                   <div className="flex gap-2">
                     <Button size="sm" loading={savingEvid} onClick={saveEvidence} disabled={!extUrl.trim()}>
                       Confirm Link
                     </Button>
-                    <button onClick={() => { setEvidPath(null); setEvidErr(''); }} className="text-zinc-600 text-xs hover:text-zinc-400">Cancel</button>
+                    <button onClick={() => { setEvidPath(null); setEvidErr(''); }} className="text-[#96908A] text-xs hover:text-[#5C5750]">Cancel</button>
                   </div>
                 </div>
               )}
 
               {/* Path C — Physical presence form */}
               {evidPath === 'C' && (
-                <div className="bg-[#0D0F12] border border-zinc-700/40 rounded-xl p-4 space-y-3">
-                  <p className="text-zinc-300 text-xs font-semibold">Confirm Physical Copy</p>
-                  <p className="text-zinc-500 text-xs leading-relaxed">
+                <div className="bg-[#F5F2EE] border border-[#E0DAD2]/40 rounded-xl p-4 space-y-3">
+                  <p className="text-[#231F1B] text-xs font-semibold">Confirm Physical Copy</p>
+                  <p className="text-[#96908A] text-xs leading-relaxed">
                     I confirm that this document was physically present at{' '}
-                    <strong className="text-zinc-300">{(meeting as any).deemedVenue ?? 'the deemed venue'}</strong>{' '}
+                    <strong className="text-[#231F1B]">{(meeting as any).deemedVenue ?? 'the deemed venue'}</strong>{' '}
                     and placed before the Board for noting.
                   </p>
                   {evidErr && <p className="text-red-400 text-[11px]">{evidErr}</p>}
@@ -1990,7 +1990,7 @@ function ResolutionCard({ resolution, index, companyId, jwt, currentUserId, meet
                     <Button size="sm" loading={savingEvid} onClick={saveEvidence}>
                       ✓ Confirm Physical Presence
                     </Button>
-                    <button onClick={() => { setEvidPath(null); setEvidErr(''); }} className="text-zinc-600 text-xs hover:text-zinc-400">Cancel</button>
+                    <button onClick={() => { setEvidPath(null); setEvidErr(''); }} className="text-[#96908A] text-xs hover:text-[#5C5750]">Cancel</button>
                   </div>
                 </div>
               )}
@@ -2016,19 +2016,19 @@ function ResolutionCard({ resolution, index, companyId, jwt, currentUserId, meet
             </div>
           )}
           {isNoting && resolution.status === 'NOTED' && (
-            <div className="flex items-center gap-2 text-zinc-500 text-xs">
+            <div className="flex items-center gap-2 text-[#96908A] text-xs">
               <span className="text-green-400">✓</span>
               <span>Placed on record during this meeting.</span>
               {(hasExternalEvid || hasPhysicalEvid) && (
-                <span className="text-zinc-600">·</span>
+                <span className="text-[#96908A]">·</span>
               )}
               {hasExternalEvid && (
-                <span className="text-zinc-600">
+                <span className="text-[#96908A]">
                   Via {ed?.externalDocPlatform ?? resolution.externalDocPlatform}
                 </span>
               )}
               {hasPhysicalEvid && (
-                <span className="text-zinc-600">Physical copy</span>
+                <span className="text-[#96908A]">Physical copy</span>
               )}
             </div>
           )}
@@ -2043,12 +2043,12 @@ function ResolutionCard({ resolution, index, companyId, jwt, currentUserId, meet
           {/* Vote buttons */}
           {!isNoting && resolution.status === 'VOTING' && !hasVoted && (
             <div>
-              <p className="text-zinc-500 text-xs mb-2 font-medium">Cast your vote</p>
+              <p className="text-[#96908A] text-xs mb-2 font-medium">Cast your vote</p>
               <div className="flex gap-2">
                 {[
-                  {value:'APPROVE', label:'✓ Approve', idle:'border-zinc-700 text-zinc-400 hover:border-green-700 hover:text-green-400', active:'bg-green-950/60 border-green-700 text-green-400'},
-                  {value:'REJECT',  label:'✕ Reject',  idle:'border-zinc-700 text-zinc-400 hover:border-red-700 hover:text-red-400',   active:'bg-red-950/60 border-red-700 text-red-400'},
-                  {value:'ABSTAIN', label:'— Abstain', idle:'border-zinc-700 text-zinc-400 hover:border-amber-700 hover:text-amber-400', active:'bg-amber-950/60 border-amber-700 text-amber-400'},
+                  {value:'APPROVE', label:'✓ Approve', idle:'border-[#E0DAD2] text-[#5C5750] hover:border-green-700 hover:text-green-400', active:'bg-green-950/60 border-green-700 text-green-400'},
+                  {value:'REJECT',  label:'✕ Reject',  idle:'border-[#E0DAD2] text-[#5C5750] hover:border-red-700 hover:text-red-400',   active:'bg-red-950/60 border-red-700 text-red-400'},
+                  {value:'ABSTAIN', label:'— Abstain', idle:'border-[#E0DAD2] text-[#5C5750] hover:border-amber-700 hover:text-amber-400', active:'bg-amber-950/60 border-amber-700 text-amber-400'},
                 ].map(btn => (
                   <button key={btn.value} onClick={() => castVote(btn.value)} disabled={isVoting}
                     className={`flex-1 py-2 text-xs font-semibold border rounded-lg transition-all ${myVote === btn.value ? btn.active : btn.idle}`}>
@@ -2062,7 +2062,7 @@ function ResolutionCard({ resolution, index, companyId, jwt, currentUserId, meet
           {!isNoting && resolution.status === 'VOTING' && hasVoted && (
             <div className="flex items-center gap-2 py-2">
               <VotePill value={existingVote!.value} />
-              <span className="text-zinc-500 text-xs">You voted</span>
+              <span className="text-[#96908A] text-xs">You voted</span>
             </div>
           )}
         </div>
@@ -2099,12 +2099,12 @@ function ClosurePanel({ companyId, meetingId, jwt, meeting, canClose, alreadyClo
   return (
     <div className="max-w-2xl fade-up">
       <div className="mb-6">
-        <p className="text-zinc-600 text-xs uppercase tracking-widest font-semibold mb-1">Meeting Closure</p>
-        <h2 className="text-white text-xl font-bold" style={{fontFamily:"'Playfair Display',serif"}}>Declaration of Meeting Closure</h2>
+        <p className="text-[#96908A] text-xs uppercase tracking-widest font-semibold mb-1">Meeting Closure</p>
+        <h2 className="text-[#231F1B] text-xl font-bold" style={{fontFamily:"'Playfair Display',serif"}}>Declaration of Meeting Closure</h2>
       </div>
 
-      <div className="bg-[#191D24] border border-[#232830] rounded-2xl p-6 space-y-4">
-        <p className="text-zinc-400 text-sm leading-relaxed">
+      <div className="bg-[#FDFCFB] border border-[#E0DAD2] rounded-2xl p-6 space-y-4">
+        <p className="text-[#5C5750] text-sm leading-relaxed">
           After all agenda business has been transacted, the Chairperson formally declares the meeting closed.
           The time of conclusion is recorded in the minutes as required by SS-1 Para 7.2.1.1.
         </p>
@@ -2114,28 +2114,28 @@ function ClosurePanel({ companyId, meetingId, jwt, meeting, canClose, alreadyClo
             <span className="text-green-400 text-lg mt-0.5">✓</span>
             <div>
               <p className="text-green-400 text-sm font-semibold">Meeting formally closed</p>
-              <p className="text-zinc-500 text-xs mt-1">
-                Conclusion time recorded: <strong className="text-zinc-300">{fmtTime(conclusionTime)}</strong>.
+              <p className="text-[#96908A] text-xs mt-1">
+                Conclusion time recorded: <strong className="text-[#231F1B]">{fmtTime(conclusionTime)}</strong>.
                 This will appear in the minutes header.
               </p>
             </div>
           </div>
         ) : (
-          <div className="bg-[#13161B] border border-[#232830] rounded-xl px-5 py-4">
-            <p className="text-zinc-500 text-xs leading-relaxed mb-4">
-              <strong className="text-zinc-300">SS-1 Para 7.2.1.1</strong> — Minutes shall state the time of commencement and conclusion of the meeting.
+          <div className="bg-[#FDFCFB] border border-[#E0DAD2] rounded-xl px-5 py-4">
+            <p className="text-[#96908A] text-xs leading-relaxed mb-4">
+              <strong className="text-[#231F1B]">SS-1 Para 7.2.1.1</strong> — Minutes shall state the time of commencement and conclusion of the meeting.
               Clicking below records the exact time of closure in the statutory record.
             </p>
             {canClose ? (
               <button
                 onClick={handleClose}
                 disabled={closing}
-                className="w-full bg-zinc-700 hover:bg-zinc-600 disabled:opacity-50 disabled:cursor-not-allowed text-white text-sm font-semibold py-3 rounded-xl transition-colors flex items-center justify-center gap-2"
+                className="w-full bg-zinc-700 hover:bg-zinc-600 disabled:opacity-50 disabled:cursor-not-allowed text-[#231F1B] text-sm font-semibold py-3 rounded-xl transition-colors flex items-center justify-center gap-2"
               >
                 {closing ? 'Recording…' : '⬡ Declare Meeting Closed'}
               </button>
             ) : (
-              <p className="text-zinc-600 text-xs text-center italic">
+              <p className="text-[#96908A] text-xs text-center italic">
                 Only the Chairperson or Minutes Recorder can declare meeting closure.
               </p>
             )}
@@ -2148,7 +2148,7 @@ function ClosurePanel({ companyId, meetingId, jwt, meeting, canClose, alreadyClo
           </div>
         )}
 
-        <div className="pt-2 border-t border-[#232830]">
+        <div className="pt-2 border-t border-[#E0DAD2]">
           <p className="text-zinc-700 text-[10px] leading-relaxed">
             A vote of thanks to the Chairperson is customary before closure and should be noted verbally.
             If the meeting is being adjourned instead of closed, do not use this button — advance the meeting
@@ -2213,8 +2213,8 @@ function MinutesPanel({ minutes, companyId, meetingId, jwt }: any) {
     <div className="max-w-2xl fade-up">
       <div className="flex items-center justify-between mb-6">
         <div>
-          <p className="text-zinc-600 text-xs uppercase tracking-widest font-semibold mb-1">Generated Document</p>
-          <h2 className="text-white text-xl font-bold" style={{fontFamily:"'Playfair Display',serif"}}>Meeting Minutes</h2>
+          <p className="text-[#96908A] text-xs uppercase tracking-widest font-semibold mb-1">Generated Document</p>
+          <h2 className="text-[#231F1B] text-xl font-bold" style={{fontFamily:"'Playfair Display',serif"}}>Meeting Minutes</h2>
         </div>
         <div className="flex items-center gap-3">
           <StatusBadge status={minutes.status.toLowerCase()} />
@@ -2257,11 +2257,11 @@ function MinutesPanel({ minutes, companyId, meetingId, jwt }: any) {
           <span className="text-green-400 text-lg mt-0.5">✓</span>
           <div>
             <p className="text-green-400 text-xs font-semibold mb-0.5">Digitally Signed</p>
-            <p className="text-zinc-600 text-[10px] font-mono break-all">{minutes.signatureHash}</p>
+            <p className="text-[#96908A] text-[10px] font-mono break-all">{minutes.signatureHash}</p>
           </div>
         </div>
       )}
-      <div className="bg-[#191D24] border border-[#232830] rounded-2xl p-7 prose-sm text-zinc-300"
+      <div className="bg-[#FDFCFB] border border-[#E0DAD2] rounded-2xl p-7 prose-sm text-[#231F1B]"
         style={{fontSize:'13px',lineHeight:'1.8'}}
         dangerouslySetInnerHTML={{__html: minutes.content}} />
     </div>
@@ -2302,7 +2302,7 @@ function ProposeAgendaForm({ companyId, meetingId, jwt, isChairperson, meetingSt
 
   if (!open) return (
     <button onClick={() => setOpen(true)}
-      className="text-zinc-600 text-xs hover:text-zinc-400 w-full text-left">
+      className="text-[#96908A] text-xs hover:text-[#5C5750] w-full text-left">
       {isLive ? '+ Propose AOB item' : '+ Add agenda item'}
     </button>
   );
@@ -2310,24 +2310,24 @@ function ProposeAgendaForm({ companyId, meetingId, jwt, isChairperson, meetingSt
   return (
     <form onSubmit={submit} className="space-y-2 fade-up">
       {isLive && (
-        <p className="text-zinc-600 text-[10px] leading-tight">
+        <p className="text-[#96908A] text-[10px] leading-tight">
           Proposed as AOB — Chairperson must admit before discussion.
         </p>
       )}
       <input autoFocus value={title} onChange={e => setTitle(e.target.value)}
         placeholder="Item title"
-        className="w-full bg-[#0D0F12] border border-[#232830] rounded-lg px-3 py-1.5 text-xs text-zinc-200 placeholder:text-zinc-700 focus:outline-none focus:border-blue-600"/>
+        className="w-full bg-[#F5F2EE] border border-[#E0DAD2] rounded-lg px-3 py-1.5 text-xs text-[#231F1B] placeholder:text-[#96908A] focus:outline-none focus:border-[#8B1A1A]"/>
       <textarea value={desc} onChange={e => setDesc(e.target.value)} rows={2}
         placeholder="Brief description (optional)"
-        className="w-full bg-[#0D0F12] border border-[#232830] rounded-lg px-3 py-1.5 text-xs text-zinc-200 placeholder:text-zinc-700 focus:outline-none focus:border-blue-600 resize-none"/>
+        className="w-full bg-[#F5F2EE] border border-[#E0DAD2] rounded-lg px-3 py-1.5 text-xs text-[#231F1B] placeholder:text-[#96908A] focus:outline-none focus:border-[#8B1A1A] resize-none"/>
       {err && <p className="text-red-400 text-[10px]">{err}</p>}
       <div className="flex gap-2">
         <button type="submit" disabled={loading}
-          className="text-[11px] text-blue-400 font-medium disabled:opacity-50">
+          className="text-[11px] text-[#1D4ED8] font-medium disabled:opacity-50">
           {loading ? '…' : isLive ? 'Propose' : 'Add'}
         </button>
         <button type="button" onClick={() => { setOpen(false); setErr(''); }}
-          className="text-[11px] text-zinc-600">Cancel</button>
+          className="text-[11px] text-[#96908A]">Cancel</button>
       </div>
     </form>
   );
@@ -2374,16 +2374,16 @@ function AddResolutionForm({ companyId, meetingId, agendaItemId, jwt, onAdded, v
   }
 
   return (
-    <form onSubmit={submit} className="bg-[#13161B] border border-[#232830] rounded-2xl p-5 space-y-4">
-      <p className="text-zinc-400 text-sm font-semibold">New Motion</p>
+    <form onSubmit={submit} className="bg-[#FDFCFB] border border-[#E0DAD2] rounded-2xl p-5 space-y-4">
+      <p className="text-[#5C5750] text-sm font-semibold">New Motion</p>
 
       {/* Type selector */}
       <div className="flex gap-2">
         {[{v:'MEETING',l:'Motion (requires vote)'},{v:'NOTING',l:'Noting Item (on record)'}].map(t => (
           <button key={t.v} type="button" onClick={() => switchType(t.v as any)}
             className={`flex-1 py-2 text-[11px] font-semibold rounded-lg border transition-all ${type === t.v
-              ? 'bg-blue-950/60 border-blue-700 text-blue-300'
-              : 'bg-transparent border-zinc-700 text-zinc-500 hover:text-zinc-300'}`}>
+              ? 'bg-[rgba(139,26,26,0.08)] border-blue-700 text-[#8B1A1A]'
+              : 'bg-transparent border-[#E0DAD2] text-[#96908A] hover:text-[#231F1B]'}`}>
             {t.l}
           </button>
         ))}
@@ -2391,16 +2391,16 @@ function AddResolutionForm({ companyId, meetingId, agendaItemId, jwt, onAdded, v
 
       {/* Title */}
       <div>
-        <label className="text-zinc-600 text-[10px] uppercase tracking-widest block mb-1.5">Title</label>
+        <label className="text-[#96908A] text-[10px] uppercase tracking-widest block mb-1.5">Title</label>
         <input value={title} onChange={e => setTitle(e.target.value)}
           placeholder={type === 'NOTING' ? 'e.g. Noting of Certificate of Incorporation' : 'e.g. Opening of Bank Account'}
-          required className="w-full bg-[#0D0F12] border border-[#232830] rounded-lg px-3.5 py-2.5 text-sm text-zinc-200 placeholder:text-zinc-700 focus:outline-none focus:border-blue-600"/>
+          required className="w-full bg-[#F5F2EE] border border-[#E0DAD2] rounded-lg px-3.5 py-2.5 text-sm text-[#231F1B] placeholder:text-[#96908A] focus:outline-none focus:border-[#8B1A1A]"/>
       </div>
 
       {type === 'MEETING' && (<>
         {/* Motion text — what directors vote on */}
         <div>
-          <label className="text-zinc-600 text-[10px] uppercase tracking-widest block mb-1">Motion Text</label>
+          <label className="text-[#96908A] text-[10px] uppercase tracking-widest block mb-1">Motion Text</label>
           <p className="text-zinc-700 text-[10px] mb-1.5">Shown to directors while voting. Use plain proposal language — no "RESOLVED THAT".</p>
           <Textarea value={motionText} onChange={e => setMotionText(e.target.value)} rows={3} required minLength={10}
             placeholder='I move that the Board authorise the opening of a current account with [Bank Name]...' />
@@ -2408,7 +2408,7 @@ function AddResolutionForm({ companyId, meetingId, agendaItemId, jwt, onAdded, v
 
         {/* Resolution text — what goes in minutes if passed */}
         <div>
-          <label className="text-zinc-600 text-[10px] uppercase tracking-widest block mb-1">Resolution Text <span className="text-zinc-700 normal-case tracking-normal">(if motion passes)</span></label>
+          <label className="text-[#96908A] text-[10px] uppercase tracking-widest block mb-1">Resolution Text <span className="text-zinc-700 normal-case tracking-normal">(if motion passes)</span></label>
           <p className="text-zinc-700 text-[10px] mb-1.5">Printed in minutes and certified copies. Use "RESOLVED THAT..." format.</p>
           <Textarea value={resolutionText} onChange={e => setResolutionText(e.target.value)} rows={4}
             placeholder='RESOLVED THAT the Company be and is hereby authorised to open a current account with [Bank Name]...' />
@@ -2417,11 +2417,11 @@ function AddResolutionForm({ companyId, meetingId, agendaItemId, jwt, onAdded, v
 
       {type === 'NOTING' && vaultDocs?.length > 0 && (
         <div>
-          <label className="text-zinc-600 text-[10px] uppercase tracking-widest block mb-1.5">
+          <label className="text-[#96908A] text-[10px] uppercase tracking-widest block mb-1.5">
             Link Exhibit Document <span className="text-zinc-700">(optional)</span>
           </label>
           <select value={vaultDocId} onChange={e => setVaultDocId(e.target.value)}
-            className="w-full bg-[#0D0F12] border border-[#232830] rounded-lg px-3 py-2 text-sm text-zinc-200 focus:outline-none focus:border-blue-600">
+            className="w-full bg-[#F5F2EE] border border-[#E0DAD2] rounded-lg px-3 py-2 text-sm text-[#231F1B] focus:outline-none focus:border-[#8B1A1A]">
             <option value="">No document linked</option>
             {(vaultDocs as any[]).map((d: any) => (
               <option key={d.id} value={d.id}>{d.label || d.fileName} ({d.docType})</option>
@@ -2454,10 +2454,10 @@ function VotePill({ value }: { value: string }) {
 
 function LoadingState() {
   return (
-    <div className="h-screen bg-[#0D0F12] flex items-center justify-center">
+    <div className="h-screen bg-[#F5F2EE] flex items-center justify-center">
       <div className="flex flex-col items-center gap-4">
         <Spinner className="w-8 h-8" />
-        <p className="text-zinc-600 text-sm">Loading meeting…</p>
+        <p className="text-[#96908A] text-sm">Loading meeting…</p>
       </div>
     </div>
   );
@@ -2465,10 +2465,10 @@ function LoadingState() {
 
 function ErrorState({ message }: { message: string }) {
   return (
-    <div className="h-screen bg-[#0D0F12] flex items-center justify-center">
+    <div className="h-screen bg-[#F5F2EE] flex items-center justify-center">
       <div className="bg-red-950/40 border border-red-800/40 rounded-2xl p-8 text-center max-w-sm">
         <p className="text-red-400 text-sm mb-4">{message}</p>
-        <button onClick={() => window.location.reload()} className="text-blue-400 text-xs hover:underline">Retry</button>
+        <button onClick={() => window.location.reload()} className="text-[#1D4ED8] text-xs hover:underline">Retry</button>
       </div>
     </div>
   );
@@ -2581,39 +2581,39 @@ function MeetingDocumentsPanel({
 
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h2 className="text-lg font-bold text-zinc-200">Meeting Papers</h2>
-          <p className="text-sm text-zinc-500 mt-1">Upload draft notices, agenda, and supporting papers. Share via a secure link in your invitation.</p>
+          <h2 className="text-lg font-bold text-[#231F1B]">Meeting Papers</h2>
+          <p className="text-sm text-[#96908A] mt-1">Upload draft notices, agenda, and supporting papers. Share via a secure link in your invitation.</p>
         </div>
         {canManage && (
           <button onClick={() => fileRef.current?.click()} disabled={uploading}
-            className="bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold px-4 py-2 rounded-lg transition-colors">
+            className="bg-blue-600 hover:bg-blue-700 text-[#231F1B] text-sm font-semibold px-4 py-2 rounded-lg transition-colors">
             + Upload
           </button>
         )}
       </div>
 
       {/* Share link banner */}
-      <div className={`rounded-xl border p-4 mb-6 ${shareLink?.isActive ? 'bg-[#0D1A0D] border-green-900/50' : 'bg-[#13161B] border-[#232830]'}`}>
+      <div className={`rounded-xl border p-4 mb-6 ${shareLink?.isActive ? 'bg-[#0D1A0D] border-green-900/50' : 'bg-[#FDFCFB] border-[#E0DAD2]'}`}>
         <div className="flex items-center justify-between mb-2">
-          <p className={`text-sm font-bold ${shareLink?.isActive ? 'text-green-400' : 'text-zinc-400'}`}>
+          <p className={`text-sm font-bold ${shareLink?.isActive ? 'text-green-400' : 'text-[#5C5750]'}`}>
             {shareLink?.isActive ? '🔗 Share link is active' : '🔗 Share link'}
           </p>
           {canManage && (
             <button onClick={handleShareToggle}
-              className={`text-xs font-semibold px-3 py-1.5 rounded-lg border transition-colors ${shareLink?.isActive ? 'bg-red-950 border-red-800 text-red-400 hover:bg-red-900' : 'bg-[#1E2530] border-[#374151] text-zinc-400 hover:text-zinc-200'}`}>
+              className={`text-xs font-semibold px-3 py-1.5 rounded-lg border transition-colors ${shareLink?.isActive ? 'bg-red-950 border-red-800 text-red-400 hover:bg-red-900' : 'bg-[#1E2530] border-[#374151] text-[#5C5750] hover:text-[#231F1B]'}`}>
               {shareLink?.isActive ? 'Deactivate' : 'Activate'}
             </button>
           )}
         </div>
         {shareUrl ? (
           <div className="flex items-center gap-2">
-            <code className="flex-1 text-xs text-blue-300 bg-[#0D0F12] border border-[#232830] rounded-lg px-3 py-2 truncate">{shareUrl}</code>
-            <button onClick={copyShareUrl} className="text-xs font-semibold text-zinc-400 hover:text-zinc-200 bg-[#1E2530] border border-[#374151] rounded-lg px-3 py-2">
+            <code className="flex-1 text-xs text-[#8B1A1A] bg-[#F5F2EE] border border-[#E0DAD2] rounded-lg px-3 py-2 truncate">{shareUrl}</code>
+            <button onClick={copyShareUrl} className="text-xs font-semibold text-[#5C5750] hover:text-[#231F1B] bg-[#1E2530] border border-[#374151] rounded-lg px-3 py-2">
               {copied ? '✓ Copied' : 'Copy'}
             </button>
           </div>
         ) : (
-          <p className="text-xs text-zinc-600">Activate to generate a public link for sharing documents with meeting attendees.</p>
+          <p className="text-xs text-[#96908A]">Activate to generate a public link for sharing documents with meeting attendees.</p>
         )}
         {docs.filter(d => d.isShared).length === 0 && shareLink?.isActive && (
           <p className="text-xs text-amber-500 mt-2">⚠ No documents marked as shared yet — toggle documents below to include them in the link.</p>
@@ -2622,35 +2622,35 @@ function MeetingDocumentsPanel({
 
       {/* Upload form */}
       {showForm && pendingFile && (
-        <div className="bg-[#13161B] border border-[#4F7FFF]/30 rounded-xl p-5 mb-6">
-          <p className="text-sm font-bold text-zinc-300 mb-4">📎 {pendingFile.name}</p>
+        <div className="bg-[#FDFCFB] border border-[#4F7FFF]/30 rounded-xl p-5 mb-6">
+          <p className="text-sm font-bold text-[#231F1B] mb-4">📎 {pendingFile.name}</p>
           <div className="space-y-3">
             <div>
-              <label className="text-xs font-semibold text-zinc-400 block mb-1">Document Title *</label>
+              <label className="text-xs font-semibold text-[#5C5750] block mb-1">Document Title *</label>
               <input value={title} onChange={e => setTitle(e.target.value)}
-                className="w-full bg-[#0D0F12] border border-[#232830] rounded-lg px-3 py-2 text-sm text-zinc-200 outline-none focus:border-blue-600"
+                className="w-full bg-[#F5F2EE] border border-[#E0DAD2] rounded-lg px-3 py-2 text-sm text-[#231F1B] outline-none focus:border-[#8B1A1A]"
                 placeholder="e.g. Draft Agenda — Q1 2026 Board Meeting" />
             </div>
             <div>
-              <label className="text-xs font-semibold text-zinc-400 block mb-1">Document Type</label>
+              <label className="text-xs font-semibold text-[#5C5750] block mb-1">Document Type</label>
               <select value={docType} onChange={e => setDocType(e.target.value)}
-                className="w-full bg-[#0D0F12] border border-[#232830] rounded-lg px-3 py-2 text-sm text-zinc-200 outline-none">
+                className="w-full bg-[#F5F2EE] border border-[#E0DAD2] rounded-lg px-3 py-2 text-sm text-[#231F1B] outline-none">
                 {DOC_TYPES.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
               </select>
             </div>
             <label className="flex items-center gap-3 cursor-pointer">
               <div onClick={() => setIsShared(s => !s)}
-                className={`w-10 h-5 rounded-full transition-colors relative ${isShared ? 'bg-blue-600' : 'bg-[#232830]'}`}>
+                className={`w-10 h-5 rounded-full transition-colors relative ${isShared ? 'bg-[#8B1A1A]' : 'bg-[#EBE6DF]'}`}>
                 <div className={`w-4 h-4 bg-white rounded-full absolute top-0.5 transition-transform ${isShared ? 'translate-x-5' : 'translate-x-0.5'}`} />
               </div>
-              <span className="text-xs font-medium text-zinc-400">Include in share link</span>
+              <span className="text-xs font-medium text-[#5C5750]">Include in share link</span>
             </label>
           </div>
           <div className="flex gap-3 mt-4">
             <button onClick={() => { setShowForm(false); setPendingFile(null); }}
-              className="flex-1 bg-[#232830] text-zinc-400 text-sm font-semibold py-2 rounded-lg">Cancel</button>
+              className="flex-1 bg-[#232830] text-[#5C5750] text-sm font-semibold py-2 rounded-lg">Cancel</button>
             <button onClick={handleUpload} disabled={!title.trim() || uploading}
-              className="flex-2 bg-blue-600 text-white text-sm font-semibold px-6 py-2 rounded-lg disabled:opacity-50">
+              className="flex-2 bg-blue-600 text-[#231F1B] text-sm font-semibold px-6 py-2 rounded-lg disabled:opacity-50">
               {uploading ? `Uploading… ${uploadPct}%` : 'Save Document'}
             </button>
           </div>
@@ -2659,35 +2659,35 @@ function MeetingDocumentsPanel({
 
       {/* Document list */}
       {docs.length === 0 ? (
-        <div className="text-center py-16 text-zinc-600">
+        <div className="text-center py-16 text-[#96908A]">
           <p className="text-sm">No documents uploaded yet.</p>
           {canManage && <p className="text-xs mt-2">Upload a draft agenda or notice to get started.</p>}
         </div>
       ) : (
         <div className="space-y-3">
           {docs.map(doc => (
-            <div key={doc.id} className="bg-[#13161B] border border-[#232830] rounded-xl px-5 py-4 flex items-center gap-4 hover:border-[#374151] transition-colors">
+            <div key={doc.id} className="bg-[#FDFCFB] border border-[#E0DAD2] rounded-xl px-5 py-4 flex items-center gap-4 hover:border-[#374151] transition-colors">
               <span className="text-2xl flex-shrink-0">📄</span>
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2 mb-0.5">
-                  <p className="text-sm font-bold text-zinc-200 truncate">{doc.title}</p>
-                  <span className="text-[9px] font-bold text-zinc-500 uppercase tracking-wide border border-[#232830] px-1.5 py-0.5 rounded flex-shrink-0">
+                  <p className="text-sm font-bold text-[#231F1B] truncate">{doc.title}</p>
+                  <span className="text-[9px] font-bold text-[#96908A] uppercase tracking-wide border border-[#E0DAD2] px-1.5 py-0.5 rounded flex-shrink-0">
                     {DOC_TYPES.find(t => t.value === doc.docType)?.label ?? doc.docType}
                   </span>
                 </div>
-                <p className="text-xs text-zinc-600">{doc.fileName} · {doc.uploader.name} · {new Date(doc.uploadedAt).toLocaleDateString('en-IN')}</p>
+                <p className="text-xs text-[#96908A]">{doc.fileName} · {doc.uploader.name} · {new Date(doc.uploadedAt).toLocaleDateString('en-IN')}</p>
               </div>
               <div className="flex items-center gap-2 flex-shrink-0">
                 {/* Shared toggle */}
                 {canManage && (
                   <button onClick={() => toggleShared(doc)}
-                    className={`text-xs font-semibold px-2.5 py-1 rounded-lg border transition-colors ${doc.isShared ? 'bg-blue-950 border-blue-800 text-blue-400' : 'bg-transparent border-[#232830] text-zinc-600 hover:text-zinc-400'}`}>
+                    className={`text-xs font-semibold px-2.5 py-1 rounded-lg border transition-colors ${doc.isShared ? 'bg-blue-950 border-blue-800 text-[#1D4ED8]' : 'bg-transparent border-[#E0DAD2] text-[#96908A] hover:text-[#5C5750]'}`}>
                     {doc.isShared ? '🔗 Shared' : 'Share'}
                   </button>
                 )}
                 {doc.downloadUrl && (
                   <a href={resolveDownloadUrl(doc.downloadUrl, token)} target="_blank" rel="noopener noreferrer"
-                    className="text-xs font-semibold text-blue-400 hover:text-blue-300">View ↗</a>
+                    className="text-xs font-semibold text-[#1D4ED8] hover:text-[#8B1A1A]">View ↗</a>
                 )}
                 {canManage && (
                   <button onClick={() => removeDoc(doc.id)}
@@ -2715,7 +2715,7 @@ function GuidedMeetingView({
   const safeStep   = Math.min(Math.max(guidedStep, 0), Math.max(steps.length - 1, 0));
   const currentItem = steps[safeStep];
   if (!currentItem) return (
-    <div className="flex flex-1 items-center justify-center text-zinc-600 text-sm">
+    <div className="flex flex-1 items-center justify-center text-[#96908A] text-sm">
       No agenda items to walk through.
     </div>
   );
@@ -2727,8 +2727,8 @@ function GuidedMeetingView({
 
   return (
     <div className="flex flex-1 overflow-hidden">
-      <div className="w-56 flex-shrink-0 bg-[#13161B] border-r border-[#232830] flex flex-col overflow-y-auto p-3">
-        <p className="text-zinc-600 text-[10px] uppercase tracking-widest font-semibold mb-3 px-1">
+      <div className="w-56 flex-shrink-0 bg-[#F5F2EE] border-r border-[#E0DAD2] flex flex-col overflow-y-auto p-3">
+        <p className="text-[#96908A] text-[10px] uppercase tracking-widest font-semibold mb-3 px-1">
           Step {safeStep + 1} of {steps.length}
         </p>
         {steps.map((item: any, idx: number) => {
@@ -2741,31 +2741,31 @@ function GuidedMeetingView({
               onClick={() => { if (!locked) setGuidedStep(idx); }}
               disabled={locked}
               className={`w-full text-left px-3 py-2.5 rounded-lg mb-1 flex items-start gap-2.5 transition-all border ${
-                active  ? 'bg-blue-950/60 border-blue-800/50'
+                active  ? 'bg-[rgba(139,26,26,0.08)] border-[rgba(139,26,26,0.2)]'
                 : locked ? 'opacity-30 cursor-not-allowed border-transparent'
-                : 'hover:bg-[#191D24] border-transparent cursor-pointer'
+                : 'hover:bg-[#FDFCFB] border-transparent cursor-pointer'
               }`}>
               <span className={`flex-shrink-0 w-5 h-5 rounded-full border text-[10px] font-bold flex items-center justify-center mt-0.5 ${
                 done   ? 'bg-green-950 border-green-700 text-green-400'
-                : active ? 'bg-blue-950 border-blue-700 text-blue-400'
-                : 'bg-zinc-900 border-zinc-700 text-zinc-500'
+                : active ? 'bg-blue-950 border-blue-700 text-[#1D4ED8]'
+                : 'bg-[#F5F2EE] border-[#E0DAD2] text-[#96908A]'
               }`}>{done ? '✓' : idx + 1}</span>
               <p className={`text-xs font-medium leading-tight ${
-                active ? 'text-blue-300' : done ? 'text-zinc-400' : 'text-zinc-500'
+                active ? 'text-[#8B1A1A]' : done ? 'text-[#5C5750]' : 'text-[#96908A]'
               }`}>{item.title}</p>
             </button>
           );
         })}
       </div>
       <div className="flex-1 flex flex-col overflow-hidden">
-        <div className="border-b border-[#232830] px-8 py-4 flex items-center justify-between">
+        <div className="border-b border-[#E0DAD2] px-8 py-4 flex items-center justify-between">
           <div>
-            <p className="text-zinc-600 text-[10px] uppercase tracking-widest font-semibold mb-1">
+            <p className="text-[#96908A] text-[10px] uppercase tracking-widest font-semibold mb-1">
               Agenda Item {safeStep + 1} of {steps.length}
             </p>
             <h2 className="text-[#F0F2F5] font-bold text-lg">{currentItem.title}</h2>
             {currentItem.description && (
-              <p className="text-zinc-500 text-sm mt-0.5">{currentItem.description}</p>
+              <p className="text-[#96908A] text-sm mt-0.5">{currentItem.description}</p>
             )}
           </div>
           {stepDone && (
@@ -2784,17 +2784,17 @@ function GuidedMeetingView({
             vaultDocs={vaultDocs}
           />
         </div>
-        <div className="border-t border-[#232830] px-8 py-4 flex items-center justify-between">
+        <div className="border-t border-[#E0DAD2] px-8 py-4 flex items-center justify-between">
           <button
             onClick={() => setGuidedStep((s: number) => Math.max(0, s - 1))}
             disabled={safeStep === 0}
-            className="text-sm font-semibold text-zinc-400 hover:text-zinc-200 disabled:opacity-30 disabled:cursor-not-allowed transition-colors">
+            className="text-sm font-semibold text-[#5C5750] hover:text-[#231F1B] disabled:opacity-30 disabled:cursor-not-allowed transition-colors">
             ← Previous
           </button>
           <div className="flex gap-1.5 items-center">
             {steps.map((_: any, idx: number) => (
               <div key={idx} className={`h-1.5 rounded-full transition-all duration-300 ${
-                idx === safeStep ? 'bg-blue-500 w-4'
+                idx === safeStep ? 'bg-[#8B1A1A] w-4'
                 : idx < safeStep ? 'bg-green-600 w-1.5'
                 : 'bg-zinc-700 w-1.5'
               }`} />
@@ -2809,7 +2809,7 @@ function GuidedMeetingView({
             <button
               onClick={() => setGuidedStep((s: number) => Math.min(steps.length - 1, s + 1))}
               disabled={!stepDone}
-              className="text-sm font-semibold text-blue-400 hover:text-blue-300 disabled:opacity-30 disabled:cursor-not-allowed transition-colors">
+              className="text-sm font-semibold text-[#1D4ED8] hover:text-[#8B1A1A] disabled:opacity-30 disabled:cursor-not-allowed transition-colors">
               {stepDone ? 'Next →' : 'Complete item to continue'}
             </button>
           )}

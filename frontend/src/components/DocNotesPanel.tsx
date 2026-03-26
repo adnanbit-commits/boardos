@@ -85,7 +85,7 @@ export default function DocNotesPanel({
 
   if (loading) {
     return (
-      <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '20px 0', color: '#6B7280', fontSize: 13 }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '20px 0', color: '#96908A', fontSize: 13 }}>
         <div style={{ width: 16, height: 16, border: '2px solid #232830', borderTop: '2px solid #4F7FFF', borderRadius: '50%', animation: 'spin 0.8s linear infinite' }} />
         Loading compliance status…
       </div>
@@ -118,7 +118,7 @@ export default function DocNotesPanel({
           <p style={{ fontSize: 13, fontWeight: 700, color: data.allNoted ? '#34D399' : '#BEF264', margin: '0 0 2px' }}>
             {data.allNoted ? '✓ All compliance documents noted' : `${data.totalNoted} of ${data.totalRequired} documents noted`}
           </p>
-          <p style={{ fontSize: 11, color: '#6B7280', margin: 0 }}>
+          <p style={{ fontSize: 11, color: '#96908A', margin: 0 }}>
             {data.allNoted
               ? 'All declarations are on record.'
               : 'Chairperson must note each form before proceedings can begin.'}
@@ -126,7 +126,7 @@ export default function DocNotesPanel({
         </div>
         <div style={{ textAlign: 'right', flexShrink: 0, marginLeft: 16 }}>
           <div style={{ fontSize: 20, fontWeight: 800, color: data.allNoted ? '#34D399' : '#BEF264' }}>{progress}%</div>
-          <div style={{ width: 80, height: 4, background: '#1a1e26', borderRadius: 2, marginTop: 4 }}>
+          <div style={{ width: 80, height: 4, background: '#E0DAD2', borderRadius: 2, marginTop: 4 }}>
             <div style={{ width: `${progress}%`, height: '100%', background: data.allNoted ? '#34D399' : '#84CC16', borderRadius: 2, transition: 'width 0.3s ease' }} />
           </div>
         </div>
@@ -161,15 +161,15 @@ export default function DocNotesPanel({
       {/* Director × Form matrix */}
       <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
         {data.rows.map(row => (
-          <div key={row.userId} style={{ background: '#13161B', border: '1px solid #232830', borderRadius: 12, overflow: 'hidden' }}>
+          <div key={row.userId} style={{ background: '#FDFCFB', border: '1px solid #232830', borderRadius: 12, overflow: 'hidden' }}>
 
             {/* Row header */}
-            <div style={{ background: '#1a1e26', borderBottom: '1px solid #232830', padding: '10px 16px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <div style={{ background: '#E0DAD2', borderBottom: '1px solid #232830', padding: '10px 16px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
               <div>
-                <span style={{ fontSize: 13, fontWeight: 700, color: '#F0F2F5' }}>{row.name}</span>
-                <span style={{ fontSize: 11, color: '#6B7280', marginLeft: 8 }}>{row.email}</span>
+                <span style={{ fontSize: 13, fontWeight: 700, color: '#231F1B' }}>{row.name}</span>
+                <span style={{ fontSize: 11, color: '#96908A', marginLeft: 8 }}>{row.email}</span>
               </div>
-              <span style={{ fontSize: 10, fontWeight: 700, color: '#4B5563', textTransform: 'uppercase', letterSpacing: '0.06em' }}>{row.role}</span>
+              <span style={{ fontSize: 10, fontWeight: 700, color: '#5C5750', textTransform: 'uppercase', letterSpacing: '0.06em' }}>{row.role}</span>
             </div>
 
             {/* Form cells */}
@@ -209,10 +209,10 @@ export default function DocNotesPanel({
 
                       {/* Form label */}
                       <div style={{ marginBottom: 6 }}>
-                        <span style={{ fontSize: 12, fontWeight: 700, color: '#9CA3AF' }}>{meta.label}</span>
-                        <span style={{ fontSize: 10, color: '#4B5563', marginLeft: 6 }}>{meta.law}</span>
+                        <span style={{ fontSize: 12, fontWeight: 700, color: '#96908A' }}>{meta.label}</span>
+                        <span style={{ fontSize: 10, color: '#5C5750', marginLeft: 6 }}>{meta.law}</span>
                       </div>
-                      <p style={{ fontSize: 11, color: '#4B5563', margin: '0 0 10px', lineHeight: 1.4 }}>{meta.description}</p>
+                      <p style={{ fontSize: 11, color: '#5C5750', margin: '0 0 10px', lineHeight: 1.4 }}>{meta.description}</p>
 
                       {/* Document status */}
                       <div style={{ marginBottom: 10 }}>
@@ -257,11 +257,11 @@ export default function DocNotesPanel({
                           <span style={{ fontSize: 12, fontWeight: 700, color: noteStatusColor }}>
                             {noteStatusLabel}
                           </span>
-                          <span style={{ fontSize: 10, color: '#374151' }}>
+                          <span style={{ fontSize: 10, color: '#E0DAD2' }}>
                             by {cell.note!.chair.name}
                           </span>
                           {cell.note?.exception && (
-                            <p style={{ fontSize: 10, color: '#6B7280', fontStyle: 'italic', width: '100%', margin: '4px 0 0' }}>
+                            <p style={{ fontSize: 10, color: '#96908A', fontStyle: 'italic', width: '100%', margin: '4px 0 0' }}>
                               {cell.note.exception}
                             </p>
                           )}
@@ -286,7 +286,7 @@ export default function DocNotesPanel({
                                   title={!hasReviewed ? 'Open document above first' : undefined}
                                   style={{
                                     fontSize: 11, fontWeight: 700,
-                                    color:      (canNote && hasReviewed) ? '#4F7FFF' : '#4B5563',
+                                    color:      (canNote && hasReviewed) ? '#8B1A1A' : '#5C5750',
                                     background: (canNote && hasReviewed) ? 'rgba(79,127,255,0.08)' : 'rgba(75,85,99,0.08)',
                                     border:     `1px solid ${(canNote && hasReviewed) ? 'rgba(79,127,255,0.3)' : 'rgba(75,85,99,0.2)'}`,
                                     borderRadius: 7, padding: '6px 12px',
@@ -303,7 +303,7 @@ export default function DocNotesPanel({
                                 disabled={isNoting || !canNote}
                                 style={{
                                   fontSize: 11, fontWeight: 600,
-                                  color:      canNote ? '#60A5FA' : '#4B5563',
+                                  color:      canNote ? '#60A5FA' : '#5C5750',
                                   background: canNote ? 'rgba(96,165,250,0.08)' : 'rgba(75,85,99,0.08)',
                                   border:     `1px solid ${canNote ? 'rgba(96,165,250,0.3)' : 'rgba(75,85,99,0.2)'}`,
                                   borderRadius: 7, padding: '6px 12px',
@@ -332,7 +332,7 @@ export default function DocNotesPanel({
                                 >
                                   ⚠ Exception
                                 </button>
-                                <button onClick={() => setActiveCell(null)} style={{ fontSize: 11, color: '#4B5563', background: 'none', border: 'none', cursor: 'pointer', padding: '6px 4px' }}>
+                                <button onClick={() => setActiveCell(null)} style={{ fontSize: 11, color: '#5C5750', background: 'none', border: 'none', cursor: 'pointer', padding: '6px 4px' }}>
                                   ✕
                                 </button>
                               </div>
@@ -346,7 +346,7 @@ export default function DocNotesPanel({
                                 onChange={e => setExceptionText(e.target.value)}
                                 placeholder="Describe the exception (e.g. Director to submit within 30 days per SS-1)"
                                 rows={2}
-                                style={{ width: '100%', boxSizing: 'border-box', background: '#0D0F12', border: '1px solid #78350F', borderRadius: 8, padding: '8px 10px', fontSize: 11, color: '#F0F2F5', resize: 'vertical', marginBottom: 6, fontFamily: "'DM Sans', system-ui, sans-serif" }}
+                                style={{ width: '100%', boxSizing: 'border-box', background: '#F5F2EE', border: '1px solid #78350F', borderRadius: 8, padding: '8px 10px', fontSize: 11, color: '#231F1B', resize: 'vertical', marginBottom: 6, fontFamily: "'Instrument Sans', system-ui, sans-serif" }}
                               />
                               <div style={{ display: 'flex', gap: 6 }}>
                                 <button
@@ -356,7 +356,7 @@ export default function DocNotesPanel({
                                 >
                                   Record Exception
                                 </button>
-                                <button onClick={() => setActiveCell(null)} style={{ fontSize: 11, color: '#4B5563', background: 'none', border: 'none', cursor: 'pointer' }}>Cancel</button>
+                                <button onClick={() => setActiveCell(null)} style={{ fontSize: 11, color: '#5C5750', background: 'none', border: 'none', cursor: 'pointer' }}>Cancel</button>
                               </div>
                             </div>
 
@@ -369,7 +369,7 @@ export default function DocNotesPanel({
                                 {deemedVenue ? <strong> ({deemedVenue})</strong> : ''} and
                                 available for inspection by the Board.
                               </p>
-                              <p style={{ fontSize: 10, color: '#4B5563', margin: '0 0 10px' }}>
+                              <p style={{ fontSize: 10, color: '#5C5750', margin: '0 0 10px' }}>
                                 This will be recorded in the minutes as: "The Chairperson confirmed that Form {meta.label} received from {row.name} was physically present at the deemed venue and placed before the Board."
                               </p>
                               <div style={{ display: 'flex', gap: 6 }}>
@@ -379,14 +379,14 @@ export default function DocNotesPanel({
                                 >
                                   ✓ Confirm Physical Presence
                                 </button>
-                                <button onClick={() => setActiveCell(null)} style={{ fontSize: 11, color: '#4B5563', background: 'none', border: 'none', cursor: 'pointer' }}>Cancel</button>
+                                <button onClick={() => setActiveCell(null)} style={{ fontSize: 11, color: '#5C5750', background: 'none', border: 'none', cursor: 'pointer' }}>Cancel</button>
                               </div>
                             </div>
                           ) : null}
                         </div>
 
                       ) : (
-                        <span style={{ fontSize: 11, color: '#374151', fontStyle: 'italic' }}>Awaiting Chairperson</span>
+                        <span style={{ fontSize: 11, color: '#E0DAD2', fontStyle: 'italic' }}>Awaiting Chairperson</span>
                       )}
 
                     </div>
@@ -399,7 +399,7 @@ export default function DocNotesPanel({
       </div>
 
       {data.rows.length === 0 && (
-        <div style={{ textAlign: 'center', padding: '30px 0', color: '#374151', fontSize: 13 }}>
+        <div style={{ textAlign: 'center', padding: '30px 0', color: '#E0DAD2', fontSize: 13 }}>
           No directors or CS members found in this workspace.
         </div>
       )}
