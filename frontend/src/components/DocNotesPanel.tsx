@@ -109,13 +109,13 @@ export default function DocNotesPanel({
 
       {/* Progress banner */}
       <div style={{
-        background: data.allNoted ? '#022C22' : '#1A1F0D',
-        border: `1px solid ${data.allNoted ? '#064E3B' : '#365314'}`,
+        background: data.allNoted ? '#F0FDF4' : '#FDFCFB',
+        border: `1px solid ${data.allNoted ? '#86EFAC' : '#E0DAD2'}`,
         borderRadius: 12, padding: '14px 18px', marginBottom: 16,
         display: 'flex', alignItems: 'center', justifyContent: 'space-between',
       }}>
         <div>
-          <p style={{ fontSize: 13, fontWeight: 700, color: data.allNoted ? '#34D399' : '#BEF264', margin: '0 0 2px' }}>
+          <p style={{ fontSize: 13, fontWeight: 700, color: data.allNoted ? '#166534' : '#231F1B', margin: '0 0 2px' }}>
             {data.allNoted ? '✓ All compliance documents noted' : `${data.totalNoted} of ${data.totalRequired} documents noted`}
           </p>
           <p style={{ fontSize: 11, color: '#96908A', margin: 0 }}>
@@ -125,17 +125,17 @@ export default function DocNotesPanel({
           </p>
         </div>
         <div style={{ textAlign: 'right', flexShrink: 0, marginLeft: 16 }}>
-          <div style={{ fontSize: 20, fontWeight: 800, color: data.allNoted ? '#34D399' : '#BEF264' }}>{progress}%</div>
+          <div style={{ fontSize: 20, fontWeight: 800, color: data.allNoted ? '#166534' : '#231F1B' }}>{progress}%</div>
           <div style={{ width: 80, height: 4, background: '#EBE6DF', borderRadius: 2, marginTop: 4 }}>
-            <div style={{ width: `${progress}%`, height: '100%', background: data.allNoted ? '#34D399' : '#84CC16', borderRadius: 2, transition: 'width 0.3s ease' }} />
+            <div style={{ width: `${progress}%`, height: '100%', background: data.allNoted ? '#166534' : '#8B1A1A', borderRadius: 2, transition: 'width 0.3s ease' }} />
           </div>
         </div>
       </div>
 
       {/* Missing docs warning */}
       {missingDocs.length > 0 && (
-        <div style={{ background: '#1c1204', border: '1px solid #92400E', borderRadius: 10, padding: '12px 16px', marginBottom: 16 }}>
-          <p style={{ fontSize: 12, fontWeight: 700, color: '#FDE68A', margin: '0 0 6px' }}>
+        <div style={{ background: '#FFFBEB', border: '1px solid #FCD34D', borderRadius: 10, padding: '12px 16px', marginBottom: 16 }}>
+          <p style={{ fontSize: 12, fontWeight: 700, color: '#92400E', margin: '0 0 6px' }}>
             ⚠ {missingDocs.length} document{missingDocs.length > 1 ? 's' : ''} not uploaded to vault
           </p>
           <p style={{ fontSize: 11, color: '#D97706', margin: '0 0 8px', lineHeight: 1.5 }}>
@@ -153,7 +153,7 @@ export default function DocNotesPanel({
 
       {/* No chairperson warning */}
       {!data.chairpersonId && (
-        <div style={{ background: '#451A03', border: '1px solid #92400E', borderRadius: 10, padding: '12px 16px', marginBottom: 16, fontSize: 12, color: '#FDE68A' }}>
+        <div style={{ background: '#FFFBEB', border: '1px solid #FCD34D', borderRadius: 10, padding: '12px 16px', marginBottom: 16, fontSize: 12, color: '#92400E' }}>
           ⚑ No Chairperson elected yet. Elect a Chairperson before noting compliance documents.
         </div>
       )}

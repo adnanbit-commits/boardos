@@ -216,7 +216,7 @@ export default function MeetingWorkspacePage() {
             )}
             {isAdmin && (
               <a href={`/companies/${companyId}`}
-                className="flex items-center gap-1.5 text-xs text-purple-400 bg-purple-950/40 border border-purple-800/40 px-3 py-1.5 rounded-lg hover:bg-purple-950">
+                className="flex items-center gap-1.5 text-xs text-[#5C5750] bg-[#FDFCFB] border border-[#E0DAD2] px-3 py-1.5 rounded-lg hover:border-[#8B1A1A]/30 hover:text-[#8B1A1A] transition-colors">
                 <span>◎</span> Invite Members
               </a>
             )}
@@ -1179,7 +1179,7 @@ function AttendancePanel({ companyId, meetingId, jwt, meeting, attendance, curre
                       <span className="text-[9px] font-bold bg-blue-900/40 text-[#1D4ED8] border border-blue-700/30 px-1.5 py-0.5 rounded-full">you</span>
                     )}
                     {meeting.chairpersonId === dir.userId && (
-                      <span className="text-[9px] font-bold bg-purple-900/40 text-purple-400 border border-purple-700/30 px-1.5 py-0.5 rounded-full">Chairperson</span>
+                      <span className="text-[9px] font-bold bg-purple-50 text-purple-700 border border-purple-200 px-1.5 py-0.5 rounded-full">Chairperson</span>
                     )}
                     {dir.role === 'COMPANY_SECRETARY' && (
                       <span className="text-[9px] font-bold bg-indigo-900/40 text-indigo-400 border border-indigo-700/30 px-1.5 py-0.5 rounded-full">CS</span>
@@ -1412,7 +1412,7 @@ function ComplianceNotingInline({ companyId, meetingId, jwt, meeting, isChairper
     </div>
   );
   if (!data) return (
-    <div className="max-w-2xl fade-up bg-amber-950/20 border border-amber-800/30 rounded-xl px-5 py-4 text-amber-400 text-sm">
+    <div className="max-w-2xl fade-up bg-amber-50 border border-amber-200 rounded-xl px-5 py-4 text-amber-800 text-sm">
       ⚑ Elect a Chairperson first before noting compliance declarations.
     </div>
   );
@@ -1437,7 +1437,7 @@ function ComplianceNotingInline({ companyId, meetingId, jwt, meeting, isChairper
 
       {/* Progress */}
       <div className={`rounded-xl border px-4 py-3 flex items-center justify-between ${data.allNoted ? 'bg-green-50 border-green-200' : 'bg-[#FDFCFB] border-[#E0DAD2]'}`}>
-        <p className={`text-sm font-semibold ${data.allNoted ? 'text-green-400' : 'text-[#231F1B]'}`}>
+        <p className={`text-sm font-semibold ${data.allNoted ? 'text-[#166534]' : 'text-[#231F1B]'}`}>
           {data.allNoted ? '✓ All declarations noted' : `${data.totalNoted} of ${data.totalRequired} noted`}
         </p>
         <div className="flex items-center gap-2">
@@ -1449,8 +1449,8 @@ function ComplianceNotingInline({ companyId, meetingId, jwt, meeting, isChairper
       </div>
 
       {missingDocs.length > 0 && (
-        <div className="bg-amber-950/20 border border-amber-800/30 rounded-xl px-4 py-3">
-          <p className="text-amber-400 text-xs font-semibold mb-1">⚠ {missingDocs.length} form{missingDocs.length > 1 ? 's' : ''} not uploaded to vault</p>
+        <div className="bg-amber-50 border border-amber-200 rounded-xl px-4 py-3">
+          <p className="text-amber-800 text-xs font-semibold mb-1">⚠ {missingDocs.length} form{missingDocs.length > 1 ? 's' : ''} not uploaded to vault</p>
           <p className="text-[#96908A] text-xs">These can still be noted as physically present at {deemedVenue}.</p>
         </div>
       )}
@@ -1459,7 +1459,7 @@ function ComplianceNotingInline({ companyId, meetingId, jwt, meeting, isChairper
       <div className="space-y-3">
         {data.rows.map((row: any) => (
           <div key={row.userId} className="bg-[#FDFCFB] border border-[#E0DAD2] rounded-xl overflow-hidden">
-            <div className="bg-[#1a1e26] border-b border-[#E0DAD2] px-4 py-2.5 flex items-center justify-between">
+            <div className="bg-[#EBE6DF] border-b border-[#E0DAD2] px-4 py-2.5 flex items-center justify-between">
               <div>
                 <span className="text-sm font-semibold text-[#231F1B]">{row.name}</span>
                 <span className="text-[#96908A] text-[11px] ml-2">{row.email}</span>
