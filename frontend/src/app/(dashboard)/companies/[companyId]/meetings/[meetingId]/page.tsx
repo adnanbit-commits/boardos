@@ -336,20 +336,20 @@ export default function MeetingWorkspacePage() {
                 return (
                   <button key={item.id}
                     onClick={() => { setActiveAgenda(item.id === activeAgenda ? null : item.id); setPanel('resolutions'); }}
-                    className={`w-full text-left px-3 py-2.5 rounded-lg transition-all duration-150
+                    className={`group w-full text-left px-3 py-2.5 rounded-lg transition-all duration-150
                       ${activeAgenda === item.id && panel === 'resolutions'
                         ? 'bg-[rgba(139,26,26,0.08)] border border-[rgba(139,26,26,0.2)]'
                         : 'hover:bg-[#EBE6DF] border border-transparent'}`}>
                     <div className="flex items-start gap-2.5">
                       <span className={`flex-shrink-0 w-5 h-5 rounded-full border text-[10px] font-bold flex items-center justify-center mt-0.5
-                        ${allDone ? 'bg-green-950 border-green-700 text-green-400'
-                        : hasVoting ? 'bg-amber-950 border-amber-700 text-amber-400'
+                        ${allDone ? 'bg-[#F0FDF4] border-[#86EFAC] text-[#166534]'
+                        : hasVoting ? 'bg-amber-50 border-amber-300 text-amber-700'
                         : 'bg-[#F5F2EE] border-[#E0DAD2] text-[#96908A]'}`}>
                         {allDone ? '✓' : n}
                       </span>
                       <div className="min-w-0">
                         <p className={`text-xs font-medium leading-tight ${
-                          activeAgenda === item.id && panel === 'resolutions' ? 'text-[#8B1A1A]' : 'text-[#231F1B]'}`}>
+                          activeAgenda === item.id && panel === 'resolutions' ? 'text-[#8B1A1A]' : 'text-[#5C5750] group-hover:text-[#231F1B]'}`}>
                           {item.title}
                           {item.isAob && <span className="ml-1 text-[9px] text-amber-500">AOB</span>}
                         </p>
@@ -2600,7 +2600,7 @@ function MeetingDocumentsPanel({
           </p>
           {canManage && (
             <button onClick={handleShareToggle}
-              className={`text-xs font-semibold px-3 py-1.5 rounded-lg border transition-colors ${shareLink?.isActive ? 'bg-red-950 border-red-800 text-red-400 hover:bg-red-900' : 'bg-[#1E2530] border-[#374151] text-[#5C5750] hover:text-[#231F1B]'}`}>
+              className={`text-xs font-semibold px-3 py-1.5 rounded-lg border transition-colors ${shareLink?.isActive ? 'bg-[rgba(139,26,26,0.07)] border-[rgba(139,26,26,0.22)] text-[#8B1A1A] hover:bg-[rgba(139,26,26,0.12)]' : 'bg-[#EBE6DF] border-[#E0DAD2] text-[#5C5750] hover:text-[#231F1B]'}`}>
               {shareLink?.isActive ? 'Deactivate' : 'Activate'}
             </button>
           )}
@@ -2608,7 +2608,7 @@ function MeetingDocumentsPanel({
         {shareUrl ? (
           <div className="flex items-center gap-2">
             <code className="flex-1 text-xs text-[#8B1A1A] bg-[#F5F2EE] border border-[#E0DAD2] rounded-lg px-3 py-2 truncate">{shareUrl}</code>
-            <button onClick={copyShareUrl} className="text-xs font-semibold text-[#5C5750] hover:text-[#231F1B] bg-[#1E2530] border border-[#374151] rounded-lg px-3 py-2">
+            <button onClick={copyShareUrl} className="text-xs font-semibold text-[#5C5750] hover:text-[#231F1B] bg-[#EBE6DF] border border-[#E0DAD2] rounded-lg px-3 py-2">
               {copied ? '✓ Copied' : 'Copy'}
             </button>
           </div>
