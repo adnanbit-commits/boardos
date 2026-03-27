@@ -210,7 +210,7 @@ export default function MeetingWorkspacePage() {
           <div className="flex items-center gap-3 flex-shrink-0">
             {meeting.videoUrl && (
               <a href={meeting.videoUrl} target="_blank" rel="noopener noreferrer"
-                className="flex items-center gap-2 text-xs text-[#1D4ED8] bg-blue-950 border border-[rgba(139,26,26,0.2)] px-3 py-1.5 rounded-lg hover:bg-blue-900">
+                className="flex items-center gap-2 text-xs text-[#1D4ED8] bg-[#EFF6FF] border border-blue-200 px-3 py-1.5 rounded-lg hover:bg-blue-100 transition-colors">
                 <span>▶</span> Join {meeting.videoProvider ?? 'Video Call'}
               </a>
             )}
@@ -391,7 +391,7 @@ export default function MeetingWorkspacePage() {
                               try { await meetings.admitAob(companyId, meetingId, item.id, jwt); await reload(); }
                               catch (e: any) { alert(e?.body?.message ?? 'Could not admit item'); }
                             }}
-                            className="text-[10px] font-bold text-green-400 bg-green-950/30 border border-green-800/30 px-2 py-0.5 rounded hover:bg-green-950/50 transition-colors">
+                            className="text-[10px] font-bold text-[#166534] bg-green-50 border border-green-300 px-2 py-0.5 rounded hover:bg-green-100 transition-colors">
                             ✓ Admit for Discussion
                           </button>
                           <button
@@ -715,7 +715,7 @@ function ChairpersonModal({ companyId, meetingId, jwt, currentUserId, onElected,
                 key={d.userId}
                 onClick={() => nominate(d.userId)}
                 disabled={saving}
-                className="w-full flex items-center justify-between px-4 py-3 bg-[#F5F2EE] border border-[#E0DAD2] rounded-xl hover:border-blue-700/50 hover:bg-[#0d1524] transition-all text-left disabled:opacity-50"
+                className="w-full flex items-center justify-between px-4 py-3 bg-[#FDFCFB] border border-[#E0DAD2] rounded-xl hover:border-[#8B1A1A]/30 hover:bg-[#F5F2EE] transition-all text-left disabled:opacity-50"
               >
                 <div>
                   <p className="text-sm font-semibold text-[#231F1B]">{d.name}</p>
@@ -763,7 +763,7 @@ function ChairpersonModal({ companyId, meetingId, jwt, currentUserId, onElected,
                   <button
                     onClick={confirm}
                     disabled={saving}
-                    className="px-4 py-2 bg-green-900/50 border border-green-700/50 text-green-400 text-xs font-semibold rounded-lg hover:bg-green-900/70 transition-colors disabled:opacity-50"
+                    className="px-4 py-2 bg-green-50 border border-green-400 text-[#166534] text-xs font-semibold rounded-lg hover:bg-green-100 transition-colors disabled:opacity-50"
                   >
                     {saving ? '…' : '✓ Confirm'}
                   </button>
@@ -1251,7 +1251,7 @@ function AttendancePanel({ companyId, meetingId, jwt, meeting, attendance, curre
                         expandedRow === rowKey('VIDEO') ? 'VIDEO' : 'PHONE',
                         location, ntp
                       )}
-                      className="px-3 py-1.5 rounded-lg text-[11px] font-semibold bg-blue-900/50 border border-blue-700/50 text-[#1D4ED8] disabled:opacity-50 hover:bg-blue-900/70 transition-colors"
+                      className="px-3 py-1.5 rounded-lg text-[11px] font-semibold bg-[#EFF6FF] border border-blue-300 text-[#1D4ED8] disabled:opacity-50 hover:bg-blue-100 transition-colors"
                     >
                       {isSaving ? '…' : '✓ Confirm'}
                     </button>
@@ -1492,7 +1492,7 @@ function ComplianceNotingInline({ companyId, meetingId, jwt, meeting, isChairper
                     {hasDoc && downloadUrl ? (
                       <a href={downloadUrl} target="_blank" rel="noopener noreferrer"
                         onClick={() => setReviewed(prev => new Set(prev).add(cellKey))}
-                        className={`inline-flex items-center gap-1 text-[11px] font-semibold px-2 py-1 rounded-lg border mb-2 transition-colors ${hasReviewed ? 'text-green-400 border-green-800/40 bg-green-950/20' : 'text-[#1D4ED8] border-blue-800/40 bg-blue-950/10 hover:bg-blue-950/20'}`}>
+                        className={`inline-flex items-center gap-1 text-[11px] font-semibold px-2 py-1 rounded-lg border mb-2 transition-colors ${hasReviewed ? 'text-[#166534] border-green-300 bg-green-50' : 'text-[#1D4ED8] border-blue-200 bg-[#EFF6FF] hover:bg-blue-100'}`}>
                         {hasReviewed ? '✓' : '↗'} {cell.complianceDoc.fileName?.slice(0, 20) ?? 'Open'}
                       </a>
                     ) : (
@@ -1757,7 +1757,7 @@ function ResolutionCard({ resolution, index, companyId, jwt, currentUserId, meet
   return (
     <div className={`bg-[#FDFCFB] border ${borderColor} rounded-2xl overflow-hidden transition-all duration-200`}>
       <div className={`h-0.5 ${accentBar}`} />
-      <button className="w-full text-left px-6 py-4 flex items-start justify-between gap-4 hover:bg-[#1d2229]"
+      <button className="w-full text-left px-6 py-4 flex items-start justify-between gap-4 hover:bg-[#F5F2EE] transition-colors"
         onClick={() => setExpanded(e => !e)}>
         <div className="flex items-start gap-3 min-w-0">
           <span className="flex-shrink-0 w-6 h-6 rounded-full bg-[#EBE6DF] border border-[#E0DAD2] text-[#96908A] text-[10px] font-bold flex items-center justify-center mt-0.5">
@@ -1769,7 +1769,7 @@ function ResolutionCard({ resolution, index, companyId, jwt, currentUserId, meet
               {isNoting && <span className="text-[9px] bg-[#EBE6DF] border border-[#E0DAD2] text-[#96908A] px-1.5 py-0.5 rounded-full">Noting</span>}
             </div>
             {resolution.status === 'VOTING' && (
-              <p className="text-amber-400 text-[11px] mt-0.5">{totalVotes} of {resolution.directorCount ?? '?'} voted</p>
+              <p className="text-amber-700 text-[11px] mt-0.5">{totalVotes} of {resolution.directorCount ?? '?'} voted</p>
             )}
           </div>
         </div>
@@ -1868,7 +1868,7 @@ function ResolutionCard({ resolution, index, companyId, jwt, currentUserId, meet
                     className={`text-xs font-semibold px-3 py-1.5 rounded-lg border transition-colors flex-shrink-0 ${
                       openedVault
                         ? 'text-green-400 border-green-700/40 bg-green-950/30'
-                        : 'text-[#1D4ED8] border-blue-700/40 bg-blue-950/30 hover:bg-blue-950/50'
+                        : 'text-[#1D4ED8] border-blue-300 bg-[#EFF6FF] hover:bg-blue-100'
                     }`}>
                     {openedVault ? '↗ Re-open' : '↗ Open'}
                   </a>
@@ -2046,9 +2046,9 @@ function ResolutionCard({ resolution, index, companyId, jwt, currentUserId, meet
               <p className="text-[#96908A] text-xs mb-2 font-medium">Cast your vote</p>
               <div className="flex gap-2">
                 {[
-                  {value:'APPROVE', label:'✓ Approve', idle:'border-[#E0DAD2] text-[#5C5750] hover:border-green-700 hover:text-green-400', active:'bg-green-950/60 border-green-700 text-green-400'},
-                  {value:'REJECT',  label:'✕ Reject',  idle:'border-[#E0DAD2] text-[#5C5750] hover:border-red-700 hover:text-red-400',   active:'bg-red-950/60 border-red-700 text-red-400'},
-                  {value:'ABSTAIN', label:'— Abstain', idle:'border-[#E0DAD2] text-[#5C5750] hover:border-amber-700 hover:text-amber-400', active:'bg-amber-950/60 border-amber-700 text-amber-400'},
+                  {value:'APPROVE', label:'✓ Approve', idle:'border-[#E0DAD2] text-[#5C5750] hover:border-green-600 hover:text-[#166534] hover:bg-green-50', active:'bg-green-50 border-green-400 text-[#166534] font-bold'},
+                  {value:'REJECT',  label:'✕ Reject',  idle:'border-[#E0DAD2] text-[#5C5750] hover:border-red-400 hover:text-[#8B1A1A] hover:bg-red-50',   active:'bg-red-50 border-red-400 text-[#8B1A1A] font-bold'},
+                  {value:'ABSTAIN', label:'— Abstain', idle:'border-[#E0DAD2] text-[#5C5750] hover:border-amber-400 hover:text-amber-700 hover:bg-amber-50', active:'bg-amber-50 border-amber-400 text-amber-700 font-bold'},
                 ].map(btn => (
                   <button key={btn.value} onClick={() => castVote(btn.value)} disabled={isVoting}
                     className={`flex-1 py-2 text-xs font-semibold border rounded-lg transition-all ${myVote === btn.value ? btn.active : btn.idle}`}>
@@ -2586,7 +2586,7 @@ function MeetingDocumentsPanel({
         </div>
         {canManage && (
           <button onClick={() => fileRef.current?.click()} disabled={uploading}
-            className="bg-blue-600 hover:bg-blue-700 text-[#231F1B] text-sm font-semibold px-4 py-2 rounded-lg transition-colors">
+            className="bg-[#8B1A1A] hover:bg-[#A52020] text-white text-sm font-semibold px-4 py-2 rounded-lg transition-colors">
             + Upload
           </button>
         )}
