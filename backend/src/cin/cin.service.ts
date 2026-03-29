@@ -1,20 +1,17 @@
 // src/cin/cin.service.ts
 //
-// MCA lookup strategy (in order):
-//   1. MCA V3 efiling endpoints — direct, no auth, no cost
-//   2. MCA V2 company master (data frozen at June 2024, fallback only)
-//   3. Graceful degradation — return empty directors, let user fill manually
+// Lookup chain:
+//   1. Sandbox API (primary — full director data with DINs)
+//   2. MCA V3 direct endpoints (fallback — no API key, may have CSRF issues)
+//   3. Throw ServiceUnavailableException → frontend switches to manual entry
 //
-// These are the same endpoints the MCA portal's own browser calls hit.
-// No API key required. Rate limit is undocumented — keep one call per
-// workspace creation, never batch.
-//
-// When to upgrade to a paid provider (Surepass / APIclub):
-//   - MCA adds CSRF token validation to the V3 endpoints
-//   - Director data for newly incorporated companies is incomplete
-//   - Rate limiting starts blocking legitimate usage at scale
+// The frontend (companies/new/page.tsx) catches any thrown error and
+// moves to step='manual' where the user fills in details themselves.
+// Never return a partial/empty stub — always throw on full failure so
+// the frontend flow is unambiguous.
 
-import { Injectable, BadRequestException } from '@nestjs/common';
+import { Injectable, BadRequestException, ServiceUnavailableException } from '@nestjs/common';
+import * as https from 'https';
 
 export interface CinDirector {
   din: string; name: string; designation: string; appointedOn: string | null;
@@ -25,161 +22,182 @@ export interface CinLookupResult {
   companyEmail: string | null; directors: CinDirector[];
 }
 
-// MCA V3 efiling REST endpoints (same ones the public portal calls)
-const V3_BASE      = 'https://efiling.mca.gov.in/OnlineServices/rest/companyProfileSearch';
-const V3_MASTER    = `${V3_BASE}/getCompanyMasterData`;
-const V3_SIGNATORY = `${V3_BASE}/getSignatoryDetails`;
+// ── Sandbox helpers (original implementation) ─────────────────────────────
 
-const FETCH_HEADERS = {
+function sandboxRequest(path: string, method: 'GET'|'POST', headers: Record<string,string>, body?: object): Promise<any> {
+  return new Promise((resolve, reject) => {
+    const payload = body ? JSON.stringify(body) : undefined;
+    const req = https.request({
+      hostname: 'api.sandbox.co.in', path, method,
+      headers: { 'Content-Type': 'application/json', ...headers, ...(payload ? { 'Content-Length': Buffer.byteLength(payload) } : {}) },
+    }, (res) => {
+      let data = '';
+      res.on('data', c => data += c);
+      res.on('end', () => {
+        try {
+          const parsed = JSON.parse(data);
+          if (res.statusCode && res.statusCode >= 200 && res.statusCode < 300) resolve(parsed);
+          else reject(new Error(`Sandbox ${res.statusCode}: ${data}`));
+        } catch { reject(new Error(`Invalid JSON: ${data}`)); }
+      });
+    });
+    req.on('error', reject);
+    if (payload) req.write(payload);
+    req.end();
+  });
+}
+
+// ── MCA direct scrape helpers ─────────────────────────────────────────────
+
+const V3_BASE      = 'https://efiling.mca.gov.in/OnlineServices/rest/companyProfileSearch';
+const MCA_HEADERS  = {
   'User-Agent': 'Mozilla/5.0 (compatible; SafeMinutes/1.0; +https://safeminutes.com)',
   'Accept':     'application/json, text/plain, */*',
   'Referer':    'https://www.mca.gov.in/',
   'Origin':     'https://www.mca.gov.in',
 };
 
-const TIMEOUT_MS = 12_000;
-
-function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
+function withTimeout<T>(p: Promise<T>, ms: number): Promise<T> {
   return Promise.race([
-    promise,
-    new Promise<T>((_, reject) =>
-      setTimeout(() => reject(new Error('MCA request timed out')), ms)
-    ),
+    p,
+    new Promise<T>((_, rej) => setTimeout(() => rej(new Error('MCA timeout')), ms)),
   ]);
 }
 
+// ── Service ───────────────────────────────────────────────────────────────
+
 @Injectable()
 export class CinService {
+  private cachedToken: string | null = null;
+  private tokenExpiry = 0;
 
   async lookup(cin: string): Promise<CinLookupResult> {
     const clean = cin.trim().toUpperCase();
     if (!/^[A-Z][0-9]{5}[A-Z]{2}[0-9]{4}[A-Z]{3}[0-9]{6}$/.test(clean)) {
-      throw new BadRequestException(
-        'Invalid CIN format. Expected 21 characters, e.g. U12345MH2024PTC000000',
-      );
+      throw new BadRequestException('Invalid CIN format. Expected 21 chars e.g. U12345MH2024PTC000000');
     }
 
-    // Fire both V3 calls in parallel
-    const [masterResult, signatoryResult] = await Promise.allSettled([
-      withTimeout(this.fetchV3Master(clean),    TIMEOUT_MS),
-      withTimeout(this.fetchV3Signatory(clean), TIMEOUT_MS),
-    ]);
+    // ── Tier 1: Sandbox API ─────────────────────────────────────────────
+    const apiKey    = process.env.SANDBOX_API_KEY;
+    const apiSecret = process.env.SANDBOX_API_SECRET;
 
-    // If master data failed try V2 fallback
-    if (masterResult.status === 'rejected') {
-      console.warn(`CinService: V3 master failed for ${clean}:`, masterResult.reason?.message);
+    if (apiKey && apiSecret) {
       try {
-        const v2 = await withTimeout(this.fetchV2Master(clean), TIMEOUT_MS);
-        return { ...v2, directors: [], companyEmail: null };
-      } catch (v2err: any) {
-        console.warn(`CinService: V2 fallback also failed for ${clean}:`, v2err?.message);
-        // Full degradation — return minimal stub, user fills manually
-        return {
-          cin: clean, companyName: '', status: 'Unknown',
-          incorporatedOn: null, registeredAddress: null,
-          companyEmail: null, directors: [],
-        };
+        const jwt = await this.getToken(apiKey, apiSecret);
+        const res = await sandboxRequest('/mca/company/master-data/search', 'POST',
+          { 'authorization': jwt, 'x-api-key': apiKey, 'x-api-version': '2.0' },
+          { '@entity': 'in.co.sandbox.kyc.mca.master_data.request', id: clean, consent: 'y', reason: 'SafeMinutes workspace creation' },
+        );
+        return this.parseSandbox(res, clean);
+      } catch (err: any) {
+        if (err instanceof BadRequestException) throw err;
+        console.warn(`CinService: Sandbox failed for ${clean} — trying MCA direct:`, err.message);
+        // Fall through to MCA direct
       }
     }
 
-    const master    = masterResult.value;
-    const signatory = signatoryResult.status === 'fulfilled'
-      ? signatoryResult.value : { directors: [] };
+    // ── Tier 2: MCA V3 direct endpoints (no API key) ────────────────────
+    try {
+      return await withTimeout(this.fetchMcaDirect(clean), 15_000);
+    } catch (err: any) {
+      console.warn(`CinService: MCA direct also failed for ${clean}:`, err.message);
+      // Fall through to throw — frontend will show manual entry
+    }
 
+    // ── Tier 3: Both failed — let frontend handle manual entry ──────────
+    throw new ServiceUnavailableException(
+      'MCA data is temporarily unavailable. Please enter your company details manually — you can re-sync from MCA later.',
+    );
+  }
+
+  // ── Sandbox token ─────────────────────────────────────────────────────
+
+  private async getToken(apiKey: string, apiSecret: string): Promise<string> {
+    if (this.cachedToken && Date.now() < this.tokenExpiry) return this.cachedToken;
+    const res = await sandboxRequest('/authenticate', 'POST',
+      { 'x-api-key': apiKey, 'x-api-secret': apiSecret },
+    );
+    const token = res?.access_token ?? res?.data?.access_token;
+    if (!token) throw new Error('Failed to get Sandbox token');
+    this.cachedToken = token;
+    this.tokenExpiry = Date.now() + 23 * 60 * 60 * 1000;
+    return token;
+  }
+
+  // ── Sandbox response parser ───────────────────────────────────────────
+
+  private parseSandbox(res: any, cin: string): CinLookupResult {
+    const m    = res?.data?.company_master_data ?? {};
+    const dirs = res?.data?.['directors/signatory_details'] ?? [];
     return {
-      cin:               master.cin                ?? clean,
-      companyName:       this.toTitleCase(master.companyName ?? ''),
-      status:            master.companyStatus      ?? 'Unknown',
-      incorporatedOn:    master.dateOfIncorporation ?? null,
-      registeredAddress: master.registeredAddress  ?? null,
-      companyEmail:      master.emailId            ?? null,
-      directors: signatory.directors.map((d: any) => ({
-        din:         String(d.din ?? ''),
-        name:        this.toTitleCase(d.name ?? d.signatoryName ?? ''),
-        designation: d.designation       ?? 'Director',
-        appointedOn: d.dateOfAppointment ?? d.beginDate ?? null,
+      cin:               m.cin ?? cin,
+      companyName:       this.title(m.company_name ?? ''),
+      status:            m['company_status(for_efiling)'] ?? m.company_status ?? 'Unknown',
+      incorporatedOn:    m.date_of_incorporation ?? null,
+      registeredAddress: m.registered_address ?? null,
+      companyEmail:      m.email_id ?? null,
+      directors: dirs.map((d: any) => ({
+        din:         String(d['din/pan'] ?? d.din ?? ''),
+        name:        this.title(d.name ?? ''),
+        designation: d.designation ?? 'Director',
+        appointedOn: d.begin_date ?? null,
       })),
     };
   }
 
-  // ── V3 master data ────────────────────────────────────────────────────────
-  private async fetchV3Master(cin: string): Promise<any> {
-    const res = await fetch(`${V3_MASTER}?cin=${encodeURIComponent(cin)}`, { headers: FETCH_HEADERS });
-    if (!res.ok) throw new Error(`V3 master HTTP ${res.status}`);
-    const json = await res.json();
+  // ── MCA V3 direct scrape ──────────────────────────────────────────────
+  // Calls the same REST endpoints the MCA public portal uses in-browser.
+  // No API key needed. Normalises multiple known response shapes.
 
-    const d = json?.companyMasterData
-           ?? json?.data?.companyMasterData
-           ?? json?.data
-           ?? json;
+  private async fetchMcaDirect(cin: string): Promise<CinLookupResult> {
+    const [masterRes, sigRes] = await Promise.allSettled([
+      fetch(`${V3_BASE}/getCompanyMasterData?cin=${encodeURIComponent(cin)}`, { headers: MCA_HEADERS }),
+      fetch(`${V3_BASE}/getSignatoryDetails?cin=${encodeURIComponent(cin)}`,  { headers: MCA_HEADERS }),
+    ]);
 
-    if (!d || (!d.companyName && !d.company_name)) {
-      throw new Error('V3 master response missing company data');
+    if (masterRes.status === 'rejected' || !masterRes.value.ok) {
+      throw new Error('MCA V3 master fetch failed');
+    }
+
+    const masterJson = await masterRes.value.json();
+    const d = masterJson?.companyMasterData
+           ?? masterJson?.data?.companyMasterData
+           ?? masterJson?.data
+           ?? masterJson;
+
+    if (!d?.companyName && !d?.company_name) {
+      throw new Error('MCA V3 response missing company data');
+    }
+
+    let directors: CinDirector[] = [];
+    if (sigRes.status === 'fulfilled' && sigRes.value.ok) {
+      const sigJson = await sigRes.value.json();
+      const dirs: any[] = sigJson?.signatoryDetails
+                       ?? sigJson?.data?.signatoryDetails
+                       ?? sigJson?.directors
+                       ?? [];
+      directors = dirs.map((s: any) => ({
+        din:         String(s.din ?? s['din/pan'] ?? ''),
+        name:        this.title(s.signatoryName ?? s.name ?? ''),
+        designation: s.designation ?? 'Director',
+        appointedOn: s.dateOfAppointment ?? s.beginDate ?? s.begin_date ?? null,
+      }));
     }
 
     return {
-      cin:                 d.cin                ?? d.CIN                 ?? cin,
-      companyName:         d.companyName        ?? d.company_name        ?? '',
-      companyStatus:       d.companyStatus      ?? d.company_status      ?? '',
-      dateOfIncorporation: d.dateOfIncorporation ?? d.date_of_incorporation ?? null,
-      registeredAddress:   d.registeredAddress  ?? d.registered_address  ?? null,
-      emailId:             d.emailId            ?? d.email_id            ?? null,
+      cin:               d.cin ?? d.CIN ?? cin,
+      companyName:       this.title(d.companyName ?? d.company_name ?? ''),
+      status:            d.companyStatus ?? d.company_status ?? 'Unknown',
+      incorporatedOn:    d.dateOfIncorporation ?? d.date_of_incorporation ?? null,
+      registeredAddress: d.registeredAddress ?? d.registered_address ?? null,
+      companyEmail:      d.emailId ?? d.email_id ?? null,
+      directors,
     };
   }
 
-  // ── V3 signatory / director list ──────────────────────────────────────────
-  private async fetchV3Signatory(cin: string): Promise<{ directors: any[] }> {
-    const res = await fetch(`${V3_SIGNATORY}?cin=${encodeURIComponent(cin)}`, { headers: FETCH_HEADERS });
-    if (!res.ok) throw new Error(`V3 signatory HTTP ${res.status}`);
-    const json = await res.json();
+  // ── Helpers ───────────────────────────────────────────────────────────
 
-    const dirs: any[] = json?.signatoryDetails
-                     ?? json?.data?.signatoryDetails
-                     ?? json?.directors
-                     ?? json?.data?.directors
-                     ?? [];
-
-    return {
-      directors: dirs.map((d: any) => ({
-        din:               d.din              ?? d['din/pan'] ?? '',
-        name:              d.signatoryName    ?? d.name       ?? '',
-        designation:       d.designation                      ?? 'Director',
-        dateOfAppointment: d.dateOfAppointment ?? d.beginDate ?? d.begin_date ?? null,
-      })),
-    };
-  }
-
-  // ── V2 fallback ───────────────────────────────────────────────────────────
-  // Data frozen at June 2024. Company master only — no directors.
-  private async fetchV2Master(cin: string): Promise<Omit<CinLookupResult, 'directors' | 'companyEmail'>> {
-    const params = new URLSearchParams({ companyID: cin });
-    const res = await fetch(
-      `https://www.mca.gov.in/mcafoportal/viewCompanyMasterData.do?${params}`,
-      { headers: { ...FETCH_HEADERS, 'Accept': 'text/html,application/xhtml+xml' } },
-    );
-    if (!res.ok) throw new Error(`V2 HTTP ${res.status}`);
-    const html = await res.text();
-
-    const extract = (label: string): string | null => {
-      const re = new RegExp(label + '.*?<td[^>]*>([^<]+)<', 'is');
-      const m  = html.match(re);
-      return m ? m[1].trim() : null;
-    };
-
-    const companyName = extract('Company Name') ?? '';
-    if (!companyName) throw new Error('V2 response did not contain company data');
-
-    return {
-      cin,
-      companyName:       this.toTitleCase(companyName),
-      status:            extract('Status')               ?? 'Unknown',
-      incorporatedOn:    extract('Date of Incorporation') ?? null,
-      registeredAddress: extract('Registered Address')   ?? null,
-    };
-  }
-
-  // ── Helpers ───────────────────────────────────────────────────────────────
-  private toTitleCase(s: string): string {
+  private title(s: string): string {
     return s.toLowerCase().replace(/\b\w/g, c => c.toUpperCase());
   }
 }
