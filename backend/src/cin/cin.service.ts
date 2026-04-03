@@ -136,55 +136,66 @@ export class CinService {
   }
 
   // ── companydetails.in scrape ──────────────────────────────────────────────
-  // companydetails.in exposes a CIN-based redirect URL:
-  //   https://www.companydetails.in/updatecompanydetails/{CIN}
-  // which redirects to the company profile page. That page has:
-  //   - Company name in <h1>
-  //   - Fields in label/value pairs inside a details table
-  //   - A clean director table: DIN | Name | Designation | Appointment Date
-  // Verified: responds to server-side fetches without 403 or CAPTCHA.
+  // Strategy:
+  //   1. Search DuckDuckGo lite for "{CIN} site:companydetails.in" — no API key, no JS
+  //   2. Extract the first companydetails.in result URL from the response HTML
+  //   3. Fetch that URL and parse the company page
+  //
+  // companydetails.in has DIN, name, designation, appointment date in a clean
+  // director table and responds to server-side fetches without 403 or CAPTCHA.
 
   private async fetchMcaDirect(cin: string): Promise<CinLookupResult> {
-    const res = await fetch(
-      `https://www.companydetails.in/updatecompanydetails/${cin}`,
-      {
-        headers: {
-          'User-Agent': 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-          'Accept':     'text/html,application/xhtml+xml,*/*',
-          'Referer':    'https://www.companydetails.in/',
-        },
-        redirect: 'follow',
-      }
-    );
+    const HEADERS = {
+      'User-Agent': 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+      'Accept':     'text/html,application/xhtml+xml,*/*',
+    };
 
-    if (!res.ok) throw new Error(`companydetails.in HTTP ${res.status}`);
-    const html = await res.text();
+    // ── Step 1: find the company page URL via DDG lite search ────────────────
+    const query   = encodeURIComponent(`${cin} site:companydetails.in`);
+    const ddgRes  = await fetch(`https://duckduckgo.com/lite?q=${query}`, {
+      headers: { ...HEADERS, 'Referer': 'https://duckduckgo.com/' },
+    });
+    if (!ddgRes.ok) throw new Error(`DDG search HTTP ${ddgRes.status}`);
+    const ddgHtml = await ddgRes.text();
 
-    // ── Company name — appears in <h1> ──────────────────────────────────────
-    const nameMatch = html.match(/<h1[^>]*>\s*([^<]{5,}?)\s*<\/h1>/i);
-    const companyName = nameMatch ? this.title(nameMatch[1].trim()) : '';
-    if (!companyName) throw new Error('companydetails.in: could not parse company name');
+    // DDG lite result links are in <a class="result-link" href="...">
+    const urlMatch = ddgHtml.match(/href="(https?:\/\/(?:www\.)?companydetails\.in\/company\/[^"]+)"/i);
+    if (!urlMatch) throw new Error('companydetails.in not found in DDG results');
+    const pageUrl = urlMatch[1];
 
-    // ── Extract labelled field values from the detail sections ───────────────
-    // Pattern: label in one element, value in the next <h6> sibling
+    // ── Step 2: fetch the company profile page ───────────────────────────────
+    const pageRes = await fetch(pageUrl, {
+      headers: { ...HEADERS, 'Referer': 'https://www.companydetails.in/' },
+      redirect: 'follow',
+    });
+    if (!pageRes.ok) throw new Error(`companydetails.in page HTTP ${pageRes.status}`);
+    const html = await pageRes.text();
+
+    // ── Step 3: parse company name from <h1> ─────────────────────────────────
+    // The page <h1> contains only the company name (all caps)
+    // Skip if it looks like the homepage headline
+    const h1Match = html.match(/<h1[^>]*>\s*([A-Z][A-Z0-9 &.,'\-()]{4,}(?:PRIVATE LIMITED|LIMITED|LTD\.?))\s*<\/h1>/i);
+    const companyName = h1Match ? this.title(h1Match[1].trim()) : '';
+    if (!companyName) throw new Error('companydetails.in: could not parse company name from page');
+
+    // ── Step 4: extract labelled field values ────────────────────────────────
+    // Pattern on the page: label text then value in <h6>
     const field = (label: string): string | null => {
       const re = new RegExp(label + '[\\s\\S]{0,300}?<h6[^>]*>([^<]+)<\\/h6>', 'i');
       const m  = html.match(re);
-      return m ? m[1].trim().replace(/&amp;/g, '&').replace(/&AMP;/g, '&') : null;
+      return m ? m[1].trim().replace(/&amp;/gi, '&') : null;
     };
 
-    // ── Director table ───────────────────────────────────────────────────────
-    // Section heading: "DIRECTOR DETAILS"
-    // Table columns: DIN | Director Name | Designation | Appointment Date
+    // ── Step 5: parse director table ─────────────────────────────────────────
+    // Table heading: "DIRECTOR DETAILS"
+    // Columns: DIN (8 digits) | Director Name | Designation | Appointment Date
     const directors: CinDirector[] = [];
     const tableSection = html.match(/DIRECTOR DETAILS[\s\S]*?<table[^>]*>([\s\S]*?)<\/table>/i);
     if (tableSection) {
       const rows = tableSection[1].match(/<tr[^>]*>([\s\S]*?)<\/tr>/gi) ?? [];
       for (const row of rows) {
-        // Strip all tags, get text content of each cell
         const cells = (row.match(/<t[dh][^>]*>([\s\S]*?)<\/t[dh]>/gi) ?? [])
           .map(c => c.replace(/<[^>]+>/g, '').trim());
-        // DIN is exactly 8 digits — use that as the row guard
         if (cells.length >= 2 && /^\d{8}$/.test(cells[0])) {
           directors.push({
             din:         cells[0],
