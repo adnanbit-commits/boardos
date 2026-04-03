@@ -47,20 +47,10 @@ function sandboxRequest(path: string, method: 'GET'|'POST', headers: Record<stri
   });
 }
 
-// ── MCA direct scrape helpers ─────────────────────────────────────────────
-
-const V3_BASE      = 'https://efiling.mca.gov.in/OnlineServices/rest/companyProfileSearch';
-const MCA_HEADERS  = {
-  'User-Agent': 'Mozilla/5.0 (compatible; SafeMinutes/1.0; +https://safeminutes.com)',
-  'Accept':     'application/json, text/plain, */*',
-  'Referer':    'https://www.mca.gov.in/',
-  'Origin':     'https://www.mca.gov.in',
-};
-
 function withTimeout<T>(p: Promise<T>, ms: number): Promise<T> {
   return Promise.race([
     p,
-    new Promise<T>((_, rej) => setTimeout(() => rej(new Error('MCA timeout')), ms)),
+    new Promise<T>((_, rej) => setTimeout(() => rej(new Error('Lookup timed out')), ms)),
   ]);
 }
 
@@ -145,52 +135,74 @@ export class CinService {
     };
   }
 
-  // ── MCA V3 direct scrape ──────────────────────────────────────────────
-  // Calls the same REST endpoints the MCA public portal uses in-browser.
-  // No API key needed. Normalises multiple known response shapes.
+  // ── companydetails.in scrape ──────────────────────────────────────────────
+  // companydetails.in exposes a CIN-based redirect URL:
+  //   https://www.companydetails.in/updatecompanydetails/{CIN}
+  // which redirects to the company profile page. That page has:
+  //   - Company name in <h1>
+  //   - Fields in label/value pairs inside a details table
+  //   - A clean director table: DIN | Name | Designation | Appointment Date
+  // Verified: responds to server-side fetches without 403 or CAPTCHA.
 
   private async fetchMcaDirect(cin: string): Promise<CinLookupResult> {
-    const [masterRes, sigRes] = await Promise.allSettled([
-      fetch(`${V3_BASE}/getCompanyMasterData?cin=${encodeURIComponent(cin)}`, { headers: MCA_HEADERS }),
-      fetch(`${V3_BASE}/getSignatoryDetails?cin=${encodeURIComponent(cin)}`,  { headers: MCA_HEADERS }),
-    ]);
+    const res = await fetch(
+      `https://www.companydetails.in/updatecompanydetails/${cin}`,
+      {
+        headers: {
+          'User-Agent': 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+          'Accept':     'text/html,application/xhtml+xml,*/*',
+          'Referer':    'https://www.companydetails.in/',
+        },
+        redirect: 'follow',
+      }
+    );
 
-    if (masterRes.status === 'rejected' || !masterRes.value.ok) {
-      throw new Error('MCA V3 master fetch failed');
-    }
+    if (!res.ok) throw new Error(`companydetails.in HTTP ${res.status}`);
+    const html = await res.text();
 
-    const masterJson = await masterRes.value.json();
-    const d = masterJson?.companyMasterData
-           ?? masterJson?.data?.companyMasterData
-           ?? masterJson?.data
-           ?? masterJson;
+    // ── Company name — appears in <h1> ──────────────────────────────────────
+    const nameMatch = html.match(/<h1[^>]*>\s*([^<]{5,}?)\s*<\/h1>/i);
+    const companyName = nameMatch ? this.title(nameMatch[1].trim()) : '';
+    if (!companyName) throw new Error('companydetails.in: could not parse company name');
 
-    if (!d?.companyName && !d?.company_name) {
-      throw new Error('MCA V3 response missing company data');
-    }
+    // ── Extract labelled field values from the detail sections ───────────────
+    // Pattern: label in one element, value in the next <h6> sibling
+    const field = (label: string): string | null => {
+      const re = new RegExp(label + '[\\s\\S]{0,300}?<h6[^>]*>([^<]+)<\\/h6>', 'i');
+      const m  = html.match(re);
+      return m ? m[1].trim().replace(/&amp;/g, '&').replace(/&AMP;/g, '&') : null;
+    };
 
-    let directors: CinDirector[] = [];
-    if (sigRes.status === 'fulfilled' && sigRes.value.ok) {
-      const sigJson = await sigRes.value.json();
-      const dirs: any[] = sigJson?.signatoryDetails
-                       ?? sigJson?.data?.signatoryDetails
-                       ?? sigJson?.directors
-                       ?? [];
-      directors = dirs.map((s: any) => ({
-        din:         String(s.din ?? s['din/pan'] ?? ''),
-        name:        this.title(s.signatoryName ?? s.name ?? ''),
-        designation: s.designation ?? 'Director',
-        appointedOn: s.dateOfAppointment ?? s.beginDate ?? s.begin_date ?? null,
-      }));
+    // ── Director table ───────────────────────────────────────────────────────
+    // Section heading: "DIRECTOR DETAILS"
+    // Table columns: DIN | Director Name | Designation | Appointment Date
+    const directors: CinDirector[] = [];
+    const tableSection = html.match(/DIRECTOR DETAILS[\s\S]*?<table[^>]*>([\s\S]*?)<\/table>/i);
+    if (tableSection) {
+      const rows = tableSection[1].match(/<tr[^>]*>([\s\S]*?)<\/tr>/gi) ?? [];
+      for (const row of rows) {
+        // Strip all tags, get text content of each cell
+        const cells = (row.match(/<t[dh][^>]*>([\s\S]*?)<\/t[dh]>/gi) ?? [])
+          .map(c => c.replace(/<[^>]+>/g, '').trim());
+        // DIN is exactly 8 digits — use that as the row guard
+        if (cells.length >= 2 && /^\d{8}$/.test(cells[0])) {
+          directors.push({
+            din:         cells[0],
+            name:        this.title(cells[1] ?? ''),
+            designation: cells[2] ?? 'Director',
+            appointedOn: cells[3] ?? null,
+          });
+        }
+      }
     }
 
     return {
-      cin:               d.cin ?? d.CIN ?? cin,
-      companyName:       this.title(d.companyName ?? d.company_name ?? ''),
-      status:            d.companyStatus ?? d.company_status ?? 'Unknown',
-      incorporatedOn:    d.dateOfIncorporation ?? d.date_of_incorporation ?? null,
-      registeredAddress: d.registeredAddress ?? d.registered_address ?? null,
-      companyEmail:      d.emailId ?? d.email_id ?? null,
+      cin,
+      companyName,
+      status:            field('Company Status') ?? 'Unknown',
+      incorporatedOn:    field('Registration Date') ?? null,
+      registeredAddress: field('Address') ?? null,
+      companyEmail:      field('Email') ?? null,
       directors,
     };
   }
